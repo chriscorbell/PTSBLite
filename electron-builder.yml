@@ -1,0 +1,63 @@
+appId: com.ptsbuilder.app
+productName: PTSBuilder
+copyright: © 2026 Chris Corbell
+
+directories:
+  # build/ holds the source icons (icon.icns / icon.ico / icon.png), which
+  # electron-builder auto-detects per platform. Installers land in release/.
+  buildResources: build
+  output: release
+
+# electron-vite bundles everything into out/, so the packaged app only needs the
+# build output, the manifest, and the runtime icons referenced by main.ts.
+files:
+  - out/**/*
+  - package.json
+  - build/icon.png
+  - build/icon.ico
+
+asar: true
+# No native modules — skip the rebuild step (faster, no node-gyp toolchain needed).
+npmRebuild: false
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+mac:
+  category: public.app-category.productivity
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: [universal]
+    - target: zip
+      arch: [universal]
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  buildUniversalInstaller: false
+
+linux:
+  icon: build/icon.png
+  category: Graphics
+  maintainer: Chris Corbell <hi@chriscorbell.com>
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: flatpak
+      arch: [x64, arm64]
+
+flatpak:
+  runtimeVersion: "25.08"
+  baseVersion: "25.08"
+
+publish:
+  provider: github
+  owner: chriscorbell
+  repo: PTSBuilder
+  releaseType: release

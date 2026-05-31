@@ -1,0 +1,39 @@
+{
+  "name": "ptsbuilder",
+  "version": "0.1.0-beta.3",
+  "description": "Desktop 3D builder for Kelly Systems pneumatic tube systems.",
+  "author": "Chris Corbell <hi@chriscorbell.com>",
+  "main": "out/main/main.cjs",
+  "type": "module",
+  "packageManager": "pnpm@11.5.0",
+  "scripts": {
+    "dev": "env -u ELECTRON_RUN_AS_NODE electron-vite dev",
+    "build": "tsc --noEmit && electron-vite build",
+    "preview": "env -u ELECTRON_RUN_AS_NODE electron-vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "package": "pnpm run build && electron-builder",
+    "package:dir": "pnpm run build && electron-builder --dir"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "@types/three": "^0.176.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^39.8.10",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^3.1.0",
+    "lucide-react": "^0.511.0",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.176.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^4.1.7"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
+  }
+}
