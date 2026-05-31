@@ -1,0 +1,110 @@
+:root {
+  --ink:        #0B0E13;
+  --ink-2:      #0F131A;
+  --panel:      #161A21;
+  --panel-2:    #1C212B;
+  --raised:     #232936;
+  --line:       #2A3140;
+  --line-2:     #353D4E;
+  --text:       #E6E9EF;
+  --text-mut:   #8B95A7;
+  --text-dim:   #5A6373;
+  --accent:     oklch(0.79 0.13 195);
+  --accent-2:   oklch(0.62 0.12 195);
+  --accent-bg:  oklch(0.79 0.13 195 / 0.12);
+  --warn:       oklch(0.78 0.14 75);
+  --danger:     oklch(0.7  0.15 25);
+  --ok:         oklch(0.78 0.16 150);
+  --font-sans:  'Geist', system-ui, -apple-system, sans-serif;
+  /* No separate mono typeface — everything uses Geist. Kept as an alias so
+     existing var(--font-mono) usages don't need to change. */
+  --font-mono:  var(--font-sans);
+  --topbar-left-padding: 10px;
+  --topbar-right-padding: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #05070a;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+body {
+  background: var(--panel);
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  min-width: 1200px;
+  min-height: 760px;
+  background: var(--panel);
+}
+
+.app-shell {
+  width: 100%;
+  height: 100%;
+  min-width: 1200px;
+  min-height: 760px;
+  overflow: hidden;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.topbar {
+  -webkit-app-region: drag;
+}
+
+.topbar-no-drag,
+.topbar button {
+  -webkit-app-region: no-drag;
+}
+
+.nosel {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3140;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4356;
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes flashIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}

@@ -1,0 +1,7 @@
+agent/
+node_modules/
+dist/
+out/
+release/
+.DS_Store
+*.tsbuildinfo

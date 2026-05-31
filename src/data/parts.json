@@ -1,0 +1,46 @@
+{
+  "blower": {
+    "type": "blower",
+    "name": "Blower Unit",
+    "partNo": "KEL-BL-2020-A",
+    "unitPrice": 4250.0,
+    "color": "#3F4A60",
+    "cells": 1,
+    "ports": 1
+  },
+  "terminal": {
+    "type": "terminal",
+    "name": "Terminal Station",
+    "partNo": "KEL-TM-2020-S",
+    "unitPrice": 1850.0,
+    "color": "#5B6477",
+    "cells": 1,
+    "ports": 2
+  },
+  "tube6": {
+    "type": "tube",
+    "name": "Straight Tube · 6ft",
+    "partNo": "KEL-ST-06-4OD",
+    "unitPrice": 78.0,
+    "color": "#9AA4B4",
+    "cells": 6,
+    "ports": 2
+  },
+  "bend90": {
+    "type": "bend",
+    "name": "90° Bend (3ft radius)",
+    "partNo": "KEL-BN-90-3R",
+    "unitPrice": 142.0,
+    "color": "#9AA4B4",
+    "cells": 5,
+    "ports": 2,
+    "arcLength": 4.71
+  },
+  "obstacle": {
+    "type": "obstacle",
+    "name": "Obstacle Volume",
+    "partNo": "—",
+    "unitPrice": 0,
+    "color": "#3A2024"
+  }
+}

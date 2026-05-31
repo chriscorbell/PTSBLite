@@ -1,0 +1,6 @@
+allowBuilds:
+  electron: true
+  esbuild: true
+  # We package Windows with NSIS, not Squirrel.Windows, so electron-winstaller
+  # never runs and its build script is intentionally not approved.
+  electron-winstaller: false
