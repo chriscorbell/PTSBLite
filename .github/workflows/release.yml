@@ -53,6 +53,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  release-notes:
+    # Runs once after all platform builds finish (the release exists by now).
+    # electron-builder leaves the body empty, so we fill it with GitHub's
+    # auto-generated notes — PRs/commits since the previous tag.
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          # GitHub builds the changelog from merged PRs / commits since the
+          # previous tag (which it auto-detects) and returns it as markdown.
+          notes_file="$(mktemp)"
+          gh api "repos/${GH_REPO}/releases/generate-notes" \
+            -f tag_name="${TAG_NAME}" \
+            --jq '.body' > "${notes_file}"
+
+          gh release edit "${TAG_NAME}" --notes-file "${notes_file}"
+
   cleanup-release-assets:
     needs: release
     runs-on: ubuntu-latest

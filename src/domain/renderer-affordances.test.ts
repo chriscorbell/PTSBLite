@@ -67,10 +67,10 @@ describe("partLabels", () => {
     ]);
     const labels = partLabels(design);
     expect(labels.map((l) => l.text)).toEqual([
-      "KEL-BL-2020-A",
-      "KEL-TM-2020-S",
-      "KEL-ST-06-4OD",
-      "KEL-BN-90-3R"
+      "BL-2020-A",
+      "TM-2020-S",
+      "ST-06-4OD",
+      "BN-90-3R"
     ]);
     expect(labels.every((l) => l.anchor.length === 3)).toBe(true);
   });
@@ -89,10 +89,10 @@ describe("labelTextForPart", () => {
   it("returns catalog part numbers verbatim", () => {
     expect(
       labelTextForPart({ id: "b", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] })
-    ).toBe("KEL-BL-2020-A");
+    ).toBe("BL-2020-A");
     expect(
       labelTextForPart({ id: "t", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] })
-    ).toBe("KEL-TM-2020-S");
+    ).toBe("TM-2020-S");
   });
 });
 

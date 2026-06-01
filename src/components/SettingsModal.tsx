@@ -1,10 +1,11 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Icons } from "@/components/Icons";
+import { useEscapeKey } from "@/components/useEscapeKey";
 import type { AppSettings } from "@/domain/app-settings";
 import { partRegistry } from "@/domain/part-registry";
 import type { DesignMetadata } from "@/types";
 
-export type SettingsTab = "pricing" | "quote" | "system";
+export type SettingsTab = "pricing" | "quote" | "company" | "system";
 
 export type SettingsModalProps = {
   tab: SettingsTab;
@@ -54,6 +55,7 @@ const inputStyle: CSSProperties = {
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "pricing", label: "Parts Pricing" },
   { id: "quote", label: "Quote & Tax" },
+  { id: "company", label: "Company" },
   { id: "system", label: "System Details" }
 ];
 
@@ -69,6 +71,8 @@ export function SettingsModal({
   // Edit against drafts; commit everything on Save so we persist once, not per keystroke.
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [meta, setMeta] = useState<DesignMetadata>(metadata);
+
+  useEscapeKey(onClose);
 
   const pricedParts = useMemo(
     () => PRICED_KEYS.map((key) => ({ key, entry: partRegistry.get(key) })),
@@ -86,6 +90,9 @@ export function SettingsModal({
 
   const setQuote = (patch: Partial<AppSettings["quote"]>) =>
     setDraft((d) => ({ ...d, quote: { ...d.quote, ...patch } }));
+
+  const setCompany = (patch: Partial<AppSettings["company"]>) =>
+    setDraft((d) => ({ ...d, company: { ...d.company, ...patch } }));
 
   const handleSave = () => {
     onSettingsChange(draft);
@@ -258,6 +265,50 @@ export function SettingsModal({
                   onChange={(e) => setQuote({ notes: e.target.value })}
                   rows={4}
                   style={{ ...inputStyle, height: "auto", padding: 8, resize: "vertical" }}
+                />
+              </Field>
+            </div>
+          )}
+
+          {activeTab === "company" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <p style={{ fontSize: 11, color: "var(--text-mut)", margin: 0 }}>
+                Your company appears in the letterhead of every exported quote. These are global
+                and apply to every system.
+              </p>
+              <Field label="Company name">
+                <input
+                  value={draft.company.name}
+                  onChange={(e) => setCompany({ name: e.target.value })}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="Tagline">
+                <input
+                  value={draft.company.tagline}
+                  onChange={(e) => setCompany({ tagline: e.target.value })}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="Address">
+                <input
+                  value={draft.company.address}
+                  onChange={(e) => setCompany({ address: e.target.value })}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="Phone">
+                <input
+                  value={draft.company.phone}
+                  onChange={(e) => setCompany({ phone: e.target.value })}
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="Email">
+                <input
+                  value={draft.company.email}
+                  onChange={(e) => setCompany({ email: e.target.value })}
+                  style={inputStyle}
                 />
               </Field>
             </div>

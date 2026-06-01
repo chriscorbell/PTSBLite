@@ -6,6 +6,15 @@
  * design.metadata instead, not here.
  */
 
+/** The seller identity printed on quote letterheads. Edited via Settings → Company. */
+export type CompanyInfo = {
+  name: string;
+  tagline: string;
+  address: string;
+  phone: string;
+  email: string;
+};
+
 export type QuoteDefaults = {
   billTo: { name: string; lines: string[] };
   project: { name: string; lines: string[] };
@@ -18,6 +27,8 @@ export type AppSettings = {
   pricing: Record<string, number>;
   /** Sales tax rate as a fraction, e.g. 0.0825 for 8.25%. */
   taxRate: number;
+  /** The seller's own company details, shown on the quote letterhead. */
+  company: CompanyInfo;
   quote: QuoteDefaults;
 };
 
@@ -25,15 +36,23 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // Empty by default: prices fall back to the catalog (parts.json) until edited.
   pricing: {},
   taxRate: 0.0825,
+  // Generic placeholders — the end user fills in their own details via Settings.
+  company: {
+    name: "Your Company",
+    tagline: "Pneumatic Tube Systems",
+    address: "123 Example St, City, ST 00000",
+    phone: "(555) 000-0000",
+    email: "sales@example.com"
+  },
   quote: {
     billTo: {
-      name: "Mercy Regional Hospital",
-      lines: ["Attn: David Choi, Facilities", "1212 Sherman Way, Akron OH 44303"]
+      name: "Customer Name",
+      lines: ["Attn: Contact Name", "Street Address, City, ST 00000"]
     },
-    project: { name: "Building 07 Lab Wing — KEL2020", lines: [] },
-    quoteNumber: "Q-2026-0184",
+    project: { name: "Project Name", lines: [] },
+    quoteNumber: "Q-0001",
     notes:
-      "Pricing reflects KEL2020 single-direction system. Installation, electrical, and " +
+      "Pricing reflects a single-direction system. Installation, electrical, and " +
       "site preparation quoted separately. Stock tube count includes 6ft sections that " +
       "will be cut on-site to required lengths; offcuts are not warranted."
   }
@@ -68,6 +87,7 @@ export function mergeSettings(defaults: AppSettings, loaded: unknown): AppSettin
   const loadedQuote = isRecord(loaded.quote) ? loaded.quote : {};
   const billTo = isRecord(loadedQuote.billTo) ? loadedQuote.billTo : {};
   const project = isRecord(loadedQuote.project) ? loadedQuote.project : {};
+  const company = isRecord(loaded.company) ? loaded.company : {};
 
   const strings = (value: unknown, fallback: string[]): string[] =>
     Array.isArray(value) && value.every((v) => typeof v === "string") ? value : fallback;
@@ -77,6 +97,13 @@ export function mergeSettings(defaults: AppSettings, loaded: unknown): AppSettin
   return {
     pricing,
     taxRate,
+    company: {
+      name: str(company.name, defaults.company.name),
+      tagline: str(company.tagline, defaults.company.tagline),
+      address: str(company.address, defaults.company.address),
+      phone: str(company.phone, defaults.company.phone),
+      email: str(company.email, defaults.company.email)
+    },
     quote: {
       billTo: {
         name: str(billTo.name, defaults.quote.billTo.name),

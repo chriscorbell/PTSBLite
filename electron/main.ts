@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from "electron";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { autoUpdater } from "electron-updater";
@@ -80,6 +80,36 @@ function initAutoUpdate(): void {
   autoUpdater.checkForUpdates().catch((err) => {
     console.error("[auto-update] check failed:", err);
   });
+}
+
+// Where users on platforms without self-update (macOS, non-AppImage Linux) can
+// grab a fresh build by hand. /releases/latest skips drafts and prereleases,
+// matching electron-builder's `releaseType: release`.
+const RELEASES_LATEST_URL = "https://github.com/chriscorbell/PTSBuilder/releases/latest";
+const LATEST_RELEASE_API = "https://api.github.com/repos/chriscorbell/PTSBuilder/releases/latest";
+
+// Compare x.y.z versions numerically; pre-release suffixes are ignored. Returns
+// true when `latest` is strictly ahead of `current`.
+function isNewerVersion(latest: string, current: string): boolean {
+  const parse = (v: string) => v.replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
+  const a = parse(latest);
+  const b = parse(current);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
+  }
+  return false;
+}
+
+// Fetch the latest published release tag from the GitHub API (no auth needed for
+// a public repo). Throws on network/HTTP failure so callers can report an error.
+async function latestPublishedVersion(): Promise<string> {
+  const res = await fetch(LATEST_RELEASE_API, {
+    headers: { Accept: "application/vnd.github+json", "User-Agent": "PTSBuilder" }
+  });
+  if (!res.ok) throw new Error(`GitHub API responded ${res.status}`);
+  const data = (await res.json()) as { tag_name?: string };
+  if (!data.tag_name) throw new Error("latest release has no tag_name");
+  return data.tag_name.replace(/^v/, "");
 }
 
 function createWindow(): void {
@@ -180,6 +210,53 @@ app.whenReady().then(() => {
       return { ok: true };
     } catch (err) {
       return { ok: false, error: String(err) };
+    }
+  });
+
+  // Open a URL in the user's default browser. Only http(s) links are honored so
+  // a compromised renderer can't ask the OS to launch arbitrary schemes.
+  ipcMain.handle("shell:open-external", async (_event, url: string) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        return { ok: false, error: `Refusing to open non-web URL: ${parsed.protocol}` };
+      }
+      await shell.openExternal(url);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err) };
+    }
+  });
+
+  // Manual "Check for Updates" trigger from the About modal.
+  ipcMain.handle("update:check", async () => {
+    // Platforms without self-update (macOS, non-AppImage Linux): ask GitHub
+    // directly and, if a newer release exists, point the user at the download
+    // page so they can update by hand.
+    if (!autoUpdateSupported()) {
+      try {
+        const latest = await latestPublishedVersion();
+        if (isNewerVersion(latest, app.getVersion())) {
+          return { status: "manual" as const, version: latest, url: RELEASES_LATEST_URL };
+        }
+        return { status: "up-to-date" as const };
+      } catch (err) {
+        console.error("[auto-update] manual GitHub check failed:", err);
+        return { status: "error" as const };
+      }
+    }
+
+    // Supported platforms: a found update auto-downloads and the
+    // `update-downloaded` listener prompts the restart.
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      if (result?.isUpdateAvailable) {
+        return { status: "available" as const, version: result.updateInfo.version };
+      }
+      return { status: "up-to-date" as const };
+    } catch (err) {
+      console.error("[auto-update] manual check failed:", err);
+      return { status: "error" as const };
     }
   });
 

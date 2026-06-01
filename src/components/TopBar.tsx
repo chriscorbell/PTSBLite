@@ -14,6 +14,7 @@ export type TopBarProps = {
   onToggleBom: () => void;
   showLabels: boolean;
   onShowLabelsChange: (next: boolean) => void;
+  onAbout: () => void;
 };
 
 export function TopBar({
@@ -27,7 +28,8 @@ export function TopBar({
   bomOpen,
   onToggleBom,
   showLabels,
-  onShowLabelsChange
+  onShowLabelsChange,
+  onAbout
 }: TopBarProps) {
   return (
     <div
@@ -85,6 +87,14 @@ export function TopBar({
         aria-pressed={bomOpen}
       >
         <Icons.Bom size={14} /> BOM
+      </button>
+      <button
+        className="topbtn icon topbar-no-drag"
+        title="About"
+        aria-label="About"
+        onClick={onAbout}
+      >
+        <Icons.Info size={15} />
       </button>
       <style>{`
         .topbtn {
@@ -249,6 +259,9 @@ function EditMenu({ onEdit }: { onEdit?: (tab: SettingsTab) => void }) {
           </button>
           <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={() => choose("quote")}>
             <Icons.Pdf size={14} /> Quote &amp; Tax…
+          </button>
+          <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={() => choose("company")}>
+            <Icons.Info size={14} /> Company Info…
           </button>
           <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={() => choose("system")}>
             <Icons.Layers size={14} /> System Details…

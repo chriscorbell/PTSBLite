@@ -2,7 +2,7 @@ import { SparseGrid } from "@/domain/sparse-grid";
 import { bendFootprint } from "@/domain/bend-placement";
 import type { DesignMetadata, DesignState, Obstacle, Part, Scene, Vec3 } from "@/types";
 
-export const DEFAULT_FILENAME = "untitled.kel2020";
+export const DEFAULT_FILENAME = "untitled.ptsb";
 export const DEFAULT_REVISION = "0.1";
 
 function cloneJson<T>(value: T): T {

@@ -1,5 +1,6 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { Icons } from "@/components/Icons";
+import { useEscapeKey } from "@/components/useEscapeKey";
 import type { AppSettings } from "@/domain/app-settings";
 import { bomRows, totalPathLength } from "@/domain/parts";
 import {
@@ -34,8 +35,9 @@ export type ExportPdfModalProps = {
 };
 
 export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdfModalProps) {
+  useEscapeKey(onClose);
   // One options object drives BOTH the on-screen preview and the generated PDF, so
-  // they can't drift apart. Quote/customer info and tax come from global settings.
+  // they can't drift apart. Company, quote/customer info, and tax come from settings.
   const options: QuotePdfOptions = useMemo(() => {
     const projectLines = settings.quote.project.lines.length
       ? settings.quote.project.lines
@@ -44,6 +46,7 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
           `Designed in PTSBuilder · System file ${design.metadata.filename}`
         ];
     return {
+      company: settings.company,
       quoteNumber: settings.quote.quoteNumber,
       date: formatQuoteDate(),
       billTo: settings.quote.billTo,
@@ -52,6 +55,16 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
       taxRate: settings.taxRate
     };
   }, [settings, design]);
+
+  const company = settings.company;
+  // Decorative label in the modal header; the real export filename is chosen in
+  // the save dialog. Derive it from the system name so it isn't a fixed literal.
+  const previewFilename = useMemo(() => {
+    const base = design.metadata.filename.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9]+/g, "_");
+    return `QUOTE_${(base || "UNTITLED").toUpperCase()}.pdf`;
+  }, [design.metadata.filename]);
+
+  const contactLine = [company.phone, company.email].filter(Boolean).join(" · ");
 
   const rows = bomRows(design);
   const subtotal = rows.reduce((a, r) => a + r.qty * r.unitPrice, 0);
@@ -138,7 +151,7 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
               flex: "0 1 auto"
             }}
           >
-            QUOTE_BUILDING_07_KEL2020.pdf
+            {previewFilename}
           </div>
           <div style={{ flex: 1 }} />
           <button className="topbtn" onClick={handlePrint} disabled={!!busy}>
@@ -170,15 +183,17 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
           >
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
               <div>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }}>Kelly Systems</div>
-                <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>
-                  Pneumatic Tube Systems · Established 1972
-                </div>
-                <div style={{ fontSize: 11, color: "#5B6473", marginTop: 14 }}>
-                  4520 Industrial Pkwy · Cleveland, OH 44135
-                  <br />
-                  (216) 555-0114 · sales@kellysystems.example
-                </div>
+                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }}>{company.name}</div>
+                {company.tagline && (
+                  <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>{company.tagline}</div>
+                )}
+                {(company.address || contactLine) && (
+                  <div style={{ fontSize: 11, color: "#5B6473", marginTop: 14 }}>
+                    {company.address}
+                    {company.address && contactLine && <br />}
+                    {contactLine}
+                  </div>
+                )}
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 6, color: "#1B1E26" }}>QUOTE</div>

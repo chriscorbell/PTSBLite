@@ -35,11 +35,11 @@ describe("serializeDesign", () => {
   });
 
   it("serializes parts, obstacles, and metadata", () => {
-    const design = designFromScene(FULL_SCENE, { filename: "house.kel2020", revision: "0.3" });
+    const design = designFromScene(FULL_SCENE, { filename: "house.ptsb", revision: "0.3" });
     const file = serializeDesign(design);
     expect(file.parts).toHaveLength(4);
     expect(file.obstacles).toHaveLength(1);
-    expect(file.metadata).toEqual({ filename: "house.kel2020", revision: "0.3" });
+    expect(file.metadata).toEqual({ filename: "house.ptsb", revision: "0.3" });
   });
 
   it("produces JSON-stringifiable output (no live grid handle)", () => {
@@ -54,7 +54,7 @@ describe("serializeDesign", () => {
 
 describe("deserializeDesign", () => {
   it("roundtrips a full design preserving parts, obstacles, and metadata", () => {
-    const original = designFromScene(FULL_SCENE, { filename: "house.kel2020", revision: "0.3" });
+    const original = designFromScene(FULL_SCENE, { filename: "house.ptsb", revision: "0.3" });
     const text = JSON.stringify(serializeDesign(original));
     const result = deserializeDesign(text);
     expect(result.ok).toBe(true);

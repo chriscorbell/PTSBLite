@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { inflateSync } from "node:zlib";
 import { PDFDocument } from "pdf-lib";
+import { DEFAULT_SETTINGS } from "@/domain/app-settings";
 import { emptyDesign } from "@/domain/design-state";
 import { bomRows } from "@/domain/parts";
 import { generateQuotePdf } from "@/domain/quote-pdf";
 import type { DesignState, Part } from "@/types";
 
 function designWith(parts: Part[]): DesignState {
-  return { ...emptyDesign({ filename: "BUILDING_07.kel2020", revision: "0.1" }), parts };
+  return { ...emptyDesign({ filename: "building-07.ptsb", revision: "0.1" }), parts };
 }
 
 const sampleParts: Part[] = [
@@ -120,7 +121,7 @@ describe("generateQuotePdf", () => {
     const design = designWith(sampleParts);
     const bytes = await generateQuotePdf(design);
     const text = extractText(bytes);
-    expect(text).toContain("Kelly Systems");
+    expect(text).toContain(DEFAULT_SETTINGS.company.name);
     expect(text).toContain("BILL TO");
     expect(text).toContain("PROJECT");
     expect(text).toContain("NOTES");
