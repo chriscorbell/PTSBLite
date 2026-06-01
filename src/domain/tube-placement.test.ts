@@ -3,6 +3,7 @@ import { bendFootprint } from "@/domain/bend-placement";
 import { emptyDesign } from "@/domain/design-state";
 import { computeTopology } from "@/domain/topology";
 import {
+  TUBE_BLOCKED_MESSAGE,
   TUBE_PLACEMENT_MESSAGE,
   placeTube,
   tubeLandingCells,
@@ -150,6 +151,71 @@ describe("Straight tube snap placement", () => {
     expect(result.part).toMatchObject({
       from: [1.5, 0.5, 0.5],
       to: [1.5, 0.5, -5.5]
+    });
+  });
+});
+
+describe("Straight tube partial placement", () => {
+  it("places as many segments as fit when an obstacle blocks the path", () => {
+    const design = emptyDesign();
+    design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
+    design.grid.place([0, 0, 0], "b1");
+    design.grid.place([4, 0, 0], "o1"); // obstacle cell three steps down the run
+
+    // Ghost previews the truncated run (cells 1..3) up to the obstacle.
+    expect(tubePlacementGhost(design, [1, 0, 0])).toEqual({
+      type: "tube",
+      from: [1.5, 0.5, 0.5],
+      to: [4.5, 0.5, 0.5]
+    });
+
+    const result = placeTube(design, { id: "st1", cell: [1, 0, 0] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.part.length).toBe(3);
+    expect(result.part.to).toEqual([4.5, 0.5, 0.5]);
+    for (let x = 1; x <= 3; x++) expect(result.design.grid.query([x, 0, 0])).toBe("st1");
+    expect(result.design.grid.query([4, 0, 0])).toBe("o1"); // obstacle untouched
+  });
+
+  it("places as many segments as fit before the build-area edge", () => {
+    const design = emptyDesign({ buildArea: { width: 10, depth: 10, height: 4 } });
+    design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
+    design.grid.place([0, 0, 0], "b1");
+
+    const result = placeTube(design, { id: "st1", cell: [1, 0, 0] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // X spans [-5, 5): cells 1..4 fit, x = 5 is out of bounds.
+    expect(result.part.length).toBe(4);
+    expect(result.part.to).toEqual([5.5, 0.5, 0.5]);
+  });
+
+  it("places as many segments as fit before an existing part", () => {
+    const design = emptyDesign();
+    design.parts = [
+      { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [3, 0, 0], axis: [1, 0, 0] }
+    ];
+    design.grid.place([0, 0, 0], "b1");
+    design.grid.place([3, 0, 0], "t2");
+
+    const result = placeTube(design, { id: "st1", cell: [1, 0, 0] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.part.length).toBe(2); // cells 1..2 fit; cell 3 holds the terminal
+    expect(result.part.to).toEqual([3.5, 0.5, 0.5]);
+  });
+
+  it("reports blocked when not even one segment fits", () => {
+    const design = emptyDesign({ buildArea: { width: 10, depth: 10, height: 4 } });
+    // Blower at the +X edge facing out: its only port is already out of bounds.
+    design.parts = [{ id: "b1", type: "blower", cell: [4, 0, 0], dir: [1, 0, 0] }];
+    design.grid.place([4, 0, 0], "b1");
+
+    expect(placeTube(design, { id: "st1", cell: [5, 0, 0] })).toEqual({
+      ok: false,
+      message: TUBE_BLOCKED_MESSAGE
     });
   });
 });
