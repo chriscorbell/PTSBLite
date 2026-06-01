@@ -50,9 +50,21 @@ export type Ghost =
   | { type: "bend"; entry: Vec3; exit: Vec3; center: Vec3; inDir: Vec3; outDir: Vec3; radius?: number }
   | { type: "obstacle"; min: Vec3; max: Vec3 };
 
+/**
+ * The buildable volume for a design, in feet (1 cell = 1 ft). `width` is the X
+ * span and `depth` the Z span of the ground footprint (centered on the origin);
+ * `height` is how far the volume extends up from the ground plane (Y = 0).
+ */
+export type BuildArea = {
+  width: number;
+  depth: number;
+  height: number;
+};
+
 export type DesignMetadata = {
   filename: string;
   revision: string;
+  buildArea: BuildArea;
 };
 
 import type { SparseGrid } from "@/domain/sparse-grid";

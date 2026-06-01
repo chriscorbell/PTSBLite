@@ -7,8 +7,8 @@ import {
   type PartLabel,
   type PortMarker
 } from "@/domain/renderer-affordances";
-import { GRID_HALF_EXTENT } from "@/domain/sparse-grid";
-import type { Camera, Ghost, Scene, ToolId, Vec3 } from "@/types";
+import { boundsFromBuildArea, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
+import type { BuildArea, Camera, Ghost, Scene, ToolId, Vec3 } from "@/types";
 
 const VP = {
   bg: 0x0b0e13,
@@ -398,27 +398,45 @@ function buildObstacleMesh(min: Vec3, max: Vec3, opts: { ghost?: boolean } = {})
   return g;
 }
 
-function buildGround(): THREE.Group {
+function buildGroundLines(positions: number[], color: number, opacity: number, y: number): THREE.LineSegments {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+  const lines = new THREE.LineSegments(geo, mat);
+  lines.position.y = y;
+  return lines;
+}
+
+function buildGround(area: BuildArea): THREE.Group {
   const g = new THREE.Group();
-  const size = GRID_HALF_EXTENT * 2;
+  const b = boundsFromBuildArea(area);
+  // Footprint may be off-center for odd dimensions; center the plane on it.
+  const cx = (b.xMin + b.xMax) / 2;
+  const cz = (b.zMin + b.zMax) / 2;
+
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(size, size),
+    new THREE.PlaneGeometry(area.width, area.depth),
     // Unlit so the plane is a flat, uniform color — MeshStandardMaterial would
     // pick up the directional lights and shade a gradient across the ground.
     new THREE.MeshBasicMaterial({ color: VP.ground })
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.005;
+  ground.position.set(cx, -0.005, cz);
   g.add(ground);
-  const grid = new THREE.GridHelper(size, size, VP.gridStrong, VP.grid);
-  (grid.material as THREE.Material).transparent = true;
-  (grid.material as THREE.Material).opacity = 0.45;
-  g.add(grid);
-  const grid5 = new THREE.GridHelper(size, size / 5, VP.gridStrong, VP.gridStrong);
-  (grid5.material as THREE.Material).transparent = true;
-  (grid5.material as THREE.Material).opacity = 0.7;
-  grid5.position.y = 0.001;
-  g.add(grid5);
+
+  // Build the grid lines by hand (THREE.GridHelper only draws square grids):
+  // a faint 1 ft minor line at every cell boundary, with a stronger line every
+  // 5 ft (and at the origin axes).
+  const minor: number[] = [];
+  const major: number[] = [];
+  for (let x = b.xMin; x <= b.xMax; x++) {
+    (x % 5 === 0 ? major : minor).push(x, 0, b.zMin, x, 0, b.zMax);
+  }
+  for (let z = b.zMin; z <= b.zMax; z++) {
+    (z % 5 === 0 ? major : minor).push(b.xMin, 0, z, b.xMax, 0, z);
+  }
+  g.add(buildGroundLines(minor, VP.grid, 0.45, 0));
+  g.add(buildGroundLines(major, VP.gridStrong, 0.7, 0.001));
   return g;
 }
 
@@ -648,9 +666,21 @@ type ViewportState = {
   planeGroup?: THREE.Group;
   portsGroup?: THREE.Group;
   labelsGroup?: THREE.Group;
+  groundGroup?: THREE.Group;
   hoverPlane?: THREE.Mesh;
   cleanup?: () => void;
 };
+
+function disposeGroup(group: THREE.Group): void {
+  group.traverse((node) => {
+    if (node instanceof THREE.Mesh || node instanceof THREE.LineSegments) {
+      node.geometry.dispose();
+      const material = node.material;
+      if (Array.isArray(material)) material.forEach((m) => m.dispose());
+      else material.dispose();
+    }
+  });
+}
 
 type PointerPoint = {
   x: number;
@@ -726,6 +756,7 @@ export type ViewportPlaceTarget = {
 
 export type ViewportProps = {
   scene: Scene;
+  buildArea?: BuildArea;
   ghost: Ghost | null;
   tool: ToolId;
   camera?: Camera;
@@ -773,6 +804,7 @@ export function clickCellForTool(
 
 export function Viewport({
   scene,
+  buildArea = DEFAULT_BUILD_AREA,
   ghost,
   tool,
   camera: camCfg,
@@ -832,7 +864,10 @@ export function Viewport({
     rim.position.set(-10, 8, -6);
     scene3.add(rim);
 
-    scene3.add(buildGround());
+    // Initial ground/grid for the mount-time build area; a dedicated effect
+    // rebuilds it whenever the build area changes.
+    const groundGroup = buildGround(buildArea);
+    scene3.add(groundGroup);
 
     const partsGroup = new THREE.Group();
     scene3.add(partsGroup);
@@ -874,6 +909,7 @@ export function Viewport({
       planeGroup,
       portsGroup,
       labelsGroup,
+      groundGroup,
       hoverPlane
     };
 
@@ -1082,6 +1118,19 @@ export function Viewport({
       updateLineResolutions(s.obstaclesGroup, size.x, size.y);
     }
   }, [scene]);
+
+  // Rebuild the ground plane + grid when the configured build area changes.
+  useEffect(() => {
+    const s = stateRef.current;
+    if (!s.scene3) return;
+    if (s.groundGroup) {
+      s.scene3.remove(s.groundGroup);
+      disposeGroup(s.groundGroup);
+    }
+    const ground = buildGround(buildArea);
+    s.scene3.add(ground);
+    s.groundGroup = ground;
+  }, [buildArea.width, buildArea.depth, buildArea.height]);
 
   useEffect(() => {
     const s = stateRef.current;

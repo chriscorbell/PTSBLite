@@ -3,7 +3,8 @@ import { Icons } from "@/components/Icons";
 import { useEscapeKey } from "@/components/useEscapeKey";
 import type { AppSettings } from "@/domain/app-settings";
 import { partRegistry } from "@/domain/part-registry";
-import type { DesignMetadata } from "@/types";
+import { BUILD_AREA_LIMITS, clampBuildArea } from "@/domain/sparse-grid";
+import type { BuildArea, DesignMetadata } from "@/types";
 
 export type SettingsTab = "pricing" | "quote" | "company" | "system";
 
@@ -18,6 +19,13 @@ export type SettingsModalProps = {
 
 // The priced catalog parts the user may re-price (obstacle is $0 / "—", excluded).
 const PRICED_KEYS = ["blower", "terminal", "tube6", "bend90"] as const;
+
+// Build-area axes, labeled with their world-space axis for the System Details tab.
+const BUILD_AREA_AXES: { key: keyof BuildArea; label: string }[] = [
+  { key: "width", label: "Width (X)" },
+  { key: "depth", label: "Depth (Z)" },
+  { key: "height", label: "Height (Y)" }
+];
 
 const iconBtn: CSSProperties = {
   width: 32,
@@ -94,11 +102,20 @@ export function SettingsModal({
   const setCompany = (patch: Partial<AppSettings["company"]>) =>
     setDraft((d) => ({ ...d, company: { ...d.company, ...patch } }));
 
+  const setBuildArea = (patch: Partial<BuildArea>) =>
+    setMeta((m) => ({ ...m, buildArea: { ...m.buildArea, ...patch } }));
+
   const handleSave = () => {
     onSettingsChange(draft);
-    if (meta.filename !== metadata.filename || meta.revision !== metadata.revision) {
-      onMetadataChange(meta);
-    }
+    // Clamp the build area to whole feet within limits before committing.
+    const nextMeta: DesignMetadata = { ...meta, buildArea: clampBuildArea(meta.buildArea) };
+    const metaChanged =
+      nextMeta.filename !== metadata.filename ||
+      nextMeta.revision !== metadata.revision ||
+      nextMeta.buildArea.width !== metadata.buildArea.width ||
+      nextMeta.buildArea.depth !== metadata.buildArea.depth ||
+      nextMeta.buildArea.height !== metadata.buildArea.height;
+    if (metaChanged) onMetadataChange(nextMeta);
     onClose();
   };
 
@@ -333,6 +350,30 @@ export function SettingsModal({
                   style={{ ...inputStyle, width: 140 }}
                 />
               </Field>
+
+              <div>
+                <span style={labelStyle}>Build area (feet)</span>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {BUILD_AREA_AXES.map(({ key, label }) => (
+                    <label key={key} style={{ flex: 1 }}>
+                      <span style={{ ...labelStyle, marginBottom: 4 }}>{label}</span>
+                      <input
+                        type="number"
+                        min={BUILD_AREA_LIMITS[key].min}
+                        max={BUILD_AREA_LIMITS[key].max}
+                        step={1}
+                        value={meta.buildArea[key]}
+                        onChange={(e) => setBuildArea({ [key]: Number(e.target.value) })}
+                        style={inputStyle}
+                      />
+                    </label>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: "var(--text-mut)", margin: "8px 0 0" }}>
+                  The buildable volume and the ground-plane grid (1 ft = 1 cell). The footprint is
+                  centered on the origin; height rises from the floor.
+                </p>
+              </div>
             </div>
           )}
         </div>

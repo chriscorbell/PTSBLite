@@ -1,6 +1,11 @@
-import { SparseGrid } from "@/domain/sparse-grid";
+import {
+  SparseGrid,
+  boundsFromBuildArea,
+  clampBuildArea,
+  DEFAULT_BUILD_AREA
+} from "@/domain/sparse-grid";
 import { bendFootprint } from "@/domain/bend-placement";
-import type { DesignMetadata, DesignState, Obstacle, Part, Scene, Vec3 } from "@/types";
+import type { BuildArea, DesignMetadata, DesignState, Obstacle, Part, Scene, Vec3 } from "@/types";
 
 export const DEFAULT_FILENAME = "untitled.ptsb";
 export const DEFAULT_REVISION = "0.1";
@@ -12,7 +17,8 @@ function cloneJson<T>(value: T): T {
 function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
   return {
     filename: meta?.filename ?? DEFAULT_FILENAME,
-    revision: meta?.revision ?? DEFAULT_REVISION
+    revision: meta?.revision ?? DEFAULT_REVISION,
+    buildArea: meta?.buildArea ? clampBuildArea(meta.buildArea) : { ...DEFAULT_BUILD_AREA }
   };
 }
 
@@ -40,8 +46,8 @@ function tubeCells(from: Vec3, to: Vec3): Vec3[] {
   ]);
 }
 
-function buildGrid(parts: Part[], obstacles: Obstacle[]): SparseGrid {
-  const grid = new SparseGrid();
+function buildGrid(parts: Part[], obstacles: Obstacle[], buildArea: BuildArea): SparseGrid {
+  const grid = new SparseGrid(boundsFromBuildArea(buildArea));
   for (const p of parts) {
     if (p.type === "blower" || p.type === "terminal") {
       const cell = p.cell as Vec3;
@@ -73,22 +79,41 @@ function buildGrid(parts: Part[], obstacles: Obstacle[]): SparseGrid {
   return grid;
 }
 
+/** The grid cells a part occupies (same enumeration `buildGrid` registers). */
+function partCells(part: Part): Vec3[] {
+  if (part.type === "blower" || part.type === "terminal") return [part.cell as Vec3];
+  if (part.type === "tube") return tubeCells(part.from, part.to);
+  if (part.type === "bend") return bendFootprint(part);
+  return [];
+}
+
+/**
+ * Keep only the parts whose entire footprint fits within `buildArea`. Used when
+ * the user shrinks the build area: anything now outside the bounds is dropped.
+ */
+export function partsWithinBuildArea(parts: Part[], buildArea: BuildArea): Part[] {
+  const grid = new SparseGrid(boundsFromBuildArea(buildArea));
+  return parts.filter((part) => partCells(part).every((cell) => grid.withinBounds(cell)));
+}
+
 export function emptyDesign(meta?: Partial<DesignMetadata>): DesignState {
+  const metadata = withMetadata(meta);
   return {
     parts: [],
     obstacles: [],
-    metadata: withMetadata(meta),
-    grid: new SparseGrid()
+    metadata,
+    grid: new SparseGrid(boundsFromBuildArea(metadata.buildArea))
   };
 }
 
 export function designFromScene(scene: Scene, meta?: Partial<DesignMetadata>): DesignState {
+  const metadata = withMetadata(meta);
   const parts = cloneJson(scene.parts ?? []);
   const obstacles = cloneJson(scene.obstacles ?? []);
   return {
     parts,
     obstacles,
-    metadata: withMetadata(meta),
-    grid: buildGrid(parts, obstacles)
+    metadata,
+    grid: buildGrid(parts, obstacles, metadata.buildArea)
   };
 }

@@ -1,7 +1,9 @@
 import { designFromScene } from "@/domain/design-state";
+import { clampBuildArea } from "@/domain/sparse-grid";
 import type {
   BendPart,
   BlowerPart,
+  BuildArea,
   DesignMetadata,
   DesignState,
   Obstacle,
@@ -99,7 +101,27 @@ function parseMetadata(
   if (!isRecord(value)) return fail("Missing metadata object.");
   if (typeof value.filename !== "string") return fail("metadata.filename must be a string.");
   if (typeof value.revision !== "string") return fail("metadata.revision must be a string.");
-  return { ok: true, metadata: { filename: value.filename, revision: value.revision } };
+  return {
+    ok: true,
+    metadata: {
+      filename: value.filename,
+      revision: value.revision,
+      // Forgiving migration: files saved before the build area was configurable
+      // (or with a malformed area) fall back to the default, clamped to limits.
+      buildArea: parseBuildArea(value.buildArea)
+    }
+  };
+}
+
+function parseBuildArea(value: unknown): BuildArea {
+  const partial = isRecord(value)
+    ? {
+        width: typeof value.width === "number" ? value.width : undefined,
+        depth: typeof value.depth === "number" ? value.depth : undefined,
+        height: typeof value.height === "number" ? value.height : undefined
+      }
+    : undefined;
+  return clampBuildArea(partial);
 }
 
 function parsePart(

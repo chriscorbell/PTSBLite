@@ -56,11 +56,12 @@ describe("active build plane elevation", () => {
   });
 
   it("enumerates vertical bend exits for a horizontal source port", () => {
+    // Elevated so the downward exit has headroom above the ground plane.
     const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([0, 0, 0], "b1");
+    design.parts = [{ id: "b1", type: "blower", cell: [0, 5, 0], dir: [1, 0, 0] }];
+    design.grid.place([0, 5, 0], "b1");
 
-    const outDirs = validBendOrientations(design, [1, 0, 0]).map((o) => o.outDir.join(","));
+    const outDirs = validBendOrientations(design, [1, 5, 0]).map((o) => o.outDir.join(","));
 
     expect(outDirs).toContain("0,1,0");
     expect(outDirs).toContain("0,-1,0");
