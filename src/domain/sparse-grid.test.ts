@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { SparseGrid } from "@/domain/sparse-grid";
+import {
+  boundsFromBuildArea,
+  clampBuildArea,
+  BUILD_AREA_LIMITS,
+  DEFAULT_BUILD_AREA,
+  SparseGrid
+} from "@/domain/sparse-grid";
 
 describe("SparseGrid.withinBounds", () => {
   it("returns true for the origin", () => {
@@ -7,24 +13,55 @@ describe("SparseGrid.withinBounds", () => {
     expect(g.withinBounds([0, 0, 0])).toBe(true);
   });
 
-  it("returns true for cells within [-30, 30)", () => {
+  it("returns true for cells inside the default 60×60×30 area", () => {
     const g = new SparseGrid();
+    // X/Z span [-30, 30); Y rises from the ground (0) up to 30.
     expect(g.withinBounds([29, 29, 29])).toBe(true);
-    expect(g.withinBounds([-30, -30, -30])).toBe(true);
+    expect(g.withinBounds([-30, 0, -30])).toBe(true);
   });
 
-  it("returns false when any coordinate is >= 30", () => {
+  it("returns false when X or Z is >= 30, or Y reaches the ceiling (>= 30)", () => {
     const g = new SparseGrid();
     expect(g.withinBounds([30, 0, 0])).toBe(false);
     expect(g.withinBounds([0, 30, 0])).toBe(false);
     expect(g.withinBounds([0, 0, 30])).toBe(false);
   });
 
-  it("returns false when any coordinate is < -30", () => {
+  it("returns false below the X/Z edge (< -30) or below the ground (Y < 0)", () => {
     const g = new SparseGrid();
     expect(g.withinBounds([-31, 0, 0])).toBe(false);
-    expect(g.withinBounds([0, -31, 0])).toBe(false);
     expect(g.withinBounds([0, 0, -31])).toBe(false);
+    expect(g.withinBounds([0, -1, 0])).toBe(false);
+  });
+});
+
+describe("configurable build area", () => {
+  it("derives centered X/Z bounds and ground-up Y bounds from a build area", () => {
+    const b = boundsFromBuildArea({ width: 20, depth: 40, height: 10 });
+    expect([b.xMin, b.xMax]).toEqual([-10, 10]);
+    expect([b.zMin, b.zMax]).toEqual([-20, 20]);
+    expect([b.yMin, b.yMax]).toEqual([0, 10]);
+  });
+
+  it("honors custom bounds in withinBounds", () => {
+    const g = new SparseGrid(boundsFromBuildArea({ width: 10, depth: 10, height: 4 }));
+    expect(g.withinBounds([4, 3, 4])).toBe(true);
+    expect(g.withinBounds([5, 0, 0])).toBe(false); // X past the smaller edge
+    expect(g.withinBounds([0, 4, 0])).toBe(false); // Y at the lower ceiling
+  });
+
+  it("clamps build areas to whole feet within limits, falling back on bad input", () => {
+    expect(clampBuildArea({ width: 80.6, depth: 40, height: 12 })).toEqual({
+      width: 81,
+      depth: 40,
+      height: 12
+    });
+    expect(clampBuildArea({ width: 5000, depth: 1, height: -3 })).toEqual({
+      width: BUILD_AREA_LIMITS.width.max,
+      depth: BUILD_AREA_LIMITS.depth.min,
+      height: BUILD_AREA_LIMITS.height.min
+    });
+    expect(clampBuildArea(undefined)).toEqual(DEFAULT_BUILD_AREA);
   });
 });
 
@@ -100,19 +137,20 @@ describe("SparseGrid.clone", () => {
 describe("SparseGrid.neighbors", () => {
   it("returns 6 face-adjacent cells for an interior cell", () => {
     const g = new SparseGrid();
-    const n = g.neighbors([0, 0, 0]);
+    // Above the ground plane so both vertical neighbors stay in bounds.
+    const n = g.neighbors([0, 1, 0]);
     expect(n).toHaveLength(6);
-    expect(n).toContainEqual([1, 0, 0]);
-    expect(n).toContainEqual([-1, 0, 0]);
-    expect(n).toContainEqual([0, 1, 0]);
-    expect(n).toContainEqual([0, -1, 0]);
-    expect(n).toContainEqual([0, 0, 1]);
-    expect(n).toContainEqual([0, 0, -1]);
+    expect(n).toContainEqual([1, 1, 0]);
+    expect(n).toContainEqual([-1, 1, 0]);
+    expect(n).toContainEqual([0, 2, 0]);
+    expect(n).toContainEqual([0, 0, 0]);
+    expect(n).toContainEqual([0, 1, 1]);
+    expect(n).toContainEqual([0, 1, -1]);
   });
 
   it("clips neighbors at the positive boundary", () => {
     const g = new SparseGrid();
-    const n = g.neighbors([29, 0, 0]);
+    const n = g.neighbors([29, 1, 0]);
     const xs = n.map((c) => c[0]);
     expect(xs).not.toContain(30);
     expect(xs).toContain(28);
@@ -120,10 +158,16 @@ describe("SparseGrid.neighbors", () => {
 
   it("clips neighbors at the negative boundary", () => {
     const g = new SparseGrid();
-    const n = g.neighbors([-30, 0, 0]);
+    const n = g.neighbors([-30, 1, 0]);
     const xs = n.map((c) => c[0]);
     expect(xs).not.toContain(-31);
     expect(xs).toContain(-29);
-    expect(n.length).toBe(5);
+  });
+
+  it("clips the downward neighbor at the ground plane", () => {
+    const g = new SparseGrid();
+    const ys = g.neighbors([0, 0, 0]).map((c) => c[1]);
+    expect(ys).not.toContain(-1);
+    expect(ys).toContain(1);
   });
 });

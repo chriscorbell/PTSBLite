@@ -5,6 +5,7 @@ import {
   serializeDesign
 } from "@/domain/design-file";
 import { designFromScene, emptyDesign } from "@/domain/design-state";
+import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
 import type { BendPart, BlowerPart, Scene, TerminalPart, TubePart } from "@/types";
 
 const FULL_SCENE: Scene = {
@@ -39,7 +40,11 @@ describe("serializeDesign", () => {
     const file = serializeDesign(design);
     expect(file.parts).toHaveLength(4);
     expect(file.obstacles).toHaveLength(1);
-    expect(file.metadata).toEqual({ filename: "house.ptsb", revision: "0.3" });
+    expect(file.metadata).toEqual({
+      filename: "house.ptsb",
+      revision: "0.3",
+      buildArea: DEFAULT_BUILD_AREA
+    });
   });
 
   it("produces JSON-stringifiable output (no live grid handle)", () => {
@@ -73,6 +78,33 @@ describe("deserializeDesign", () => {
     expect(result.design.grid.query([0, 0, 0])).toBe("b1");
     expect(result.design.grid.query([10, 0, 0])).toBe("t1");
     expect(result.design.grid.query([2, 0, 2])).toBe("o1");
+  });
+
+  it("roundtrips a custom build area", () => {
+    const original = designFromScene(FULL_SCENE, {
+      filename: "house.ptsb",
+      revision: "0.3",
+      buildArea: { width: 40, depth: 80, height: 12 }
+    });
+    const result = deserializeDesign(JSON.stringify(serializeDesign(original)));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.metadata.buildArea).toEqual({ width: 40, depth: 80, height: 12 });
+  });
+
+  it("defaults the build area for files saved before it existed", () => {
+    // A v1 file written before the build-area field was added.
+    const legacy = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      appVersion: "0.1.0",
+      metadata: { filename: "old.ptsb", revision: "0.1" },
+      parts: [],
+      obstacles: []
+    };
+    const result = deserializeDesign(JSON.stringify(legacy));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.metadata.buildArea).toEqual(DEFAULT_BUILD_AREA);
   });
 
   it("rejects unparseable JSON", () => {

@@ -16,7 +16,7 @@ import {
 } from "@/domain/app-settings";
 import { bendLandingCells, bendPlacementGhost, placeBend } from "@/domain/bend-placement";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
-import { designFromScene, emptyDesign } from "@/domain/design-state";
+import { designFromScene, emptyDesign, partsWithinBuildArea } from "@/domain/design-state";
 import { eraseAtCell } from "@/domain/erase-placement";
 import {
   DEFAULT_FREE_PLACEMENT_MEMORY,
@@ -273,9 +273,24 @@ export default function App() {
   }, []);
 
   const updateMetadata = useCallback((metadata: DesignState["metadata"]) => {
-    setDesign((d) => ({ ...d, metadata }));
-    setDirty(true);
-  }, []);
+    const d = designRef.current;
+    const prev = d.metadata.buildArea;
+    const next = metadata.buildArea;
+    const areaChanged =
+      prev.width !== next.width || prev.depth !== next.depth || prev.height !== next.height;
+    if (!areaChanged) {
+      // Cosmetic metadata (name/revision): swap in place, not an undoable edit.
+      const updated = { ...d, metadata };
+      designRef.current = updated;
+      setDesign(updated);
+      setDirty(true);
+      return;
+    }
+    // Build area changed: drop any parts that no longer fit the new bounds and
+    // rebuild the grid. Commit as one undoable step so the deletion is reversible.
+    const keptParts = partsWithinBuildArea(d.parts, next);
+    commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
+  }, [commitDesign]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -708,6 +723,7 @@ export default function App() {
         <div style={{ flex: 1, position: "relative", background: "#0B0E13", overflow: "hidden" }}>
           <Viewport
             scene={viewportScene}
+            buildArea={design.metadata.buildArea}
             ghost={ghostState}
             tool={tool}
             camera={DEFAULT_CAMERA}

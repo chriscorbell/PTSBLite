@@ -13,10 +13,10 @@ import {
 } from "@/domain/bend-placement";
 import type { Vec3 } from "@/types";
 
-function designWithBlower(dir: Vec3 = [1, 0, 0]) {
+function designWithBlower(dir: Vec3 = [1, 0, 0], cell: Vec3 = [0, 0, 0]) {
   const design = emptyDesign();
-  design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir }];
-  design.grid.place([0, 0, 0], "b1");
+  design.parts = [{ id: "b1", type: "blower", cell, dir }];
+  design.grid.place(cell, "b1");
   return design;
 }
 
@@ -36,22 +36,24 @@ function uniqueNonEntryCell(
 
 describe("90 degree bend snap placement", () => {
   it("enumerates valid bend orientations around an open port direction", () => {
-    const design = designWithBlower([1, 0, 0]);
+    // Elevated so the downward exit has headroom above the ground plane.
+    const design = designWithBlower([1, 0, 0], [0, 5, 0]);
 
-    const orientations = validBendOrientations(design, [1, 0, 0]);
+    const orientations = validBendOrientations(design, [1, 5, 0]);
 
     expect(orientations.map((o) => o.outDir.join(","))).toEqual(
       expect.arrayContaining(["0,0,1", "0,0,-1", "0,1,0", "0,-1,0"])
     );
     expect(orientations).toHaveLength(4);
     expect(orientations.every((o) => o.inDir.join(",") === "1,0,0")).toBe(true);
-    expect(bendLandingCells(design)).toEqual([[1, 0, 0]]);
+    expect(bendLandingCells(design)).toEqual([[1, 5, 0]]);
   });
 
   it("includes vertical bend exits for horizontal entries", () => {
-    const design = designWithBlower([1, 0, 0]);
+    // Elevated so the downward exit has headroom above the ground plane.
+    const design = designWithBlower([1, 0, 0], [0, 5, 0]);
 
-    const orientations = validBendOrientations(design, [1, 0, 0]);
+    const orientations = validBendOrientations(design, [1, 5, 0]);
     const verticalOutDirs = orientations
       .filter((o) => o.outDir[1] !== 0)
       .map((o) => o.outDir.join(","))

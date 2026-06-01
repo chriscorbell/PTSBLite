@@ -1,12 +1,4 @@
-import type { Vec3 } from "@/types";
-
-/**
- * Half-extent of the buildable grid, in cells. Cells span [-HALF, HALF) on
- * every axis, matching the visible ground grid drawn in the viewport (whose
- * width is GRID_HALF_EXTENT * 2). Keep these in sync via this constant so
- * placement bounds never drift from what the user can see.
- */
-export const GRID_HALF_EXTENT = 30;
+import type { BuildArea, Vec3 } from "@/types";
 
 /**
  * Lowest buildable Y. Nothing — manually placed or auto-routed — may occupy a
@@ -14,7 +6,56 @@ export const GRID_HALF_EXTENT = 30;
  */
 export const GROUND_PLANE_Y = 0;
 
-const HALF = GRID_HALF_EXTENT;
+/**
+ * Default build area for new designs and for files saved before the build area
+ * was configurable. 60×60 ft footprint with 30 ft of height preserves the
+ * historical buildable range (the old grid was a symmetric ±30 cube, but only
+ * the at-or-above-ground portion was ever usable).
+ */
+export const DEFAULT_BUILD_AREA: BuildArea = { width: 60, depth: 60, height: 30 };
+
+/** Sane bounds for the configurable build area, in feet. */
+export const BUILD_AREA_LIMITS = {
+  width: { min: 4, max: 200 },
+  depth: { min: 4, max: 200 },
+  height: { min: 2, max: 100 }
+} as const;
+
+/** Half-open cell ranges [min, max) per axis. */
+export type GridBounds = {
+  xMin: number; xMax: number;
+  yMin: number; yMax: number;
+  zMin: number; zMax: number;
+};
+
+function clampInt(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+/** Coerce a (possibly partial/invalid) build area into whole feet within limits. */
+export function clampBuildArea(area: Partial<BuildArea> | undefined): BuildArea {
+  const L = BUILD_AREA_LIMITS;
+  return {
+    width: clampInt(area?.width ?? NaN, L.width.min, L.width.max, DEFAULT_BUILD_AREA.width),
+    depth: clampInt(area?.depth ?? NaN, L.depth.min, L.depth.max, DEFAULT_BUILD_AREA.depth),
+    height: clampInt(area?.height ?? NaN, L.height.min, L.height.max, DEFAULT_BUILD_AREA.height)
+  };
+}
+
+/**
+ * Derive cell bounds from a build area. The footprint (X/Z) is centered on the
+ * origin; the volume rises from the ground plane (Y = 0) up to `height`.
+ */
+export function boundsFromBuildArea(area: BuildArea): GridBounds {
+  const halfX = Math.floor(area.width / 2);
+  const halfZ = Math.floor(area.depth / 2);
+  return {
+    xMin: -halfX, xMax: area.width - halfX,
+    yMin: GROUND_PLANE_Y, yMax: GROUND_PLANE_Y + area.height,
+    zMin: -halfZ, zMax: area.depth - halfZ
+  };
+}
 
 function cellKey(cell: Vec3): string {
   return `${cell[0]},${cell[1]},${cell[2]}`;
@@ -22,9 +63,14 @@ function cellKey(cell: Vec3): string {
 
 export class SparseGrid {
   private readonly cells = new Map<string, string>();
+  private readonly bounds: GridBounds;
+
+  constructor(bounds: GridBounds = boundsFromBuildArea(DEFAULT_BUILD_AREA)) {
+    this.bounds = bounds;
+  }
 
   clone(): SparseGrid {
-    const next = new SparseGrid();
+    const next = new SparseGrid(this.bounds);
     for (const [key, occupant] of this.cells.entries()) {
       next.cells.set(key, occupant);
     }
@@ -32,10 +78,11 @@ export class SparseGrid {
   }
 
   withinBounds(cell: Vec3): boolean {
+    const b = this.bounds;
     return (
-      cell[0] >= -HALF && cell[0] < HALF &&
-      cell[1] >= -HALF && cell[1] < HALF &&
-      cell[2] >= -HALF && cell[2] < HALF
+      cell[0] >= b.xMin && cell[0] < b.xMax &&
+      cell[1] >= b.yMin && cell[1] < b.yMax &&
+      cell[2] >= b.zMin && cell[2] < b.zMax
     );
   }
 
