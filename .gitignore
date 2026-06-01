@@ -5,3 +5,7 @@ out/
 release/
 .DS_Store
 *.tsbuildinfo
+
+# Local agent guidance (not part of the published project)
+AGENTS.md
+CLAUDE.md
