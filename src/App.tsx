@@ -6,6 +6,7 @@ import { RightPanel } from "@/components/RightPanel";
 import { SettingsModal, type SettingsTab } from "@/components/SettingsModal";
 import { StatusBar } from "@/components/StatusBar";
 import { TopBar } from "@/components/TopBar";
+import { UpdateNotification } from "@/components/UpdateNotification";
 import { ViewportHUD } from "@/components/ViewportHUD";
 import {
   DEFAULT_SETTINGS,
@@ -157,6 +158,7 @@ export default function App() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [updateReady, setUpdateReady] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const [autoBuilding, setAutoBuilding] = useState(false);
@@ -243,6 +245,24 @@ export default function App() {
     })();
     return () => {
       active = false;
+    };
+  }, []);
+
+  // Surface the on-brand "update ready" prompt. Listen for the live push and
+  // also query for an update that finished downloading before this listener
+  // attached (autoUpdateSupported platforms only — elsewhere it stays null).
+  useEffect(() => {
+    const unsubscribe = window.ptsbuilder?.onUpdateDownloaded((info) => {
+      setUpdateReady(info.version);
+    });
+    let active = true;
+    void (async () => {
+      const pending = await window.ptsbuilder?.getPendingUpdate();
+      if (active && pending) setUpdateReady(pending.version);
+    })();
+    return () => {
+      active = false;
+      unsubscribe?.();
     };
   }, []);
 
@@ -815,6 +835,9 @@ export default function App() {
         />
       )}
       {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+      {updateReady && (
+        <UpdateNotification version={updateReady} onDismiss={() => setUpdateReady(null)} />
+      )}
     </div>
   );
 }
