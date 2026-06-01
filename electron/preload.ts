@@ -13,7 +13,17 @@ const api = {
   getSettings: () => ipcRenderer.invoke("settings:get"),
   setSettings: (jsonData: string) => ipcRenderer.invoke("settings:set", jsonData),
   openExternal: (url: string) => ipcRenderer.invoke("shell:open-external", url),
-  checkForUpdates: () => ipcRenderer.invoke("update:check")
+  checkForUpdates: () => ipcRenderer.invoke("update:check"),
+  // Any update already downloaded before the renderer attached its listener.
+  getPendingUpdate: () => ipcRenderer.invoke("update:get-pending"),
+  // Install the downloaded update and relaunch.
+  quitAndInstall: () => ipcRenderer.invoke("update:quit-and-install"),
+  // Subscribe to "update finished downloading" pushes; returns an unsubscribe fn.
+  onUpdateDownloaded: (callback: (info: { version: string }) => void) => {
+    const listener = (_event: unknown, info: { version: string }) => callback(info);
+    ipcRenderer.on("update:downloaded", listener);
+    return () => ipcRenderer.removeListener("update:downloaded", listener);
+  }
 };
 
 contextBridge.exposeInMainWorld("ptsbuilder", api);

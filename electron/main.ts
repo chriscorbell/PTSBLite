@@ -44,6 +44,12 @@ function autoUpdateSupported(): boolean {
   return true;
 }
 
+// Set once electron-updater finishes downloading an update. The renderer draws
+// the on-brand "update ready" prompt; we stash the version here because the
+// download can finish before the renderer mounts its listener (the renderer
+// also queries `update:get-pending` on startup to catch that race).
+let pendingUpdate: { version: string } | null = null;
+
 function initAutoUpdate(): void {
   if (!autoUpdateSupported()) return;
 
@@ -51,23 +57,10 @@ function initAutoUpdate(): void {
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on("update-downloaded", (info) => {
-    const promptRestart = async () => {
-      const win = BrowserWindow.getAllWindows()[0];
-      const options = {
-        type: "info" as const,
-        buttons: ["Restart now", "Later"],
-        defaultId: 0,
-        cancelId: 1,
-        title: "Update ready",
-        message: `PTSBuilder ${info.version} has been downloaded.`,
-        detail: "Restart to finish installing. The update will also apply automatically next time you quit."
-      };
-      const { response } = win
-        ? await dialog.showMessageBox(win, options)
-        : await dialog.showMessageBox(options);
-      if (response === 0) autoUpdater.quitAndInstall();
-    };
-    void promptRestart();
+    pendingUpdate = { version: info.version };
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send("update:downloaded", pendingUpdate);
+    }
   });
 
   autoUpdater.on("error", (err) => {
@@ -226,6 +219,18 @@ app.whenReady().then(() => {
     } catch (err) {
       return { ok: false, error: String(err) };
     }
+  });
+
+  // Renderer asks on mount whether an update already finished downloading
+  // before its `update:downloaded` listener was attached.
+  ipcMain.handle("update:get-pending", () => pendingUpdate);
+
+  // Renderer's "Restart now" button: install the downloaded update and relaunch.
+  // Args are (isSilent, isForceRunAfter): silent because our NSIS installer is
+  // one-click/per-user (no prompts), and force-run so the app reopens after the
+  // unattended install.
+  ipcMain.handle("update:quit-and-install", () => {
+    autoUpdater.quitAndInstall(true, true);
   });
 
   // Manual "Check for Updates" trigger from the About modal.

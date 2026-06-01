@@ -37,9 +37,12 @@ win:
       arch: [x64, arm64]
 
 nsis:
-  oneClick: false
+  # One-click, per-user installer: no install-mode prompt ("only for me" vs
+  # "everyone"), no directory page, no elevation. Installs to
+  # %LOCALAPPDATA%\Programs\PTSBuilder, which lets in-app updates apply silently
+  # and unattended (see the quitAndInstall call in electron/main.ts).
+  oneClick: true
   perMachine: false
-  allowToChangeInstallationDirectory: true
   buildUniversalInstaller: false
 
 linux:

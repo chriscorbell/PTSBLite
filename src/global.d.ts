@@ -40,6 +40,10 @@ export type CheckForUpdatesResult =
   | { status: "up-to-date" }
   | { status: "error" };
 
+export type PendingUpdate = {
+  version: string;
+};
+
 export type PTSBuilderApi = {
   platform: NodeJS.Platform;
   titleBarInset: number;
@@ -51,6 +55,9 @@ export type PTSBuilderApi = {
   setSettings: (jsonData: string) => Promise<SetSettingsResult>;
   openExternal: (url: string) => Promise<OpenExternalResult>;
   checkForUpdates: () => Promise<CheckForUpdatesResult>;
+  getPendingUpdate: () => Promise<PendingUpdate | null>;
+  quitAndInstall: () => Promise<void>;
+  onUpdateDownloaded: (callback: (info: PendingUpdate) => void) => () => void;
 };
 
 declare global {
