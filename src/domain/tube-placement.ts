@@ -1,4 +1,3 @@
-import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import { computeTopology, type Port, type Topology } from "@/domain/topology";
 import type { DesignState, Ghost, TubePart, Vec3 } from "@/types";
 
@@ -19,7 +18,7 @@ export function tubeLandingCells(design: DesignState): Vec3[] {
   const seen = new Set<string>();
   const cells: Vec3[] = [];
   for (const port of computeTopology(design).openPorts()) {
-    if (!validateTubeFootprint(design, port)) continue;
+    if (maxTubeLength(design, port) < 1) continue;
     const key = cellKey(port.cell);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -65,8 +64,8 @@ export function tubePlacementGhost(
 ): Ghost | null {
   const port = selectPort(computeTopology(design), cell, selection);
   if (!port) return null;
-  const length = effectiveTubeLength(port);
-  if (!validateTubeFootprint(design, port, length)) return null;
+  const length = maxTubeLength(design, port);
+  if (length < 1) return null;
   return {
     type: "tube",
     from: cellCenter(port.cell),
@@ -78,17 +77,20 @@ export function tubeFootprint(port: Port, length = 6): Vec3[] {
   return Array.from({ length }, (_, index) => vecAdd(port.cell, vecScale(port.dir, index)));
 }
 
-function effectiveTubeLength(port: Port, requestedLength = 6): number {
-  if (port.dir[1] >= 0) return requestedLength;
-  return Math.min(requestedLength, Math.max(0, port.cell[1] - GROUND_PLANE_Y + 1));
-}
-
-function validateTubeFootprint(design: DesignState, port: Port, length = 6): boolean {
-  const effectiveLength = effectiveTubeLength(port, length);
-  if (effectiveLength < 1) return false;
-  return tubeFootprint(port, effectiveLength).every(
-    (cell) => design.grid.withinBounds(cell) && !design.grid.query(cell)
-  );
+/**
+ * How many 1 ft segments (0..requested) can be laid from `port` before the run
+ * hits an occupied cell or the edge of the build area. A 6 ft tube therefore
+ * places as much as fits rather than failing outright; this also subsumes the
+ * old ground-plane truncation, since below-ground cells are out of bounds.
+ */
+function maxTubeLength(design: DesignState, port: Port, requested = 6): number {
+  let length = 0;
+  for (let index = 0; index < requested; index++) {
+    const cell = vecAdd(port.cell, vecScale(port.dir, index));
+    if (!design.grid.withinBounds(cell) || design.grid.query(cell)) break;
+    length = index + 1;
+  }
+  return length;
 }
 
 function tubePartFromPort(id: string, port: Port, length = 6): TubePart {
@@ -110,14 +112,14 @@ export function placeTube(
   if (length < 1 || length > 6 || !Number.isInteger(length)) {
     return { ok: false, message: TUBE_BLOCKED_MESSAGE };
   }
-  const effectiveLength = effectiveTubeLength(port, length);
-  if (!validateTubeFootprint(design, port, effectiveLength)) {
+  const placeLength = maxTubeLength(design, port, length);
+  if (placeLength < 1) {
     return { ok: false, message: TUBE_BLOCKED_MESSAGE };
   }
 
-  const part = tubePartFromPort(id, port, effectiveLength);
+  const part = tubePartFromPort(id, port, placeLength);
   const grid = design.grid.clone();
-  for (const footprintCell of tubeFootprint(port, effectiveLength)) {
+  for (const footprintCell of tubeFootprint(port, placeLength)) {
     grid.place(footprintCell, id);
   }
   return {
