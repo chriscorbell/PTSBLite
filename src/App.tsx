@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AboutModal } from "@/components/AboutModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ExportPdfModal } from "@/components/ExportPdfModal";
 import { LeftRail } from "@/components/LeftRail";
 import { RightPanel } from "@/components/RightPanel";
@@ -159,6 +160,12 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [updateReady, setUpdateReady] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const [autoBuilding, setAutoBuilding] = useState(false);
@@ -652,20 +659,30 @@ export default function App() {
 
   const clearAllParts = useCallback(() => {
     if (design.parts.length === 0) return;
-    const proceed = window.confirm("Clear all placed parts? Obstacles will remain.");
-    if (!proceed) return;
-    commitDesign(designFromScene({ parts: [], obstacles: design.obstacles }, design.metadata));
-    resetActiveInteraction();
-    setErrorFlash(null);
+    setConfirm({
+      title: "Clear all parts",
+      message: "Remove every placed part? Obstacles will remain. This can be undone.",
+      confirmLabel: "Clear parts",
+      onConfirm: () => {
+        commitDesign(designFromScene({ parts: [], obstacles: design.obstacles }, design.metadata));
+        resetActiveInteraction();
+        setErrorFlash(null);
+      }
+    });
   }, [commitDesign, design, resetActiveInteraction, setErrorFlash]);
 
   const clearAllObstacles = useCallback(() => {
     if (design.obstacles.length === 0) return;
-    const proceed = window.confirm("Clear all obstacles? Placed parts will remain.");
-    if (!proceed) return;
-    commitDesign(designFromScene({ parts: design.parts, obstacles: [] }, design.metadata));
-    resetActiveInteraction();
-    setErrorFlash(null);
+    setConfirm({
+      title: "Clear all obstacles",
+      message: "Remove every obstacle? Placed parts will remain. This can be undone.",
+      confirmLabel: "Clear obstacles",
+      onConfirm: () => {
+        commitDesign(designFromScene({ parts: design.parts, obstacles: [] }, design.metadata));
+        resetActiveInteraction();
+        setErrorFlash(null);
+      }
+    });
   }, [commitDesign, design, resetActiveInteraction, setErrorFlash]);
 
   const warnings = useMemo(() => validate(design), [design]);
@@ -851,6 +868,19 @@ export default function App() {
         />
       )}
       {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          danger
+          onConfirm={() => {
+            confirm.onConfirm();
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
       {updateReady && (
         <UpdateNotification version={updateReady} onDismiss={() => setUpdateReady(null)} />
       )}
