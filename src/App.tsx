@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { AboutModal } from "@/components/AboutModal";
 import { ExportPdfModal } from "@/components/ExportPdfModal";
 import { LeftRail } from "@/components/LeftRail";
 import { RightPanel } from "@/components/RightPanel";
@@ -63,7 +64,7 @@ const OPTIMIZATION_MODE_LABELS: Record<OptimizationMode, string> = {
   "fewest-bends": "Fewest bends"
 };
 
-const FILE_NAME = "BUILDING_07.kel2020";
+const FILE_NAME = "untitled.ptsb";
 const FILE_REVISION = "0.1";
 
 const DEFAULT_CAMERA: Camera = { yaw: 0.55, pitch: 0.55, distance: 38 };
@@ -155,6 +156,7 @@ export default function App() {
   const [rightOpen, setRightOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const [autoBuilding, setAutoBuilding] = useState(false);
@@ -672,6 +674,7 @@ export default function App() {
         onToggleBom={() => setRightOpen((o) => !o)}
         showLabels={showLabels}
         onShowLabelsChange={setShowLabels}
+        onAbout={() => setAboutOpen(true)}
       />
       <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
         <LeftRail
@@ -811,6 +814,7 @@ export default function App() {
           onClose={() => setSettingsTab(null)}
         />
       )}
+      {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
     </div>
   );
 }

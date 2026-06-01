@@ -11,7 +11,9 @@ const api = {
   openDesign: () => ipcRenderer.invoke("design:open"),
   exportQuote: (pdfBase64: string) => ipcRenderer.invoke("quote:export", pdfBase64),
   getSettings: () => ipcRenderer.invoke("settings:get"),
-  setSettings: (jsonData: string) => ipcRenderer.invoke("settings:set", jsonData)
+  setSettings: (jsonData: string) => ipcRenderer.invoke("settings:set", jsonData),
+  openExternal: (url: string) => ipcRenderer.invoke("shell:open-external", url),
+  checkForUpdates: () => ipcRenderer.invoke("update:check")
 };
 
 contextBridge.exposeInMainWorld("ptsbuilder", api);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PartRegistry, loadPartRegistry, partRegistry } from "@/domain/part-registry";
 
 describe("PartRegistry", () => {
-  it("loads the bundled KEL2020 catalog", () => {
+  it("loads the bundled parts catalog", () => {
     expect(partRegistry.has("blower")).toBe(true);
     expect(partRegistry.has("terminal")).toBe(true);
     expect(partRegistry.has("tube6")).toBe(true);
@@ -12,7 +12,7 @@ describe("PartRegistry", () => {
   it("returns typed catalog entries by key", () => {
     const blower = partRegistry.get("blower");
     expect(blower.type).toBe("blower");
-    expect(blower.partNo).toBe("KEL-BL-2020-A");
+    expect(blower.partNo).toBe("BL-2020-A");
     expect(blower.unitPrice).toBeGreaterThan(0);
   });
 

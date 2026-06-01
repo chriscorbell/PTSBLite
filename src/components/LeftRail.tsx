@@ -455,7 +455,7 @@ function RailButton({ item, active, onClick }: { item: RailItem; active: boolean
           </div>
           {item.pn && (
             <div style={{ ...monoStyle, fontSize: 10, color: "var(--text-mut)", marginTop: 2 }}>
-              KEL-{item.pn}
+              {item.pn}
             </div>
           )}
         </div>

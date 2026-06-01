@@ -16,7 +16,7 @@ export const checkPathLength: ValidationRule = (design) => {
       id: "path-length",
       level: "error",
       title: "Exceeds 300ft centerline",
-      detail: `System centerline is ${length.toFixed(1)}ft. KEL2020 maximum is 300ft.`
+      detail: `System centerline is ${length.toFixed(1)}ft. Maximum is 300ft.`
     }
   ];
 };
@@ -29,7 +29,7 @@ export const checkTerminalCount: ValidationRule = (design) => {
       id: "terminal-count",
       level: "error",
       title: `${terminals.length} terminals placed`,
-      detail: "KEL2020 systems require exactly 2 terminals: Terminal 1 inline with the blower and Terminal 2 at the far end."
+      detail: "Systems require exactly 2 terminals: Terminal 1 inline with the blower and Terminal 2 at the far end."
     }
   ];
 };

@@ -1,8 +1,10 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { DEFAULT_SETTINGS, type CompanyInfo } from "@/domain/app-settings";
 import { bomRows, totalPathLength } from "@/domain/parts";
 import type { DesignState } from "@/types";
 
 export type QuotePdfOptions = {
+  company?: CompanyInfo;
   quoteNumber?: string;
   date?: string;
   billTo?: { name: string; lines: string[] };
@@ -11,20 +13,14 @@ export type QuotePdfOptions = {
   taxRate?: number;
 };
 
-const DEFAULT_BILL_TO = {
-  name: "Mercy Regional Hospital",
-  lines: ["Attn: David Choi, Facilities", "1212 Sherman Way, Akron OH 44303"]
-};
-
-const DEFAULT_PROJECT_NAME = "Building 07 Lab Wing — KEL2020";
-
-const DEFAULT_NOTES =
-  "Pricing reflects KEL2020 single-direction system. Installation, electrical, and " +
-  "site preparation quoted separately. Stock tube count includes 6ft sections that " +
-  "will be cut on-site to required lengths; offcuts are not warranted.";
-
-const DEFAULT_QUOTE_NUMBER = "Q-2026-0184";
-const DEFAULT_TAX_RATE = 0.0825;
+// Fallbacks mirror the shared app-settings defaults so a quote generated without
+// explicit options still reads sensibly (used mainly by tests).
+const DEFAULT_COMPANY = DEFAULT_SETTINGS.company;
+const DEFAULT_BILL_TO = DEFAULT_SETTINGS.quote.billTo;
+const DEFAULT_PROJECT_NAME = DEFAULT_SETTINGS.quote.project.name;
+const DEFAULT_NOTES = DEFAULT_SETTINGS.quote.notes;
+const DEFAULT_QUOTE_NUMBER = DEFAULT_SETTINGS.quote.quoteNumber;
+const DEFAULT_TAX_RATE = DEFAULT_SETTINGS.taxRate;
 
 /** Long-form date for the quote header, e.g. "May 26, 2026". Defaults to today. */
 export function formatQuoteDate(date = new Date()): string {
@@ -144,10 +140,12 @@ export async function generateQuotePdf(
   const date = options.date ?? formatQuoteDate();
   const notes = options.notes ?? DEFAULT_NOTES;
   const taxRate = options.taxRate ?? DEFAULT_TAX_RATE;
+  const company = options.company ?? DEFAULT_COMPANY;
+  const companyContact = [company.phone, company.email].filter(Boolean).join(" · ");
 
   // Letterhead
   let y = PAGE_HEIGHT - MARGIN_TOP;
-  drawText(p, "Kelly Systems", MARGIN_X, y, { size: 20, font: sansBold });
+  drawText(p, company.name, MARGIN_X, y, { size: 20, font: sansBold });
   drawRightText(p, "QUOTE", PAGE_WIDTH - MARGIN_X, y, {
     size: 20,
     font: sansBold,
@@ -155,10 +153,7 @@ export async function generateQuotePdf(
   });
 
   y -= 14;
-  drawText(p, "Pneumatic Tube Systems · Established 1972", MARGIN_X, y, {
-    size: 9,
-    color: DIM
-  });
+  if (company.tagline) drawText(p, company.tagline, MARGIN_X, y, { size: 9, color: DIM });
   drawRightText(p, `No. ${quoteNumber}`, PAGE_WIDTH - MARGIN_X, y, {
     size: 9,
     font: mono,
@@ -166,10 +161,7 @@ export async function generateQuotePdf(
   });
 
   y -= 18;
-  drawText(p, "4520 Industrial Pkwy · Cleveland, OH 44135", MARGIN_X, y, {
-    size: 9,
-    color: DIM
-  });
+  if (company.address) drawText(p, company.address, MARGIN_X, y, { size: 9, color: DIM });
   drawRightText(p, `Date ${date}`, PAGE_WIDTH - MARGIN_X, y, {
     size: 9,
     font: mono,
@@ -177,10 +169,7 @@ export async function generateQuotePdf(
   });
 
   y -= 12;
-  drawText(p, "(216) 555-0114 · sales@kellysystems.example", MARGIN_X, y, {
-    size: 9,
-    color: DIM
-  });
+  if (companyContact) drawText(p, companyContact, MARGIN_X, y, { size: 9, color: DIM });
   drawRightText(p, "Valid 60 days", PAGE_WIDTH - MARGIN_X, y, {
     size: 9,
     font: mono,
