@@ -612,13 +612,13 @@ function buildLabelSprite(label: PartLabel): THREE.Sprite {
   if (!ctx) {
     return new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffffff }));
   }
-  ctx.font = `600 ${fontPx}px Geist, system-ui, -apple-system, sans-serif`;
+  ctx.font = `600 ${fontPx}px 'Geist Variable', system-ui, -apple-system, sans-serif`;
   const metrics = ctx.measureText(text);
   const w = Math.ceil(metrics.width) + padX * 2;
   const h = fontPx + padY * 2;
   canvas.width = w;
   canvas.height = h;
-  ctx.font = `600 ${fontPx}px Geist, system-ui, -apple-system, sans-serif`;
+  ctx.font = `600 ${fontPx}px 'Geist Variable', system-ui, -apple-system, sans-serif`;
   ctx.fillStyle = "rgba(11,14,19,0.85)";
   const r = 6;
   ctx.beginPath();
