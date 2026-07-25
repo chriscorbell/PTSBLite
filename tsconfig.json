@@ -15,7 +15,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["node", "react", "react-dom"],
+    // vite/client declares the side-effect asset imports (CSS and friends) that
+    // TypeScript 6 started requiring declarations for — see the `import
+    // "@/styles/app.css"` in src/main.tsx.
+    "types": ["node", "react", "react-dom", "vite/client"],
     "paths": {
       "@/*": ["./src/*"]
     }
