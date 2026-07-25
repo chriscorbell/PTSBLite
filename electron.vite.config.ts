@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, externalizeDepsPlugin } from "electron-vite";
+import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Surface package metadata to the renderer (shown in the About modal) so we have
@@ -50,6 +51,45 @@ export default defineConfig({
         input: resolve(__dirname, "index.html")
       }
     },
-    plugins: [react()]
+    plugins: [react(), contentSecurityPolicy()]
   }
 });
+
+/**
+ * Inject a Content-Security-Policy into the built renderer.
+ *
+ * Build only. The dev server needs inline scripts and a websocket for HMR, and
+ * weakening the policy enough to allow those would mean shipping a policy that
+ * permits what it is meant to forbid. The packaged app is what needs locking
+ * down, and it loads everything from disk.
+ *
+ * `style-src` allows inline styles because several components render `<style>`
+ * blocks and the whole UI is written with inline `style` props. `img-src` allows
+ * `data:` for the canvas-generated label textures in the 3D viewport.
+ */
+function contentSecurityPolicy(): Plugin {
+  const policy = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    // The renderer talks to the main process over IPC, never over the network.
+    "connect-src 'none'",
+    "object-src 'none'",
+    "frame-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'"
+  ].join("; ");
+
+  return {
+    name: "ptsbuilder:csp",
+    apply: "build",
+    transformIndexHtml(html) {
+      return html.replace(
+        "</title>",
+        `</title>\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`
+      );
+    }
+  };
+}

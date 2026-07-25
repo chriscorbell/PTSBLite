@@ -15,7 +15,7 @@
   --warn:       oklch(0.78 0.14 75);
   --danger:     oklch(0.7  0.15 25);
   --ok:         oklch(0.78 0.16 150);
-  --font-sans:  'Geist', system-ui, -apple-system, sans-serif;
+  --font-sans:  'Geist Variable', system-ui, -apple-system, sans-serif;
   /* No separate mono typeface — everything uses Geist. Kept as an alias so
      existing var(--font-mono) usages don't need to change. */
   --font-mono:  var(--font-sans);
