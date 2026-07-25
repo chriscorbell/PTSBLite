@@ -3,8 +3,6 @@ import { Icons } from "@/components/Icons";
 import { bomRows, totalPathLength } from "@/domain/parts";
 import type { DesignState } from "@/types";
 
-const monoStyle: CSSProperties = { fontFamily: "var(--font-mono)" };
-
 /** 0.0825 -> "8.25" (trailing-zero trimmed) for tax-rate labels. */
 function formatPct(rate: number): string {
   return String(+(rate * 100).toFixed(4));

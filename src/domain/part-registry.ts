@@ -172,5 +172,5 @@ function computeBendFootprints(entry: PartCatalogEntry): BendFootprint[] {
 }
 
 export const partRegistry: PartRegistry = loadPartRegistry(
-  partsJson as Record<string, PartCatalogEntry>
+  partsJson
 );
