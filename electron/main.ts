@@ -105,6 +105,25 @@ async function latestPublishedVersion(): Promise<string> {
   return data.tag_name.replace(/^v/, "");
 }
 
+/**
+ * Hand a URL to the user's browser, but only if it is a web URL. Shared by the
+ * renderer's explicit "open this link" bridge and by the window-open handler, so
+ * a single rule governs everything that can leave the app — nothing gets to ask
+ * the OS to launch an arbitrary scheme.
+ */
+async function openExternalWebUrl(url: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return { ok: false, error: `Refusing to open non-web URL: ${parsed.protocol}` };
+    }
+    await shell.openExternal(url);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
 function createWindow(): void {
   const {
     titleBarInset: _titleBarInset,
@@ -124,8 +143,26 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, "../preload/preload.cjs"),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // The preload only needs contextBridge and ipcRenderer, both of which work
+      // under the sandbox, so there is nothing to trade away for it.
+      sandbox: true
     }
+  });
+
+  // This app never opens a second window or navigates away from its own bundle.
+  // Both are denied outright rather than filtered, so there is no allowlist to
+  // get wrong later. External links go through the shell:open-external handler,
+  // which restricts them to http(s).
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    void openExternalWebUrl(url);
+    return { action: "deny" };
+  });
+
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (url === mainWindow.webContents.getURL()) return;
+    event.preventDefault();
+    console.warn("[security] blocked in-app navigation to", url);
   });
 
   mainWindow.once("ready-to-show", () => {
@@ -208,18 +245,7 @@ void app.whenReady().then(() => {
 
   // Open a URL in the user's default browser. Only http(s) links are honored so
   // a compromised renderer can't ask the OS to launch arbitrary schemes.
-  ipcMain.handle("shell:open-external", async (_event, url: string) => {
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-        return { ok: false, error: `Refusing to open non-web URL: ${parsed.protocol}` };
-      }
-      await shell.openExternal(url);
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: String(err) };
-    }
-  });
+  ipcMain.handle("shell:open-external", (_event, url: string) => openExternalWebUrl(url));
 
   // Renderer asks on mount whether an update already finished downloading
   // before its `update:downloaded` listener was attached.

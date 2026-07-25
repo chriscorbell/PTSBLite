@@ -176,7 +176,7 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
               color: "#1B1E26",
               borderRadius: 4,
               padding: "38px 44px",
-              fontFamily: "Geist, system-ui, sans-serif",
+              fontFamily: "'Geist Variable', system-ui, sans-serif",
               boxShadow: "0 10px 32px rgba(0,0,0,0.4)",
               minHeight: 520
             }}
