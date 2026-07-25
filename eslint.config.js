@@ -35,14 +35,12 @@ export default tseslint.config(
     plugins: { "react-hooks": reactHooks },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // Warnings, not errors, on purpose. These three flag real design problems
-      // in App.tsx, StatusBar.tsx and Viewport.tsx, but every fix is a behaviour
-      // change that deserves its own review rather than being smuggled into the
-      // commit that introduced the linter. Tracked in #29 — promote to "error"
-      // once that lands.
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/exhaustive-deps": "warn"
+      // Errors, not warnings. These were temporarily downgraded while #20
+      // introduced the linter, because the seven violations they found all
+      // needed behaviour changes. #29 fixed every one, so they gate now.
+      "react-hooks/set-state-in-effect": "error",
+      "react-hooks/refs": "error",
+      "react-hooks/exhaustive-deps": "error"
     }
   },
 

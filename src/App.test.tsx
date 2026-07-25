@@ -267,3 +267,59 @@ describe("opening a design", () => {
     expect(canUndo()).toBe(false);
   });
 });
+
+describe("the placement ghost", () => {
+  // The ghost is derived during render rather than stored in state. These assert
+  // on the prop the Viewport actually receives, which is the whole contract.
+  const ghost = () => viewport.props?.ghost ?? null;
+
+  function hover(cell: Vec3) {
+    const onHover = viewport.props?.onHover;
+    if (!onHover) throw new Error("Viewport received no onHover handler");
+    act(() => onHover(cell));
+  }
+
+  it("shows no ghost for the cursor tool", async () => {
+    await renderApp();
+    hover([0, 0, 0]);
+
+    expect(ghost()).toBeNull();
+  });
+
+  it("tracks the hovered cell while placing an obstacle", async () => {
+    await renderApp();
+    fireEvent.keyDown(window, { key: "o" });
+    clickCell([0, 0, 0]);
+
+    hover([3, 0, 4]);
+    expect(ghost()).toMatchObject({ type: "obstacle" });
+
+    // Derived, so moving the cursor re-renders it with no effect round-trip.
+    hover([5, 0, 6]);
+    expect(ghost()).toMatchObject({ type: "obstacle", max: [5, 0, 6] });
+  });
+
+  it("clears the ghost when the tool changes", async () => {
+    await renderApp();
+    fireEvent.keyDown(window, { key: "o" });
+    // The obstacle ghost only exists once a first corner anchors the draft.
+    clickCell([0, 0, 0]);
+    hover([2, 0, 2]);
+    expect(ghost()).not.toBeNull();
+
+    fireEvent.keyDown(window, { key: "v" });
+    expect(ghost()).toBeNull();
+  });
+
+  it("clears the ghost on Escape", async () => {
+    await renderApp();
+    fireEvent.keyDown(window, { key: "o" });
+    // The obstacle ghost only exists once a first corner anchors the draft.
+    clickCell([0, 0, 0]);
+    hover([2, 0, 2]);
+    expect(ghost()).not.toBeNull();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(ghost()).toBeNull();
+  });
+});
