@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as THREE from "three";
 import {
   bendRenderCurve,
   bendRenderPath,
   bendRenderSpan,
   bendConnectorSpans,
   cellFromWorldPoint,
+  clearGroup,
   clickCellForTool,
   createViewportDragState,
   moveViewportDrag,
@@ -225,5 +227,45 @@ describe("Viewport tube and bend render alignment", () => {
       const point = curve.getPoint(t);
       expect(Math.hypot(point.x - 1.5, point.y - 0.5, point.z - 3.5)).toBeCloseTo(3, 5);
     }
+  });
+});
+
+describe("clearGroup", () => {
+  it("disposes nested geometries, materials, and material textures", () => {
+    const group = new THREE.Group();
+
+    const meshGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const meshMaterial = new THREE.MeshStandardMaterial();
+    const texture = new THREE.Texture();
+    meshMaterial.map = texture;
+    const mesh = new THREE.Mesh(meshGeometry, meshMaterial);
+
+    // Nested one level down, so we know the traversal recurses rather than only
+    // touching direct children.
+    const childGeometry = new THREE.BufferGeometry();
+    const childMaterial = new THREE.LineBasicMaterial();
+    mesh.add(new THREE.LineSegments(childGeometry, childMaterial));
+    group.add(mesh);
+
+    const disposals = [meshGeometry, meshMaterial, texture, childGeometry, childMaterial].map(
+      (resource) => vi.spyOn(resource, "dispose")
+    );
+
+    clearGroup(group);
+
+    expect(group.children).toHaveLength(0);
+    for (const dispose of disposals) expect(dispose).toHaveBeenCalled();
+  });
+
+  it("disposes every element of a multi-material mesh", () => {
+    const group = new THREE.Group();
+    const materials = [new THREE.MeshBasicMaterial(), new THREE.MeshBasicMaterial()];
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), materials));
+
+    const disposals = materials.map((material) => vi.spyOn(material, "dispose"));
+
+    clearGroup(group);
+
+    for (const dispose of disposals) expect(dispose).toHaveBeenCalled();
   });
 });
