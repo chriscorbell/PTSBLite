@@ -1,5 +1,6 @@
 import partsJson from "@/data/parts.json";
 import type { Vec3 } from "@/types";
+import { cellAt, cellKey, normalizeZero, vAdd, vScale } from "@/domain/vec3";
 
 export type BendFootprint = {
   inDir: Vec3;
@@ -90,30 +91,6 @@ function rotateRight([x, y, z]: Vec3): Vec3 {
   return [z, y, normalizeZero(-x)];
 }
 
-function vScale(v: Vec3, n: number): Vec3 {
-  return [normalizeZero(v[0] * n), normalizeZero(v[1] * n), normalizeZero(v[2] * n)];
-}
-
-function vAdd(a: Vec3, b: Vec3): Vec3 {
-  return [
-    normalizeZero(a[0] + b[0]),
-    normalizeZero(a[1] + b[1]),
-    normalizeZero(a[2] + b[2])
-  ];
-}
-
-function normalizeZero(n: number): number {
-  return Object.is(n, -0) ? 0 : n;
-}
-
-function cellKey(cell: Vec3): string {
-  return `${cell[0]},${cell[1]},${cell[2]}`;
-}
-
-function relativeCellAt(point: Vec3): Vec3 {
-  return [Math.floor(point[0]), Math.floor(point[1]), Math.floor(point[2])];
-}
-
 function arcCells(center: Vec3, radius: number, inDir: Vec3, outDir: Vec3): Vec3[] {
   const seen = new Set<string>();
   const cells: Vec3[] = [];
@@ -127,7 +104,7 @@ function arcCells(center: Vec3, radius: number, inDir: Vec3, outDir: Vec3): Vec3
       center[1] + radius * (-outDir[1] * c + inDir[1] * s),
       center[2] + radius * (-outDir[2] * c + inDir[2] * s)
     ];
-    const cell = relativeCellAt(point);
+    const cell = cellAt(point);
     const key = cellKey(cell);
     if (!seen.has(key)) {
       seen.add(key);

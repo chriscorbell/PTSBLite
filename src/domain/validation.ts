@@ -3,6 +3,7 @@ import { totalPathLength } from "@/domain/parts";
 import { bendFootprint } from "@/domain/bend-placement";
 import { computeTopology } from "@/domain/topology";
 import type { BlowerPart, DesignState, Obstacle, Part, TerminalPart, Vec3, Warning } from "@/types";
+import { cellAt, tubeCells, vAdd, vEq } from "@/domain/vec3";
 
 export const MAX_CENTERLINE_FEET = 300;
 
@@ -124,22 +125,6 @@ function partFootprint(part: Part, registry: PartRegistry): Vec3[] {
   return bendFootprint(part, registry);
 }
 
-function tubeCells(from: Vec3, to: Vec3): Vec3[] {
-  const start = cellAt(from);
-  const end = cellAt(to);
-  const dir: Vec3 = [sign(end[0] - start[0]), sign(end[1] - start[1]), sign(end[2] - start[2])];
-  const length = Math.max(
-    Math.abs(end[0] - start[0]),
-    Math.abs(end[1] - start[1]),
-    Math.abs(end[2] - start[2])
-  );
-  return Array.from({ length }, (_, i) => [
-    start[0] + dir[0] * i,
-    start[1] + dir[1] * i,
-    start[2] + dir[2] * i
-  ]);
-}
-
 function obstacleContainsCell(obstacle: Obstacle, cell: Vec3): boolean {
   const min: Vec3 = [
     Math.floor(Math.min(obstacle.min[0], obstacle.max[0])),
@@ -161,18 +146,3 @@ function obstacleContainsCell(obstacle: Obstacle, cell: Vec3): boolean {
   );
 }
 
-function cellAt(v: Vec3): Vec3 {
-  return [Math.floor(v[0]), Math.floor(v[1]), Math.floor(v[2])];
-}
-
-function sign(n: number): number {
-  return n > 0 ? 1 : n < 0 ? -1 : 0;
-}
-
-function vAdd(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-}
-
-function vEq(a: Vec3, b: Vec3): boolean {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
-}

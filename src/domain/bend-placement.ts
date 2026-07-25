@@ -1,6 +1,7 @@
 import { partRegistry, type BendFootprint, type PartRegistry } from "@/domain/part-registry";
 import { computeTopology, type Port, type Topology } from "@/domain/topology";
 import type { BendPart, DesignState, Ghost, Vec3 } from "@/types";
+import { cellAt, cellCenter, cellKey, vAdd, vEq } from "@/domain/vec3";
 
 export const BEND_PLACEMENT_MESSAGE = "Place bend on a highlighted landing spot.";
 export const BEND_BLOCKED_MESSAGE = "Bend path is blocked.";
@@ -21,34 +22,6 @@ export type PlaceBendResult =
 type SourceSelection = { sourcePartId?: string };
 
 type BendPreviewOptions = SourceSelection & { rotationIndex?: number };
-
-function cellKey(cell: Vec3): string {
-  return `${cell[0]},${cell[1]},${cell[2]}`;
-}
-
-function vAdd(a: Vec3, b: Vec3): Vec3 {
-  return [
-    normalizeZero(a[0] + b[0]),
-    normalizeZero(a[1] + b[1]),
-    normalizeZero(a[2] + b[2])
-  ];
-}
-
-function normalizeZero(n: number): number {
-  return Object.is(n, -0) ? 0 : n;
-}
-
-function vEq(a: Vec3, b: Vec3): boolean {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
-}
-
-function cellCenter(cell: Vec3): Vec3 {
-  return [cell[0] + 0.5, cell[1] + 0.5, cell[2] + 0.5];
-}
-
-function cellAt(v: Vec3): Vec3 {
-  return [Math.floor(v[0]), Math.floor(v[1]), Math.floor(v[2])];
-}
 
 function appendUniqueCell(cells: Vec3[], cell: Vec3): Vec3[] {
   return cells.some((candidate) => vEq(candidate, cell)) ? cells : [...cells, cell];

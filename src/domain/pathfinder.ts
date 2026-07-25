@@ -6,6 +6,7 @@ import { placeTube } from "@/domain/tube-placement";
 import { computeTopology, type Port } from "@/domain/topology";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { BlowerPart, DesignState, Part, Vec3 } from "@/types";
+import { cellKey, manhattan, vAdd, vEq, vNeg, vScale } from "@/domain/vec3";
 
 export const PATHFINDER_NO_ROUTE_MESSAGE = "No route exists between the open ports.";
 
@@ -108,38 +109,9 @@ function popOpenEntry(heap: OpenRouteEntry[]): OpenRouteEntry | undefined {
   return root;
 }
 
-function vAdd(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-}
-
-function vScale(a: Vec3, n: number): Vec3 {
-  return [a[0] * n, a[1] * n, a[2] * n];
-}
-
-function vNeg(a: Vec3): Vec3 {
-  return [normalizeZero(-a[0]), normalizeZero(-a[1]), normalizeZero(-a[2])];
-}
-
-function vEq(a: Vec3, b: Vec3): boolean {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
-}
-
-function normalizeZero(n: number): number {
-  return Object.is(n, -0) ? 0 : n;
-}
-
-function cellKey(cell: Vec3): string {
-  return `${cell[0]},${cell[1]},${cell[2]}`;
-}
-
 function stateKey(state: RouteState): string {
   return `${cellKey(state.cell)}|${cellKey(state.dir)}`;
 }
-
-function manhattan(a: Vec3, b: Vec3): number {
-  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
-}
-
 
 function isTurn(a: Vec3, b: Vec3): boolean {
   return !vEq(a, b) && !vEq(a, vNeg(b));
