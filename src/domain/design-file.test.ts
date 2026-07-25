@@ -2,17 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   CURRENT_SCHEMA_VERSION,
   deserializeDesign,
-  serializeDesign
+  serializeDesign,
+  type DesignFile
 } from "@/domain/design-file";
 import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
-import type { BendPart, BlowerPart, Scene, TerminalPart, TubePart } from "@/types";
+import type { Scene } from "@/types";
 
 const FULL_SCENE: Scene = {
   parts: [
-    { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] } as BlowerPart,
-    { id: "t1", type: "terminal", cell: [10, 0, 0], axis: [1, 0, 0] } as TerminalPart,
-    { id: "st1", type: "tube", from: [1, 0, 0], to: [7, 0, 0], length: 6 } as TubePart,
+    { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
+    { id: "t1", type: "terminal", cell: [10, 0, 0], axis: [1, 0, 0] },
+    { id: "st1", type: "tube", from: [1, 0, 0], to: [7, 0, 0], length: 6 },
     {
       id: "bn1",
       type: "bend",
@@ -22,7 +23,7 @@ const FULL_SCENE: Scene = {
       inDir: [1, 0, 0],
       outDir: [0, 0, 1],
       radius: 3
-    } as BendPart
+    }
   ],
   obstacles: [{ id: "o1", min: [2, 0, 2], max: [4, 1, 4] }]
 };
@@ -51,7 +52,7 @@ describe("serializeDesign", () => {
     const design = designFromScene(FULL_SCENE);
     const file = serializeDesign(design);
     const text = JSON.stringify(file);
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(text) as DesignFile;
     expect(parsed.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(parsed.parts).toHaveLength(4);
   });

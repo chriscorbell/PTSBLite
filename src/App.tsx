@@ -107,13 +107,6 @@ const kbdStyle = {
   color: "var(--text)"
 } as const;
 
-const DIRS: Vec3[] = [
-  [1, 0, 0],
-  [0, 0, 1],
-  [-1, 0, 0],
-  [0, 0, -1]
-];
-
 const DESIGN_METADATA = { filename: FILE_NAME, revision: FILE_REVISION };
 
 function isFreePlacementTool(tool: ToolId): tool is FreePlacementType {
@@ -137,6 +130,10 @@ export default function App() {
   }, []);
   const shellStyle = useMemo(
     () =>
+      // The assertion is required: this @types/react has no index signature for
+      // CSS custom properties, so a bare object literal is not assignable to
+      // `style`. no-unnecessary-type-assertion disagrees with tsc here.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
       ({
         "--topbar-left-padding": `${Math.max(10, titleBarInset)}px`,
         "--topbar-right-padding": `${Math.max(10, titleBarRightInset)}px`
@@ -715,8 +712,8 @@ export default function App() {
   return (
     <div className="app-shell" style={shellStyle}>
       <TopBar
-        onOpen={handleOpen}
-        onSave={handleSave}
+        onOpen={() => void handleOpen()}
+        onSave={() => void handleSave()}
         onEdit={setSettingsTab}
         onUndo={undo}
         onRedo={redo}
