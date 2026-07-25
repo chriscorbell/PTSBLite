@@ -528,29 +528,44 @@ function updateLineResolutions(root: THREE.Object3D, width: number, height: numb
   });
 }
 
-function disposeObject(obj: THREE.Object3D): void {
-  obj.traverse((child) => {
-    const m = child as THREE.Mesh | THREE.Sprite;
-    const geom = (m as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
-    if (geom && typeof geom.dispose === "function") geom.dispose();
-    const mat = (m as THREE.Mesh | THREE.Sprite).material as
-      | THREE.Material
-      | THREE.Material[]
-      | undefined;
-    if (Array.isArray(mat)) {
-      for (const single of mat) disposeMaterial(single);
-    } else if (mat) {
-      disposeMaterial(mat);
+/** Any node that may own GPU resources: Mesh, LineSegments, LineSegments2, Sprite. */
+type ResourceNode = THREE.Object3D & {
+  geometry?: THREE.BufferGeometry;
+  material?: THREE.Material | THREE.Material[];
+};
+
+/**
+ * Release the GPU resources held by `object` and everything below it. Detaching
+ * an object from the scene graph does not free its geometries, materials, or
+ * textures, so anything we rebuild has to be disposed explicitly or the buffers
+ * accumulate for the lifetime of the WebGL context.
+ */
+export function disposeObject(object: THREE.Object3D): void {
+  object.traverse((node) => {
+    const { geometry, material } = node as ResourceNode;
+    geometry?.dispose();
+    if (Array.isArray(material)) {
+      for (const single of material) disposeMaterial(single);
+    } else if (material) {
+      disposeMaterial(material);
     }
   });
 }
 
-function disposeMaterial(mat: THREE.Material): void {
-  const m = mat as THREE.Material & {
-    map?: THREE.Texture | null;
-  };
-  if (m.map && typeof m.map.dispose === "function") m.map.dispose();
-  if (typeof mat.dispose === "function") mat.dispose();
+function disposeMaterial(material: THREE.Material): void {
+  // Label sprites carry a CanvasTexture that has to go with the material.
+  const { map } = material as THREE.Material & { map?: THREE.Texture | null };
+  map?.dispose();
+  material.dispose();
+}
+
+/** Detach and dispose every child of `group`, leaving the group itself in place. */
+export function clearGroup(group: THREE.Group): void {
+  while (group.children.length > 0) {
+    const child = group.children[0];
+    group.remove(child);
+    disposeObject(child);
+  }
 }
 
 function buildPortGlow(marker: PortMarker): THREE.Group {
@@ -670,17 +685,6 @@ type ViewportState = {
   hoverPlane?: THREE.Mesh;
   cleanup?: () => void;
 };
-
-function disposeGroup(group: THREE.Group): void {
-  group.traverse((node) => {
-    if (node instanceof THREE.Mesh || node instanceof THREE.LineSegments) {
-      node.geometry.dispose();
-      const material = node.material;
-      if (Array.isArray(material)) material.forEach((m) => m.dispose());
-      else material.dispose();
-    }
-  });
-}
 
 type PointerPoint = {
   x: number;
@@ -1069,6 +1073,10 @@ export function Viewport({
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);
       }
+      // Everything we built hangs off scene3 — including whichever ground group
+      // the build-area effect installed most recently — so one traversal frees it
+      // all. StrictMode remounts this effect in dev, so it runs more than once.
+      disposeObject(scene3);
       renderer.dispose();
     };
     return () => stateRef.current.cleanup?.();
@@ -1086,8 +1094,8 @@ export function Viewport({
   useEffect(() => {
     const s = stateRef.current;
     if (!s.partsGroup || !s.obstaclesGroup) return;
-    while (s.partsGroup.children.length) s.partsGroup.remove(s.partsGroup.children[0]);
-    while (s.obstaclesGroup.children.length) s.obstaclesGroup.remove(s.obstaclesGroup.children[0]);
+    clearGroup(s.partsGroup);
+    clearGroup(s.obstaclesGroup);
     for (const o of scene.obstacles ?? []) {
       s.obstaclesGroup.add(buildObstacleMesh(o.min, o.max));
     }
@@ -1125,7 +1133,7 @@ export function Viewport({
     if (!s.scene3) return;
     if (s.groundGroup) {
       s.scene3.remove(s.groundGroup);
-      disposeGroup(s.groundGroup);
+      disposeObject(s.groundGroup);
     }
     const ground = buildGround(buildArea);
     s.scene3.add(ground);
@@ -1135,7 +1143,7 @@ export function Viewport({
   useEffect(() => {
     const s = stateRef.current;
     if (!s.ghostGroup) return;
-    while (s.ghostGroup.children.length) s.ghostGroup.remove(s.ghostGroup.children[0]);
+    clearGroup(s.ghostGroup);
     if (!ghost) return;
     let mesh: THREE.Group | null = null;
     if (ghost.type === "blower") {
@@ -1169,7 +1177,7 @@ export function Viewport({
   useEffect(() => {
     const s = stateRef.current;
     if (!s.overlayGroup) return;
-    while (s.overlayGroup.children.length) s.overlayGroup.remove(s.overlayGroup.children[0]);
+    clearGroup(s.overlayGroup);
     for (const cell of landingCells) {
       s.overlayGroup.add(buildLandingCellHighlight(cell, tool));
     }
@@ -1178,7 +1186,7 @@ export function Viewport({
   useEffect(() => {
     const s = stateRef.current;
     if (!s.planeGroup || !s.hoverPlane) return;
-    while (s.planeGroup.children.length) s.planeGroup.remove(s.planeGroup.children[0]);
+    clearGroup(s.planeGroup);
     s.hoverPlane.position.y = activeElevation;
   }, [activeElevation]);
 
@@ -1186,11 +1194,7 @@ export function Viewport({
     const s = stateRef.current;
     if (!s.portsGroup) return;
     const group = s.portsGroup;
-    while (group.children.length) {
-      const c = group.children[0];
-      group.remove(c);
-      disposeObject(c);
-    }
+    clearGroup(group);
     for (const marker of portMarkers) {
       group.add(buildPortGlow(marker));
     }
@@ -1200,11 +1204,7 @@ export function Viewport({
     const s = stateRef.current;
     if (!s.labelsGroup) return;
     const group = s.labelsGroup;
-    while (group.children.length) {
-      const c = group.children[0];
-      group.remove(c);
-      disposeObject(c);
-    }
+    clearGroup(group);
     if (!showLabels) return;
     for (const label of labels) {
       group.add(buildLabelSprite(label));
