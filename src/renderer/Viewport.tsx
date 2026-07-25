@@ -868,10 +868,9 @@ export function Viewport({
     rim.position.set(-10, 8, -6);
     scene3.add(rim);
 
-    // Initial ground/grid for the mount-time build area; a dedicated effect
-    // rebuilds it whenever the build area changes.
-    const groundGroup = buildGround(buildArea);
-    scene3.add(groundGroup);
+    // No ground here: the build-area effect below owns it and runs on first
+    // render too. Building it in both places made this effect depend on
+    // buildArea while declaring no dependencies, an invariant held by hand.
 
     const partsGroup = new THREE.Group();
     scene3.add(partsGroup);
@@ -913,7 +912,6 @@ export function Viewport({
       planeGroup,
       portsGroup,
       labelsGroup,
-      groundGroup,
       hoverPlane
     };
 
@@ -1082,14 +1080,22 @@ export function Viewport({
     return () => stateRef.current.cleanup?.();
   }, []);
 
+  // Depend on the three numbers rather than the camera object, so the dependency
+  // list says what the effect actually reads. Reading `camCfg` while listing its
+  // fields is the same thing, but only the linter could tell you so.
+  const camYaw = camCfg?.yaw;
+  const camPitch = camCfg?.pitch;
+  const camDistance = camCfg?.distance;
+
   useEffect(() => {
     const s = stateRef.current;
-    if (!s.cam || !s.applyCamera || !camCfg) return;
-    s.cam.yaw = camCfg.yaw ?? s.cam.yaw;
-    s.cam.pitch = camCfg.pitch ?? s.cam.pitch;
-    s.cam.distance = camCfg.distance ?? s.cam.distance;
+    if (!s.cam || !s.applyCamera) return;
+    if (camYaw === undefined && camPitch === undefined && camDistance === undefined) return;
+    s.cam.yaw = camYaw ?? s.cam.yaw;
+    s.cam.pitch = camPitch ?? s.cam.pitch;
+    s.cam.distance = camDistance ?? s.cam.distance;
     s.applyCamera();
-  }, [camCfg?.yaw, camCfg?.pitch, camCfg?.distance]);
+  }, [camYaw, camPitch, camDistance]);
 
   useEffect(() => {
     const s = stateRef.current;
@@ -1127,7 +1133,11 @@ export function Viewport({
     }
   }, [scene]);
 
-  // Rebuild the ground plane + grid when the configured build area changes.
+  // Builds the ground plane + grid, and rebuilds it whenever the configured build
+  // area changes. This also covers the initial build: effects run after the first
+  // render too, in declaration order, so scene3 exists by the time this runs.
+  const { width: areaWidth, depth: areaDepth, height: areaHeight } = buildArea;
+
   useEffect(() => {
     const s = stateRef.current;
     if (!s.scene3) return;
@@ -1135,10 +1145,10 @@ export function Viewport({
       s.scene3.remove(s.groundGroup);
       disposeObject(s.groundGroup);
     }
-    const ground = buildGround(buildArea);
+    const ground = buildGround({ width: areaWidth, depth: areaDepth, height: areaHeight });
     s.scene3.add(ground);
     s.groundGroup = ground;
-  }, [buildArea.width, buildArea.depth, buildArea.height]);
+  }, [areaWidth, areaDepth, areaHeight]);
 
   useEffect(() => {
     const s = stateRef.current;
