@@ -63,12 +63,49 @@ export function loadPartRegistry(
     if (typeof entry.unitPrice !== "number") {
       throw new Error(`PartRegistry: entry "${key}" missing numeric unitPrice`);
     }
-    normalized[key] =
-      entry.type === "bend"
-        ? { ...entry, bendFootprints: computeBendFootprints(entry) }
-        : { ...entry };
+    if (entry.type === "bend") {
+      const bendFootprints = computeBendFootprints(entry);
+      assertDeclaredCellCount(key, entry, bendFootprints);
+      normalized[key] = { ...entry, bendFootprints };
+    } else {
+      normalized[key] = { ...entry };
+    }
   }
   return new PartRegistry(normalized);
+}
+
+/**
+ * Catch a catalog entry whose declared `cells` disagrees with the footprint the
+ * geometry actually produces.
+ *
+ * `cells` is not decoration: `freePlacementFootprint` enforces it for blowers and
+ * terminals. It was silently unchecked for bends, and had drifted — bend90
+ * claimed 5 against an actual 7 — which is the kind of thing that stays harmless
+ * right up until something starts trusting it. Per ADR-0001 the geometry wins,
+ * so this reports the mismatch rather than deriving `cells` from it, which would
+ * make the field unfalsifiable.
+ */
+function assertDeclaredCellCount(
+  key: string,
+  entry: PartCatalogEntry,
+  footprints: BendFootprint[]
+): void {
+  if (typeof entry.cells !== "number" || footprints.length === 0) return;
+
+  const actual = new Set(footprints.map((footprint) => footprintCellCount(footprint)));
+  if (actual.has(entry.cells)) return;
+
+  const found = [...actual].sort((a, b) => a - b).join(", ");
+  throw new Error(
+    `PartRegistry: entry "${key}" declares cells: ${entry.cells}, but its footprint occupies ${found}`
+  );
+}
+
+/** Cells a bend occupies: its arc, plus the exit cell when the arc misses it. */
+function footprintCellCount(footprint: BendFootprint): number {
+  const cells = new Set(footprint.cells.map((cell) => cellKey(cell)));
+  cells.add(cellKey(footprint.exit));
+  return cells.size;
 }
 
 const PLANAR_DIRS: Vec3[] = [
