@@ -1,0 +1,41 @@
+# ADR-0001: Engineering constraints are authoritative spec, not placeholders
+
+- **Status:** Accepted
+- **Date:** 2026-07-25
+
+## Context
+
+`src/domain/validation.ts` and the geometry constants encode specific numbers: a 300 ft maximum
+centerline, 6 ft tube stock, 90° bends at a 3 ft radius, 1 cell = 1 ft, and a requirement that
+Terminal 1 sit flush against the blower outlet with zero tubing between them.
+
+Read cold, these are indistinguishable from the invented prices in `src/data/parts.json` — both are
+just literals in source. That ambiguity is dangerous in opposite directions: someone could "clean up"
+a real spec constraint, or could trust a placeholder price as reference data.
+
+## Decision
+
+The engineering constraints are **derived from the real PTS system specification and are
+authoritative**. They may not be loosened, rounded, re-derived, or removed without a cited source.
+
+The catalog's commercial data (`unitPrice`, `partNo`, `name`) is **placeholder** and carries no
+authority. See ADR-0003.
+
+Where the two disagree, the spec wins. Concretely: `arcLength: 4.71` in the catalog currently drives
+the derived bend radius of 3.0 ft — the 3 ft radius is the spec fact, and the catalog value exists to
+express it, not the other way round.
+
+## Consequences
+
+- New validation rules are additive. Existing thresholds are not tuning knobs.
+- The 300 ft cap has one home, `MAX_CENTERLINE_FEET`. User-facing copy must interpolate it rather
+  than restating "300ft" (currently violated at `src/App.tsx:644` — issue #18).
+- Anything reading a spec-derived number from the catalog needs a validation guard, so a future
+  catalog edit cannot silently contradict the spec (issue #26).
+- Deriving spec numbers afresh from geometry is forbidden even where it looks equivalent; the sampled
+  arc approximation in `computeBendFootprints` is a rendering/occupancy detail, not a source of truth.
+
+## Notes
+
+The exactly-2-terminals rule also lives in `validation.ts` but is **not** covered by this ADR — it is
+product scope, not a physical constraint. See ADR-0002.
