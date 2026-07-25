@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import {
   bendRenderCurve,
   bendRenderPath,
@@ -267,5 +269,45 @@ describe("clearGroup", () => {
     clearGroup(group);
 
     for (const dispose of disposals) expect(dispose).toHaveBeenCalled();
+  });
+});
+
+describe("three.js integration points", () => {
+  // Nothing else exercises three at runtime -- the helpers above are pure math and
+  // App mocks the Viewport -- so these pin the two APIs most likely to churn
+  // across a three upgrade. Constructing geometries and materials needs no WebGL
+  // context; only rendering does.
+  it("builds tube geometry from a bend path", () => {
+    const path = bendRenderPath({
+      entry: vec(1.5, 0.5, 0.5),
+      exit: vec(4.5, 0.5, 3.5),
+      center: vec(1.5, 0.5, 3.5),
+      inDir: vec(1, 0, 0),
+      outDir: vec(0, 0, 1),
+      radius: 3
+    });
+    const geometry = new THREE.TubeGeometry(path, 40, 0.22, 14, false);
+    const position = geometry.getAttribute("position");
+
+    expect(position.count).toBeGreaterThan(0);
+    expect(Number.isFinite(position.array[0])).toBe(true);
+  });
+
+  it("builds fat-line geometry and material for obstacle edges", () => {
+    const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(2, 2, 2));
+    const geometry = new LineSegmentsGeometry().fromEdgesGeometry(edges);
+
+    expect(geometry.getAttribute("instanceStart").count).toBeGreaterThan(0);
+
+    // linewidth is interpreted in pixels via the resolution uniform, so both have
+    // to keep working or obstacle outlines render at the wrong thickness.
+    const material = new LineMaterial({
+      color: 0xc23a48,
+      linewidth: 1.5,
+      resolution: new THREE.Vector2(800, 600)
+    });
+
+    expect(material.linewidth).toBe(1.5);
+    expect(material.resolution.x).toBe(800);
   });
 });
