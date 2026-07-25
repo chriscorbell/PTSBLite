@@ -273,9 +273,12 @@ function AutoBuildControl({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const activeLabel = OPTIMIZATION_OPTIONS.find((opt) => opt.value === mode)?.label ?? "Shortest path";
+  // The menu is closed while a build runs. Deriving that beats an effect that
+  // calls setOpen, which cost an extra render pass to reach the same state.
+  const expanded = open && !autoBuilding;
 
   useEffect(() => {
-    if (!open) return;
+    if (!expanded) return;
     const onPointerDown = (event: PointerEvent) => {
       if (rootRef.current?.contains(event.target as Node)) return;
       setOpen(false);
@@ -289,11 +292,7 @@ function AutoBuildControl({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
-
-  useEffect(() => {
-    if (autoBuilding) setOpen(false);
-  }, [autoBuilding]);
+  }, [expanded]);
 
   return (
     <div
@@ -305,7 +304,7 @@ function AutoBuildControl({
         flexShrink: 0
       }}
     >
-      {open && (
+      {expanded && (
         <div
           role="radiogroup"
           aria-label="Auto-build optimization mode"
@@ -395,7 +394,7 @@ function AutoBuildControl({
         type="button"
         aria-label="Choose Auto-build routing mode"
         aria-haspopup="true"
-        aria-expanded={open}
+        aria-expanded={expanded}
         disabled={autoBuilding}
         onClick={() => setOpen((next) => !next)}
         style={{
@@ -405,10 +404,10 @@ function AutoBuildControl({
           height: 24,
           padding: "0 8px",
           borderRadius: "0 5px 5px 0",
-          background: open ? "color-mix(in oklab, var(--accent) 22%, var(--panel-2))" : "var(--panel-2)",
-          color: open ? "var(--accent)" : "var(--text-mut)",
+          background: expanded ? "color-mix(in oklab, var(--accent) 22%, var(--panel-2))" : "var(--panel-2)",
+          color: expanded ? "var(--accent)" : "var(--text-mut)",
           border: `1px solid ${
-            open ? "color-mix(in oklab, var(--accent) 45%, transparent)" : "color-mix(in oklab, var(--accent) 35%, transparent)"
+            expanded ? "color-mix(in oklab, var(--accent) 45%, transparent)" : "color-mix(in oklab, var(--accent) 35%, transparent)"
           }`,
           borderLeft: "1px solid color-mix(in oklab, var(--accent) 25%, transparent)",
           fontFamily: "var(--font-sans)",
@@ -419,7 +418,7 @@ function AutoBuildControl({
         }}
       >
         <span>{activeLabel}</span>
-        {open ? <Icons.ChevD size={11} /> : <Icons.ChevU size={11} />}
+        {expanded ? <Icons.ChevD size={11} /> : <Icons.ChevU size={11} />}
       </button>
     </div>
   );

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type CSSProperties
+} from "react";
 import { AboutModal } from "@/components/AboutModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ExportPdfModal } from "@/components/ExportPdfModal";
@@ -17,6 +25,12 @@ import {
 } from "@/domain/app-settings";
 import { bendLandingCells, bendPlacementGhost, placeBend } from "@/domain/bend-placement";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
+import {
+  canRedo,
+  canUndo,
+  designHistoryReducer,
+  initDesignHistory
+} from "@/domain/design-history";
 import { designFromScene, emptyDesign, partsWithinBuildArea } from "@/domain/design-state";
 import { eraseAtCell } from "@/domain/erase-placement";
 import {
@@ -42,7 +56,6 @@ import {
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
 import { totalPathLength } from "@/domain/parts";
-import { popUndo, pushUndo } from "@/domain/undo-history";
 import { autoBuildOpenPortPair, type OptimizationMode } from "@/domain/pathfinder";
 import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
 import { placeTerminal, terminalLandingCells, terminalPlacementGhost } from "@/domain/terminal-placement";
@@ -140,10 +153,20 @@ export default function App() {
       }) as CSSProperties & Record<"--topbar-left-padding" | "--topbar-right-padding", string>,
     [titleBarInset, titleBarRightInset]
   );
-  const [design, setDesign] = useState<DesignState>(() => emptyDesign(DESIGN_METADATA));
-  const [tool, setTool] = useState<ToolId>("cursor");
+  // The design and its undo/redo stacks move together, so they are one reducer.
+  // `dispatchHistory` is stable, which is what lets the history callbacks below
+  // stay stable without mirroring the current design into a ref.
+  const [history, dispatchHistory] = useReducer(
+    designHistoryReducer,
+    DESIGN_METADATA,
+    (metadata) => initDesignHistory(emptyDesign(metadata))
+  );
+  const design = history.present;
+  const undoAvailable = canUndo(history);
+  const redoAvailable = canRedo(history);
+
+  const [tool, setToolRaw] = useState<ToolId>("cursor");
   const [hoverCell, setHoverCell] = useState<Vec3 | null>(null);
-  const [ghostState, setGhostState] = useState<Ghost | null>(null);
   const [obstacleDraft, setObstacleDraft] = useState<ObstaclePlacementDraft | null>(null);
   const [ghostRotation, setGhostRotation] = useState(0);
   const [freePlacementMemory, setFreePlacementMemory] = useState<FreePlacementMemory>(
@@ -175,6 +198,13 @@ export default function App() {
   const [errorFlash, setErrorFlashRaw] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /** Switching tools abandons anything in flight for the previous one. */
+  const selectTool = useCallback((next: ToolId) => {
+    setToolRaw(next);
+    setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
+    setObstacleDraft(null);
+  }, []);
+
   const setErrorFlash = useCallback((msg: string | null) => {
     if (flashTimer.current) clearTimeout(flashTimer.current);
     setErrorFlashRaw(msg);
@@ -183,58 +213,35 @@ export default function App() {
     }
   }, []);
 
-  // Undo/redo history. `designRef` mirrors the latest committed design so the
-  // stable history callbacks can read it without re-binding every render.
-  const designRef = useRef(design);
-  designRef.current = design;
-  const undoStackRef = useRef<DesignState[]>([]);
-  const redoStackRef = useRef<DesignState[]>([]);
-  // Reactive mirrors of the stack depths so the toolbar buttons can enable/disable.
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-  const syncHistoryFlags = useCallback(() => {
-    setCanUndo(undoStackRef.current.length > 0);
-    setCanRedo(redoStackRef.current.length > 0);
+  /**
+   * Drop the transient bits tied to the design we just moved away from: an
+   * in-flight obstacle draft, and a stale auto-build toast describing a route
+   * that is no longer on screen.
+   */
+  const clearTransientAfterHistoryMove = useCallback(() => {
+    setObstacleDraft(null);
+    setAutoBuildJustRan(false);
+    setAutoBuildSummary(null);
+    setDirty(true);
   }, []);
 
   /** Apply a design change as a single undoable step. A new edit clears redo. */
   const commitDesign = useCallback((next: DesignState) => {
-    undoStackRef.current = pushUndo(undoStackRef.current, designRef.current);
-    redoStackRef.current = [];
-    designRef.current = next;
-    setDesign(next);
+    dispatchHistory({ type: "commit", design: next });
     setDirty(true);
-    syncHistoryFlags();
-  }, [syncHistoryFlags]);
-
-  // Restore a design from history and drop any in-flight interaction or stale
-  // auto-build toast tied to the state we just moved away from.
-  const restoreDesign = useCallback((next: DesignState) => {
-    designRef.current = next;
-    setDesign(next);
-    setObstacleDraft(null);
-    setGhostState(null);
-    setAutoBuildJustRan(false);
-    setAutoBuildSummary(null);
-    setDirty(true);
-    syncHistoryFlags();
-  }, [syncHistoryFlags]);
+  }, []);
 
   const undo = useCallback(() => {
-    const popped = popUndo(undoStackRef.current);
-    if (!popped) return;
-    undoStackRef.current = popped.rest;
-    redoStackRef.current = pushUndo(redoStackRef.current, designRef.current);
-    restoreDesign(popped.entry);
-  }, [restoreDesign]);
+    if (!undoAvailable) return;
+    dispatchHistory({ type: "undo" });
+    clearTransientAfterHistoryMove();
+  }, [undoAvailable, clearTransientAfterHistoryMove]);
 
   const redo = useCallback(() => {
-    const popped = popUndo(redoStackRef.current);
-    if (!popped) return;
-    redoStackRef.current = popped.rest;
-    undoStackRef.current = pushUndo(undoStackRef.current, designRef.current);
-    restoreDesign(popped.entry);
-  }, [restoreDesign]);
+    if (!redoAvailable) return;
+    dispatchHistory({ type: "redo" });
+    clearTransientAfterHistoryMove();
+  }, [redoAvailable, clearTransientAfterHistoryMove]);
 
   // Load persisted global settings once on startup and apply pricing overrides so
   // the BOM/quote reflect the user's saved prices.
@@ -277,16 +284,14 @@ export default function App() {
   }, []);
 
   const updateMetadata = useCallback((metadata: DesignState["metadata"]) => {
-    const d = designRef.current;
+    const d = design;
     const prev = d.metadata.buildArea;
     const next = metadata.buildArea;
     const areaChanged =
       prev.width !== next.width || prev.depth !== next.depth || prev.height !== next.height;
     if (!areaChanged) {
       // Cosmetic metadata (name/revision): swap in place, not an undoable edit.
-      const updated = { ...d, metadata };
-      designRef.current = updated;
-      setDesign(updated);
+      dispatchHistory({ type: "replace-present", design: { ...d, metadata } });
       setDirty(true);
       return;
     }
@@ -294,7 +299,7 @@ export default function App() {
     // rebuild the grid. Commit as one undoable step so the deletion is reversible.
     const keptParts = partsWithinBuildArea(d.parts, next);
     commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
-  }, [commitDesign]);
+  }, [commitDesign, design]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -312,7 +317,7 @@ export default function App() {
         redo();
         return;
       }
-      if (KEY_TOOL_MAP[k] && !e.metaKey && !e.ctrlKey) setTool(KEY_TOOL_MAP[k]);
+      if (KEY_TOOL_MAP[k] && !e.metaKey && !e.ctrlKey) selectTool(KEY_TOOL_MAP[k]);
       if (k === "r" && !e.metaKey && !e.ctrlKey) {
         if (isFreePlacementTool(tool)) {
           setFreePlacementRotation((rotation) =>
@@ -324,12 +329,7 @@ export default function App() {
           setGhostRotation((r) => (r + (e.shiftKey ? 3 : 1)) % 4);
         }
       }
-      if (k === "escape") {
-        setTool("cursor");
-        setGhostState(null);
-        setObstacleDraft((draft) => cancelObstaclePlacement(draft));
-        setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
-      }
+      if (k === "escape") selectTool("cursor");
       if (k === "[" && !e.metaKey && !e.ctrlKey) {
         setActiveElevation((y) => Math.max(-20, y - 1));
       }
@@ -339,46 +339,42 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tool, undo, redo]);
+  }, [tool, undo, redo, selectTool]);
 
-  useEffect(() => {
-    setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
-    setObstacleDraft(null);
-  }, [tool]);
-
-  useEffect(() => {
-    if (!hoverCell || tool === "cursor" || tool === "erase") {
-      setGhostState(null);
-      return;
-    }
+  /**
+   * The ghost is derived, not stored. It was previously computed in an effect
+   * that called setGhostState, which cost a second render pass on every mouse
+   * move — the hover cell changes, React renders, the effect runs, React renders
+   * again. Computing it during render halves that, and removes the possibility
+   * of the stored ghost disagreeing with the state it was supposed to reflect.
+   */
+  const ghostState = useMemo<Ghost | null>(() => {
+    if (!hoverCell || tool === "cursor" || tool === "erase") return null;
     if (tool === "blower") {
-      setGhostState(
-        freePlacementGhost({
-          type: tool,
-          design,
-          cell: hoverCell,
-          memory: freePlacementMemory,
-          rotationSteps: freePlacementRotation.horizontalSteps,
-          verticalRotationSteps: freePlacementRotation.verticalSteps
-        })
-      );
-    } else if (tool === "terminal") {
-      setGhostState(
-        terminalPlacementGhost({
-          design,
-          cell: hoverCell,
-          memory: freePlacementMemory,
-          rotationSteps: freePlacementRotation.horizontalSteps,
-          verticalRotationSteps: freePlacementRotation.verticalSteps
-        })
-      );
-    } else if (tool === "tube") {
-      setGhostState(tubePlacementGhost(design, hoverCell));
-    } else if (tool === "bend") {
-      setGhostState(bendPlacementGhost(design, hoverCell, { rotationIndex: ghostRotation }));
-    } else if (tool === "obstacle") {
-      setGhostState(obstaclePlacementGhost(obstacleDraft, hoverCell));
+      return freePlacementGhost({
+        type: tool,
+        design,
+        cell: hoverCell,
+        memory: freePlacementMemory,
+        rotationSteps: freePlacementRotation.horizontalSteps,
+        verticalRotationSteps: freePlacementRotation.verticalSteps
+      });
     }
+    if (tool === "terminal") {
+      return terminalPlacementGhost({
+        design,
+        cell: hoverCell,
+        memory: freePlacementMemory,
+        rotationSteps: freePlacementRotation.horizontalSteps,
+        verticalRotationSteps: freePlacementRotation.verticalSteps
+      });
+    }
+    if (tool === "tube") return tubePlacementGhost(design, hoverCell);
+    if (tool === "bend") {
+      return bendPlacementGhost(design, hoverCell, { rotationIndex: ghostRotation });
+    }
+    if (tool === "obstacle") return obstaclePlacementGhost(obstacleDraft, hoverCell);
+    return null;
   }, [
     hoverCell,
     tool,
@@ -391,7 +387,6 @@ export default function App() {
 
   const cancelObstacleDraft = useCallback(() => {
     setObstacleDraft((draft) => cancelObstaclePlacement(draft));
-    setGhostState(null);
   }, []);
 
   const commitObstacleDraft = useCallback(() => {
@@ -408,7 +403,6 @@ export default function App() {
     }
     commitDesign(result.design);
     setObstacleDraft(null);
-    setGhostState(null);
     setAutoBuildJustRan(false);
   }, [commitDesign, design, obstacleDraft, setErrorFlash]);
 
@@ -520,13 +514,10 @@ export default function App() {
             return;
           }
           setObstacleDraft(result.draft);
-          setGhostState(obstaclePlacementGhost(result.draft, cell));
           return;
         }
         if (!obstaclePlacementDraftHasFootprint(obstacleDraft)) {
-          const nextDraft = setObstaclePlacementFootprint(obstacleDraft, cell);
-          setObstacleDraft(nextDraft);
-          setGhostState(obstaclePlacementGhost(nextDraft, cell));
+          setObstacleDraft(setObstaclePlacementFootprint(obstacleDraft, cell));
           return;
         }
         return;
@@ -596,15 +587,8 @@ export default function App() {
         setErrorFlash(`Open failed: ${parsed.message}`);
         return;
       }
-      undoStackRef.current = [];
-      redoStackRef.current = [];
-      syncHistoryFlags();
-      designRef.current = parsed.design;
-      setDesign(parsed.design);
-      setTool("cursor");
-      setGhostState(null);
-      setObstacleDraft(null);
-      setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
+      dispatchHistory({ type: "reset", design: parsed.design });
+      selectTool("cursor");
       setAutoBuildJustRan(false);
       setExportOpen(false);
       setStatusOpen(false);
@@ -613,7 +597,7 @@ export default function App() {
     } catch (err) {
       setErrorFlash(`Open failed: ${String(err)}`);
     }
-  }, [dirty, setErrorFlash, syncHistoryFlags]);
+  }, [dirty, selectTool, setErrorFlash]);
 
   const runAutoBuild = useCallback(() => {
     setAutoBuilding(true);
@@ -632,7 +616,7 @@ export default function App() {
       unrouted: result.unroutedPairs.length
     });
     setAutoBuildJustRan(true);
-    setTool("cursor");
+    selectTool("cursor");
     commitDesign(result.design);
     if (result.unroutedPairs.length > 0) {
       const overBudget = result.unroutedPairs.some((pair) => pair.reason === "over-budget");
@@ -644,15 +628,12 @@ export default function App() {
     } else {
       setErrorFlash(null);
     }
-  }, [commitDesign, design, optimizationMode, setErrorFlash]);
+  }, [commitDesign, design, optimizationMode, selectTool, setErrorFlash]);
 
   const resetActiveInteraction = useCallback(() => {
-    setTool("cursor");
-    setGhostState(null);
-    setObstacleDraft(null);
-    setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
+    selectTool("cursor");
     setAutoBuildJustRan(false);
-  }, []);
+  }, [selectTool]);
 
   const clearAllParts = useCallback(() => {
     if (design.parts.length === 0) return;
@@ -717,8 +698,8 @@ export default function App() {
         onEdit={setSettingsTab}
         onUndo={undo}
         onRedo={redo}
-        canUndo={canUndo}
-        canRedo={canRedo}
+        canUndo={undoAvailable}
+        canRedo={redoAvailable}
         bomOpen={rightOpen}
         onToggleBom={() => setRightOpen((o) => !o)}
         showLabels={showLabels}
@@ -728,7 +709,7 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
         <LeftRail
           tool={tool}
-          onTool={setTool}
+          onTool={selectTool}
           partCount={design.parts.length}
           obstacleCount={design.obstacles.length}
           onClearParts={clearAllParts}
