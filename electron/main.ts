@@ -136,15 +136,15 @@ function createWindow(): void {
   mainWindow.on("page-title-updated", (event) => event.preventDefault());
 
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
-    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+    void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
     mainWindow.webContents.openDevTools({ mode: "detach" });
     return;
   }
 
-  mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+  void mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
 }
 
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   ipcMain.handle("design:save", async (_event, jsonData: string) => {
     const result = await dialog.showSaveDialog({
       title: "Save PTSBuilder Design",
