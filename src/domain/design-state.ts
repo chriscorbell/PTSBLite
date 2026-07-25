@@ -6,6 +6,7 @@ import {
 } from "@/domain/sparse-grid";
 import { bendFootprint } from "@/domain/bend-placement";
 import type { BuildArea, DesignMetadata, DesignState, Obstacle, Part, Scene, Vec3 } from "@/types";
+import { tubeCells } from "@/domain/vec3";
 
 export const DEFAULT_FILENAME = "untitled.ptsb";
 export const DEFAULT_REVISION = "0.1";
@@ -20,30 +21,6 @@ function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
     revision: meta?.revision ?? DEFAULT_REVISION,
     buildArea: meta?.buildArea ? clampBuildArea(meta.buildArea) : { ...DEFAULT_BUILD_AREA }
   };
-}
-
-function cellAt(v: Vec3): Vec3 {
-  return [Math.floor(v[0]), Math.floor(v[1]), Math.floor(v[2])];
-}
-
-function sign(n: number): number {
-  return n > 0 ? 1 : n < 0 ? -1 : 0;
-}
-
-function tubeCells(from: Vec3, to: Vec3): Vec3[] {
-  const start = cellAt(from);
-  const end = cellAt(to);
-  const dir: Vec3 = [sign(end[0] - start[0]), sign(end[1] - start[1]), sign(end[2] - start[2])];
-  const length = Math.max(
-    Math.abs(end[0] - start[0]),
-    Math.abs(end[1] - start[1]),
-    Math.abs(end[2] - start[2])
-  );
-  return Array.from({ length }, (_, i) => [
-    start[0] + dir[0] * i,
-    start[1] + dir[1] * i,
-    start[2] + dir[2] * i
-  ]);
 }
 
 function buildGrid(parts: Part[], obstacles: Obstacle[], buildArea: BuildArea): SparseGrid {

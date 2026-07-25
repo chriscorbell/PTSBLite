@@ -1,4 +1,5 @@
 import type { BuildArea, Vec3 } from "@/types";
+import { cellKey } from "@/domain/vec3";
 
 /**
  * Lowest buildable Y. Nothing — manually placed or auto-routed — may occupy a
@@ -55,10 +56,6 @@ export function boundsFromBuildArea(area: BuildArea): GridBounds {
     yMin: GROUND_PLANE_Y, yMax: GROUND_PLANE_Y + area.height,
     zMin: -halfZ, zMax: area.depth - halfZ
   };
-}
-
-function cellKey(cell: Vec3): string {
-  return `${cell[0]},${cell[1]},${cell[2]}`;
 }
 
 export class SparseGrid {

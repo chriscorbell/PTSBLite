@@ -7,6 +7,7 @@ import {
 } from "@/domain/free-placement";
 import { computeTopology } from "@/domain/topology";
 import type { BlowerPart, DesignState, Ghost, TerminalPart, Vec3 } from "@/types";
+import { cellKey, vAdd, vEq } from "@/domain/vec3";
 
 export type TerminalOneLanding = {
   cell: Vec3;
@@ -20,26 +21,14 @@ export type TerminalPlacementMode =
 
 export const TERMINAL_ONE_MESSAGE = "Place Terminal 1 on the highlighted blower-outlet cell.";
 
-function vecAdd(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-}
-
 function firstBlower(design: DesignState): BlowerPart | undefined {
   return design.parts.find((part): part is BlowerPart => part.type === "blower");
-}
-
-function vecEq(a: Vec3, b: Vec3): boolean {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
-}
-
-function cellKey(cell: Vec3): string {
-  return `${cell[0]},${cell[1]},${cell[2]}`;
 }
 
 function hasTerminalOne(design: DesignState, landing: TerminalOneLanding): boolean {
   return design.parts.some(
     (part): part is TerminalPart =>
-      part.type === "terminal" && vecEq(part.cell, landing.cell) && vecEq(part.axis, landing.axis)
+      part.type === "terminal" && vEq(part.cell, landing.cell) && vEq(part.axis, landing.axis)
   );
 }
 
@@ -47,7 +36,7 @@ export function terminalOneLanding(design: DesignState): TerminalOneLanding | nu
   const blower = firstBlower(design);
   if (!blower) return null;
   return {
-    cell: vecAdd(blower.cell, blower.dir),
+    cell: vAdd(blower.cell, blower.dir),
     axis: blower.dir
   };
 }
@@ -83,7 +72,7 @@ export function terminalPlacementGhost({
       verticalRotationSteps
     });
   }
-  if (mode.kind !== "terminal-1" || !vecEq(cell, mode.landing.cell)) return null;
+  if (mode.kind !== "terminal-1" || !vEq(cell, mode.landing.cell)) return null;
   if (!validateFreePlacementCell(design, mode.landing.cell).ok) return null;
   return { type: "terminal", cell: mode.landing.cell, axis: mode.landing.axis };
 }
@@ -128,7 +117,7 @@ export function placeTerminal(
     return { ok: false, message: "Place a blower before Terminal 1." };
   }
   if (mode.kind === "terminal-1") {
-    if (!vecEq(cell, mode.landing.cell)) {
+    if (!vEq(cell, mode.landing.cell)) {
       return { ok: false, message: TERMINAL_ONE_MESSAGE };
     }
     return placeFreePart(design, {

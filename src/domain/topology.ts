@@ -1,5 +1,6 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
 import type { DesignState, Part, ToolId, Vec3 } from "@/types";
+import { cellAt, cellKey, dirOf, vAdd, vEq, vNeg, vSub } from "@/domain/vec3";
 
 export type PortOwnerType = "blower" | "terminal" | "tube" | "bend";
 
@@ -11,42 +12,6 @@ export type Port = {
   cell: Vec3;
   dir: Vec3;
 };
-
-function cellAt(v: Vec3): Vec3 {
-  return [Math.floor(v[0]), Math.floor(v[1]), Math.floor(v[2])];
-}
-
-function sign(n: number): number {
-  return n > 0 ? 1 : n < 0 ? -1 : 0;
-}
-
-function normalizeZero(n: number): number {
-  return Object.is(n, -0) ? 0 : n;
-}
-
-function dirOf(a: Vec3, b: Vec3): Vec3 {
-  return [sign(b[0] - a[0]), sign(b[1] - a[1]), sign(b[2] - a[2])];
-}
-
-function vAdd(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-}
-
-function vSub(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-}
-
-function vNeg(a: Vec3): Vec3 {
-  return [normalizeZero(-a[0]), normalizeZero(-a[1]), normalizeZero(-a[2])];
-}
-
-function vEq(a: Vec3, b: Vec3): boolean {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
-}
-
-function cellKey(v: Vec3): string {
-  return `${v[0]},${v[1]},${v[2]}`;
-}
 
 function portKey(p: Port): string {
   return `${p.partId}:${p.index}`;
