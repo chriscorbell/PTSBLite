@@ -56,7 +56,12 @@ import {
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
 import { totalPathLength } from "@/domain/parts";
-import { autoBuildOpenPortPair, type OptimizationMode } from "@/domain/pathfinder";
+import {
+  autoBuildOpenPortPair,
+  type OptimizationMode,
+  type UnroutedPair
+} from "@/domain/pathfinder";
+import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
 import { placeTerminal, terminalLandingCells, terminalPlacementGhost } from "@/domain/terminal-placement";
 import { placeTube, tubeLandingCells, tubePlacementGhost } from "@/domain/tube-placement";
@@ -124,6 +129,31 @@ const DESIGN_METADATA = { filename: FILE_NAME, revision: FILE_REVISION };
 
 function isFreePlacementTool(tool: ToolId): tool is FreePlacementType {
   return tool === "blower" || tool === "terminal";
+}
+
+/**
+ * Resolve after the browser has had a chance to paint. requestAnimationFrame
+ * alone runs *before* paint, so the timeout hands control back afterwards.
+ */
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => setTimeout(resolve, 0));
+  });
+}
+
+/** Explain what auto-build could not route, or null when it routed everything. */
+function unroutedMessage(unrouted: UnroutedPair[]): string | null {
+  if (unrouted.length === 0) return null;
+  const count = `${unrouted.length} pair(s)`;
+  if (unrouted.some((pair) => pair.reason === "over-budget")) {
+    return `${count} exceeded the ${MAX_CENTERLINE_FEET}ft budget and were left unrouted.`;
+  }
+  // A search that ran out of budget has not proved anything; say so, rather than
+  // claiming no route exists.
+  if (unrouted.some((pair) => pair.reason === "search-limit")) {
+    return `${count} were too complex to route. Try moving the endpoints closer or clearing obstacles.`;
+  }
+  return `${count} had no route and were skipped.`;
 }
 
 function ghostOrientation(ghost: Ghost): Vec3 | null {
@@ -599,11 +629,23 @@ export default function App() {
     }
   }, [dirty, selectTool, setErrorFlash]);
 
-  const runAutoBuild = useCallback(() => {
+  const runAutoBuild = useCallback(async () => {
     setAutoBuilding(true);
     setAutoBuildJustRan(false);
-    const result = autoBuildOpenPortPair(design, { mode: optimizationMode });
-    setAutoBuilding(false);
+    // The search is synchronous and blocks the thread. Without yielding first,
+    // React batches this state change with the one after it and the pending
+    // indicator never reaches the screen. Routing typically takes under 40ms,
+    // but an unroutable pair exhausts the search space and can take ~1.7s --
+    // exactly when the user most needs to see that something is happening.
+    await nextPaint();
+
+    let result;
+    try {
+      result = autoBuildOpenPortPair(design, { mode: optimizationMode });
+    } finally {
+      setAutoBuilding(false);
+    }
+
     if (!result.ok) {
       setErrorFlash(result.message);
       return;
@@ -618,16 +660,7 @@ export default function App() {
     setAutoBuildJustRan(true);
     selectTool("cursor");
     commitDesign(result.design);
-    if (result.unroutedPairs.length > 0) {
-      const overBudget = result.unroutedPairs.some((pair) => pair.reason === "over-budget");
-      setErrorFlash(
-        overBudget
-          ? `${result.unroutedPairs.length} pair(s) exceeded the 300ft budget and were left unrouted.`
-          : `${result.unroutedPairs.length} pair(s) had no route and were skipped.`
-      );
-    } else {
-      setErrorFlash(null);
-    }
+    setErrorFlash(unroutedMessage(result.unroutedPairs));
   }, [commitDesign, design, optimizationMode, selectTool, setErrorFlash]);
 
   const resetActiveInteraction = useCallback(() => {
@@ -822,7 +855,7 @@ export default function App() {
         warnings={warnings}
         expanded={statusOpen}
         onToggle={() => setStatusOpen((s) => !s)}
-        onAutoBuild={runAutoBuild}
+        onAutoBuild={() => void runAutoBuild()}
         autoBuilding={autoBuilding}
         optimizationMode={optimizationMode}
         onOptimizationModeChange={setOptimizationMode}

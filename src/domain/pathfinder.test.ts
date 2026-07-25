@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { designFromScene } from "@/domain/design-state";
-import { autoBuildOpenPortPair } from "@/domain/pathfinder";
+import {
+  autoBuildOpenPortPair,
+  PATHFINDER_NO_ROUTE_MESSAGE,
+  PATHFINDER_SEARCH_LIMIT_MESSAGE
+} from "@/domain/pathfinder";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import { totalPathLength } from "@/domain/parts";
 import { validate } from "@/domain/validation";
@@ -273,5 +277,62 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     expect(result.unroutedPairs.length).toBe(1);
     expect(result.unroutedPairs[0].reason).toBe("over-budget");
     expect(result.parts.length).toBeGreaterThan(0);
+  });
+});
+
+describe("why auto-build failed", () => {
+  const farApart: Part[] = [
+    { id: "b1", type: "blower", cell: [-25, 0, -25], dir: [1, 0, 0] },
+    { id: "t1", type: "terminal", cell: [-24, 0, -25], axis: [1, 0, 0] },
+    { id: "t2", type: "terminal", cell: [25, 0, 25], axis: [1, 0, 0] }
+  ];
+  const farShell: Obstacle[] = [
+    { id: "s1", min: [22, 0, 22], max: [28, 5, 23] },
+    { id: "s2", min: [22, 0, 27], max: [28, 5, 28] },
+    { id: "s3", min: [22, 0, 23], max: [23, 5, 27] },
+    { id: "s4", min: [27, 0, 23], max: [28, 5, 27] }
+  ];
+
+  // Terminal 2 walled in at close range, so the bounded search space is small
+  // enough to exhaust outright rather than run out of expansion budget.
+  const nearby: Part[] = [
+    { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
+    { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
+    { id: "t2", type: "terminal", cell: [6, 0, 6], axis: [1, 0, 0] }
+  ];
+  const nearShell: Obstacle[] = [
+    { id: "n1", min: [5, 0, 5], max: [7, 1, 5] },
+    { id: "n2", min: [5, 0, 7], max: [7, 1, 7] },
+    { id: "n3", min: [5, 0, 6], max: [5, 1, 6] },
+    { id: "n4", min: [7, 0, 6], max: [7, 1, 6] }
+  ];
+
+  it("claims no route only after exhausting the reachable space", () => {
+    const result = autoBuildOpenPortPair(designWith(nearby, nearShell));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("no-route");
+    expect(result.message).toBe(PATHFINDER_NO_ROUTE_MESSAGE);
+  });
+
+  it("says it gave up when it stopped on the expansion budget", () => {
+    // Distant endpoints with the target sealed: the reachable space is large
+    // enough that the search hits its budget long before exhausting it, so
+    // nothing has been proved and the message must not claim otherwise.
+    const result = autoBuildOpenPortPair(designWith(farApart, farShell));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("search-limit");
+    expect(result.message).toBe(PATHFINDER_SEARCH_LIMIT_MESSAGE);
+  });
+
+  it("still reports giving up when the budget is lowered", () => {
+    const result = autoBuildOpenPortPair(designWith(nearby, nearShell), { maxExpansions: 20 });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("search-limit");
   });
 });

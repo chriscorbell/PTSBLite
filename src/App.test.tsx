@@ -323,3 +323,21 @@ describe("the placement ghost", () => {
     expect(ghost()).toBeNull();
   });
 });
+
+describe("auto-build feedback", () => {
+  it("paints the routing state before the search blocks the thread", async () => {
+    await renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Auto-build$/ }));
+
+    // The regression this guards: the search used to run synchronously in the
+    // same tick, so React batched the pending state away and it never rendered.
+    expect(screen.getByRole("button", { name: /^Routing/ })).toBeTruthy();
+    expect(viewport.props?.autoBuildPulse).toBe(true);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /^Auto-build$/ })).toBeTruthy();
+    });
+    expect(viewport.props?.autoBuildPulse).toBe(false);
+  });
+});

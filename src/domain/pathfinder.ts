@@ -9,6 +9,8 @@ import type { BlowerPart, DesignState, Part, Vec3 } from "@/types";
 import { cellKey, manhattan, vAdd, vEq, vNeg, vScale } from "@/domain/vec3";
 
 export const PATHFINDER_NO_ROUTE_MESSAGE = "No route exists between the open ports.";
+export const PATHFINDER_SEARCH_LIMIT_MESSAGE =
+  "Routing gave up before finding a path. Try moving the endpoints closer or clearing obstacles.";
 
 export type OptimizationMode = "shortest" | "fewest-bends";
 
@@ -19,12 +21,23 @@ const FEWEST_BENDS_PENALTY = 12;
 export type UnroutedPair = {
   source: Port;
   target: Port;
-  reason: "no-route" | "over-budget";
+  /**
+   * `no-route` means the search proved there is no path. `search-limit` means it
+   * hit MAX_ROUTE_EXPANSIONS first and gave up, which is a different thing to
+   * tell the user: a different layout might still route.
+   */
+  reason: "no-route" | "over-budget" | "search-limit";
 };
 
 export type AutoBuildOptions = {
   maxBudgetFeet?: number;
   mode?: OptimizationMode;
+  /**
+   * Cap on A* expansions per search. Exposed mainly so tests can drive the
+   * give-up path deterministically instead of building a layout large enough to
+   * exhaust the default budget.
+   */
+  maxExpansions?: number;
 };
 
 type RouteState = {
@@ -57,7 +70,7 @@ type PlannedRoute = {
 
 export type AutoBuildPathResult =
   | { ok: true; design: DesignState; parts: Part[]; cost: number; unroutedPairs: UnroutedPair[] }
-  | { ok: false; reason: "no-route"; message: string };
+  | { ok: false; reason: "no-route" | "search-limit"; message: string };
 
 const SEARCH_MARGIN = 12;
 const MAX_ROUTE_EXPANSIONS = 120_000;
@@ -210,12 +223,19 @@ function neighbors(
   return result;
 }
 
+/** A search either finds a route, proves there is none, or runs out of budget. */
+type RouteOutcome =
+  | { kind: "route"; route: PlannedRoute }
+  | { kind: "no-route" }
+  | { kind: "search-limit" };
+
 function routeBetween(
   design: DesignState,
   source: Port,
   target: Port,
-  mode: OptimizationMode
-): PlannedRoute | null {
+  mode: OptimizationMode,
+  maxExpansions: number
+): RouteOutcome {
   const goal: RouteState = { cell: target.from, dir: vNeg(target.dir) };
   const start: RouteState = { cell: source.cell, dir: source.dir };
   const open: OpenRouteEntry[] = [];
@@ -231,7 +251,7 @@ function routeBetween(
   const cameFrom = new Map<string, { previous: string; edge: RouteEdge }>();
   let expansions = 0;
 
-  while (open.length > 0 && expansions < MAX_ROUTE_EXPANSIONS) {
+  while (open.length > 0 && expansions < maxExpansions) {
     const current = popOpenEntry(open);
     if (!current) break;
     const currentKey = stateKey(current.state);
@@ -243,11 +263,14 @@ function routeBetween(
 
     if (vEq(current.state.cell, goal.cell) && vEq(current.state.dir, goal.dir)) {
       return {
-        cost: currentGeomCost,
-        searchCost: currentSearchCost,
-        edges: reconstructEdges(cameFrom, currentKey),
-        source,
-        target
+        kind: "route",
+        route: {
+          cost: currentGeomCost,
+          searchCost: currentSearchCost,
+          edges: reconstructEdges(cameFrom, currentKey),
+          source,
+          target
+        }
       };
     }
 
@@ -267,7 +290,9 @@ function routeBetween(
     }
   }
 
-  return null;
+  // Exhausting the open set proves no route exists; stopping on the expansion
+  // budget does not.
+  return expansions >= maxExpansions ? { kind: "search-limit" } : { kind: "no-route" };
 }
 
 function reconstructEdges(
@@ -326,19 +351,27 @@ function planBestRoute(
   design: DesignState,
   oriented: { source: Port; target: Port },
   pool: Port[],
-  mode: OptimizationMode
-): { route: PlannedRoute; source: Port; target: Port } | null {
+  mode: OptimizationMode,
+  maxExpansions: number
+): { best: PlannedBest | null; hitSearchLimit: boolean } {
   const sourceOptions = pool.filter((p) => p.partId === oriented.source.partId);
   const targetOptions = pool.filter((p) => p.partId === oriented.target.partId);
-  let best: { route: PlannedRoute; source: Port; target: Port } | null = null;
+  let best: PlannedBest | null = null;
+  // Ports are directional, so routing s->t and t->s can genuinely differ; both
+  // orientations are tried and the cheaper wins.
+  let hitSearchLimit = false;
+
   for (const s of sourceOptions) {
     for (const t of targetOptions) {
       if (s.partId === t.partId) continue;
-      const forward = routeBetween(design, s, t, mode);
-      const reverse = routeBetween(design, t, s, mode);
-      const candidates: Array<{ route: PlannedRoute; source: Port; target: Port }> = [];
-      if (forward) candidates.push({ route: forward, source: s, target: t });
-      if (reverse) candidates.push({ route: reverse, source: t, target: s });
+      const candidates: PlannedBest[] = [];
+      for (const [from, to, outcome] of [
+        [s, t, routeBetween(design, s, t, mode, maxExpansions)] as const,
+        [t, s, routeBetween(design, t, s, mode, maxExpansions)] as const
+      ]) {
+        if (outcome.kind === "route") candidates.push({ route: outcome.route, source: from, target: to });
+        else if (outcome.kind === "search-limit") hitSearchLimit = true;
+      }
       for (const candidate of candidates) {
         if (!best || candidate.route.searchCost < best.route.searchCost) {
           best = candidate;
@@ -346,7 +379,7 @@ function planBestRoute(
       }
     }
   }
-  return best;
+  return { best, hitSearchLimit };
 }
 
 function nextRouteId(existing: Set<string>): string {
@@ -356,6 +389,8 @@ function nextRouteId(existing: Set<string>): string {
   existing.add(id);
   return id;
 }
+
+type PlannedBest = { route: PlannedRoute; source: Port; target: Port };
 
 type CommitRouteResult =
   | { ok: true; design: DesignState; parts: Part[]; cost: number }
@@ -428,6 +463,7 @@ export function autoBuildOpenPortPair(
 ): AutoBuildPathResult {
   const budget = options.maxBudgetFeet ?? MAX_CENTERLINE_FEET;
   const mode = options.mode ?? DEFAULT_OPTIMIZATION_MODE;
+  const maxExpansions = options.maxExpansions ?? MAX_ROUTE_EXPANSIONS;
   const existingLength = totalPathLength(design);
 
   let currentDesign = design;
@@ -440,9 +476,13 @@ export function autoBuildOpenPortPair(
     const closest = pickClosestPair(pool);
     if (!closest) break;
     const oriented = orientPorts(currentDesign, closest.a, closest.b);
-    const best = planBestRoute(currentDesign, oriented, pool, mode);
+    const { best, hitSearchLimit } = planBestRoute(currentDesign, oriented, pool, mode, maxExpansions);
     if (!best) {
-      unroutedPairs.push({ source: oriented.source, target: oriented.target, reason: "no-route" });
+      unroutedPairs.push({
+        source: oriented.source,
+        target: oriented.target,
+        reason: hitSearchLimit ? "search-limit" : "no-route"
+      });
       pool = pool.filter((p) => p !== oriented.source && p !== oriented.target);
       continue;
     }
@@ -464,7 +504,13 @@ export function autoBuildOpenPortPair(
   }
 
   if (allParts.length === 0) {
-    return { ok: false, reason: "no-route", message: PATHFINDER_NO_ROUTE_MESSAGE };
+    // Only claim no route exists when the search actually proved it. If any pair
+    // stopped on the expansion budget, nothing was proved and saying otherwise
+    // sends the user looking for a layout problem that may not be there.
+    const gaveUp = unroutedPairs.some((pair) => pair.reason === "search-limit");
+    return gaveUp
+      ? { ok: false, reason: "search-limit", message: PATHFINDER_SEARCH_LIMIT_MESSAGE }
+      : { ok: false, reason: "no-route", message: PATHFINDER_NO_ROUTE_MESSAGE };
   }
 
   return {
