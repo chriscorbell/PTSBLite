@@ -99,3 +99,34 @@ describe("PartRegistry", () => {
     }).toThrow();
   });
 });
+
+describe("declared cell counts", () => {
+  const bend = (cells: number) => ({
+    bend90: {
+      type: "bend",
+      name: "90° Bend (3ft radius)",
+      partNo: "BN-90-3R",
+      unitPrice: 142,
+      color: "#9AA4B4",
+      cells,
+      ports: 2,
+      arcLength: 4.71
+    }
+  });
+
+  it("accepts a catalog entry whose cells match the generated footprint", () => {
+    expect(() => loadPartRegistry(bend(7))).not.toThrow();
+  });
+
+  it("rejects one that disagrees, naming both counts", () => {
+    // The shipped catalog claimed 5 for years. Nothing read it on the bend path,
+    // so it drifted unnoticed -- but `cells` is enforced for blowers and
+    // terminals, so the field is load-bearing and must not be able to lie.
+    expect(() => loadPartRegistry(bend(5))).toThrow(/declares cells: 5.*occupies 7/);
+  });
+
+  it("leaves entries without a declared cell count alone", () => {
+    const { cells: _cells, ...withoutCells } = bend(7).bend90;
+    expect(() => loadPartRegistry({ bend90: withoutCells })).not.toThrow();
+  });
+});
