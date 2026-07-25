@@ -1,6 +1,7 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
 import { computeTopology } from "@/domain/topology";
 import type { BlowerPart, DesignState, Ghost, Part, TerminalPart, Vec3 } from "@/types";
+import { vEq, vNeg } from "@/domain/vec3";
 
 export type FreePlacementType = "blower" | "terminal";
 
@@ -38,20 +39,8 @@ export type PlaceFreePartResult =
   | { ok: true; design: DesignState; part: BlowerPart | TerminalPart }
   | { ok: false; message: string };
 
-function vecEq(a: Vec3, b: Vec3): boolean {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
-}
-
-function vecNeg(v: Vec3): Vec3 {
-  return [normalizeZero(-v[0]), normalizeZero(-v[1]), normalizeZero(-v[2])];
-}
-
-function normalizeZero(n: number): number {
-  return Object.is(n, -0) ? 0 : n;
-}
-
 function directionIndex(dir: Vec3): number {
-  return FREE_PLACEMENT_DIRECTIONS.findIndex((candidate) => vecEq(candidate, dir));
+  return FREE_PLACEMENT_DIRECTIONS.findIndex((candidate) => vEq(candidate, dir));
 }
 
 function modulo(n: number, d: number): number {
@@ -95,7 +84,7 @@ export function defaultFreePlacementOrientation(
 ): Vec3 {
   const snapPort = computeTopology(design).openPortsNear(cell)[0];
   if (!snapPort) return memory[type];
-  return type === "terminal" ? snapPort.dir : vecNeg(snapPort.dir);
+  return type === "terminal" ? snapPort.dir : vNeg(snapPort.dir);
 }
 
 export function validateFreePlacementCell(

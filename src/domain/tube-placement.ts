@@ -1,5 +1,6 @@
 import { computeTopology, type Port, type Topology } from "@/domain/topology";
 import type { DesignState, Ghost, TubePart, Vec3 } from "@/types";
+import { cellCenter, cellKey, vAdd, vScale } from "@/domain/vec3";
 
 export const TUBE_PLACEMENT_MESSAGE = "Place tube on a highlighted landing spot.";
 export const TUBE_BLOCKED_MESSAGE = "Tube path is blocked.";
@@ -9,10 +10,6 @@ export type PlaceTubeResult =
   | { ok: false; message: string };
 
 type SourceSelection = { sourcePartId?: string };
-
-function cellKey(cell: Vec3): string {
-  return `${cell[0]},${cell[1]},${cell[2]}`;
-}
 
 export function tubeLandingCells(design: DesignState): Vec3[] {
   const seen = new Set<string>();
@@ -25,18 +22,6 @@ export function tubeLandingCells(design: DesignState): Vec3[] {
     cells.push(port.cell);
   }
   return cells;
-}
-
-function vecScale(dir: Vec3, n: number): Vec3 {
-  return [dir[0] * n, dir[1] * n, dir[2] * n];
-}
-
-function vecAdd(a: Vec3, b: Vec3): Vec3 {
-  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-}
-
-function cellCenter(cell: Vec3): Vec3 {
-  return [cell[0] + 0.5, cell[1] + 0.5, cell[2] + 0.5];
 }
 
 function selectPort(
@@ -69,12 +54,12 @@ export function tubePlacementGhost(
   return {
     type: "tube",
     from: cellCenter(port.cell),
-    to: cellCenter(vecAdd(port.cell, vecScale(port.dir, length)))
+    to: cellCenter(vAdd(port.cell, vScale(port.dir, length)))
   };
 }
 
 export function tubeFootprint(port: Port, length = 6): Vec3[] {
-  return Array.from({ length }, (_, index) => vecAdd(port.cell, vecScale(port.dir, index)));
+  return Array.from({ length }, (_, index) => vAdd(port.cell, vScale(port.dir, index)));
 }
 
 /**
@@ -86,7 +71,7 @@ export function tubeFootprint(port: Port, length = 6): Vec3[] {
 function maxTubeLength(design: DesignState, port: Port, requested = 6): number {
   let length = 0;
   for (let index = 0; index < requested; index++) {
-    const cell = vecAdd(port.cell, vecScale(port.dir, index));
+    const cell = vAdd(port.cell, vScale(port.dir, index));
     if (!design.grid.withinBounds(cell) || design.grid.query(cell)) break;
     length = index + 1;
   }
@@ -98,7 +83,7 @@ function tubePartFromPort(id: string, port: Port, length = 6): TubePart {
     id,
     type: "tube",
     from: cellCenter(port.cell),
-    to: cellCenter(vecAdd(port.cell, vecScale(port.dir, length))),
+    to: cellCenter(vAdd(port.cell, vScale(port.dir, length))),
     length
   };
 }
