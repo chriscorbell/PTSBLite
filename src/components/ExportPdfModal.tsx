@@ -159,7 +159,7 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
           </button>
           <button
             className="topbtn primary"
-            onClick={handleDownload}
+            onClick={() => void handleDownload()}
             disabled={!!busy}
           >
             <Icons.Download size={12} /> {busy === "download" ? "Saving…" : "Download"}

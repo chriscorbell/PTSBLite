@@ -11,7 +11,7 @@ export const DEFAULT_FILENAME = "untitled.ptsb";
 export const DEFAULT_REVISION = "0.1";
 
 function cloneJson<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value));
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
@@ -50,7 +50,7 @@ function buildGrid(parts: Part[], obstacles: Obstacle[], buildArea: BuildArea): 
   const grid = new SparseGrid(boundsFromBuildArea(buildArea));
   for (const p of parts) {
     if (p.type === "blower" || p.type === "terminal") {
-      const cell = p.cell as Vec3;
+      const cell = p.cell;
       if (grid.withinBounds(cell)) grid.place(cell, p.id);
     } else if (p.type === "tube") {
       for (const cell of tubeCells(p.from, p.to)) {
@@ -81,7 +81,7 @@ function buildGrid(parts: Part[], obstacles: Obstacle[], buildArea: BuildArea): 
 
 /** The grid cells a part occupies (same enumeration `buildGrid` registers). */
 function partCells(part: Part): Vec3[] {
-  if (part.type === "blower" || part.type === "terminal") return [part.cell as Vec3];
+  if (part.type === "blower" || part.type === "terminal") return [part.cell];
   if (part.type === "tube") return tubeCells(part.from, part.to);
   if (part.type === "bend") return bendFootprint(part);
   return [];

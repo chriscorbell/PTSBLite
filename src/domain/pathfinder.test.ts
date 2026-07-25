@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { designFromScene, emptyDesign } from "@/domain/design-state";
+import { designFromScene } from "@/domain/design-state";
 import { autoBuildOpenPortPair } from "@/domain/pathfinder";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import { totalPathLength } from "@/domain/parts";
