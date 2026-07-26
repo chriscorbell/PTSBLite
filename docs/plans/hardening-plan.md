@@ -1,5 +1,8 @@
 # PTSBuilder pre-requirements hardening plan
 
+- **Note:** written while the project used pnpm. The toolchain moved to Bun afterwards
+  (ADR-0008); the `pnpm` commands below are left as written rather than rewritten, since this is a
+  record of what was planned.
 - **Status:** Complete. Every package in the sequence below is merged; see the PR table for
   what each became. Deferred items (§8) remain deferred and their issues remain open.
 - **Written:** 2026-07-25
