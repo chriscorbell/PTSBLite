@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from "electro
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { autoUpdater } from "electron-updater";
+import { createCloseGate } from "./close-gate";
 import { windowChromeForPlatform } from "./window-chrome";
 import { IPC, type IpcResults, type SaveDesignRequest } from "../shared/ipc";
 
@@ -152,14 +153,17 @@ async function openExternalWebUrl(url: string): Promise<{ ok: boolean; error?: s
   }
 }
 
-/**
- * Set once the renderer has confirmed the window may close. Module scope
- * because there is only ever one window, and `app.quit()` closes it the same
- * way the title-bar button does.
- */
-let allowClose = false;
+// Module scope because there is only ever one window at a time, though not
+// always the same one — macOS rebuilds it from the dock. See close-gate.ts.
+const closeGate = createCloseGate();
+
+app.on("before-quit", () => closeGate.quitRequested());
 
 function createWindow(): void {
+  // A previous window may have been approved to close; this one has its own
+  // unsaved work and starts guarded again.
+  closeGate.reset();
+
   const {
     titleBarInset: _titleBarInset,
     titleBarRightInset: _titleBarRightInset,
@@ -208,11 +212,11 @@ function createWindow(): void {
   mainWindow.on("page-title-updated", (event) => event.preventDefault());
 
   // Closing is vetoed once and handed to the renderer, which knows whether
-  // there is unsaved work and owns the confirmation UI. `allowClose` is the one
+  // there is unsaved work and owns the confirmation UI. The gate is the one
   // path back out: without it the renderer's own close would be vetoed again
   // and the window could never shut (issue #6).
   mainWindow.on("close", (event) => {
-    if (allowClose) return;
+    if (closeGate.requestClose() === "close") return;
     event.preventDefault();
     mainWindow.webContents.send(IPC.windowCloseRequested);
   });
@@ -314,9 +318,13 @@ void app.whenReady().then(() => {
   ipcMain.handle(IPC.shellOpenExternal, (_event, url: string) => openExternalWebUrl(url));
 
   // The renderer has decided the window may close: stop vetoing and do it.
+  // Vetoing the close also cancelled the quit that may have caused it, so a
+  // confirmed Cmd+Q has to be re-issued or the app would sit in the dock with
+  // no window and no way back to the prompt the user just answered.
   ipcMain.handle(IPC.windowConfirmClose, (event) => {
-    allowClose = true;
+    const alsoQuit = closeGate.approve();
     BrowserWindow.fromWebContents(event.sender)?.close();
+    if (alsoQuit) app.quit();
   });
 
   // Renderer asks on mount whether an update already finished downloading
