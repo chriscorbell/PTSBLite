@@ -8,7 +8,6 @@ type RailItem = {
   id: ToolId;
   icon: ComponentType<IconProps>;
   label: string;
-  pn?: string;
   short?: string;
 };
 
@@ -399,26 +398,9 @@ function ClearActionButton({
         <ItemIcon size={17} />
       </button>
       {hover && (
-        <div
-          style={{
-            position: "absolute",
-            left: "calc(100% + 8px)",
-            top: "50%",
-            transform: "translateY(-50%)",
-            zIndex: 50,
-            background: "var(--ink)",
-            color: "var(--text)",
-            border: "1px solid var(--line-2)",
-            padding: "6px 10px",
-            borderRadius: 6,
-            fontSize: 12,
-            whiteSpace: "nowrap",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            pointerEvents: "none"
-          }}
-        >
+        <RailTooltip>
           <div style={{ fontWeight: 600 }}>{tooltip}</div>
-        </div>
+        </RailTooltip>
       )}
     </div>
   );
@@ -473,24 +455,7 @@ function RailButton({
         <ItemIcon size={17} />
       </button>
       {hover && (
-        <div
-          style={{
-            position: "absolute",
-            left: "calc(100% + 8px)",
-            top: "50%",
-            transform: "translateY(-50%)",
-            zIndex: 50,
-            background: "var(--ink)",
-            color: "var(--text)",
-            border: "1px solid var(--line-2)",
-            padding: "6px 10px",
-            borderRadius: 6,
-            fontSize: 12,
-            whiteSpace: "nowrap",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            pointerEvents: "none"
-          }}
-        >
+        <RailTooltip>
           <div style={{ fontWeight: 600 }}>
             {item.label}
             {item.short ? (
@@ -499,12 +464,7 @@ function RailButton({
               </span>
             ) : null}
           </div>
-          {item.pn && (
-            <div style={{ ...monoStyle, fontSize: 10, color: "var(--text-mut)", marginTop: 2 }}>
-              {item.pn}
-            </div>
-          )}
-        </div>
+        </RailTooltip>
       )}
     </div>
   );
