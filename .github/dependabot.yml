@@ -1,0 +1,39 @@
+version: 2
+
+updates:
+  # The repo may sit idle for months while client requirements are pending.
+  # Grouping keeps that from returning as a wall of individual PRs, while
+  # majors stay separate because they are the ones that need judgement —
+  # several are deliberately held (see the README and the hardening plan).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Held: typescript-eslint supports TypeScript <6.1.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # Held: stable electron-vite 5 supports Vite only through 7, and
+      # @vitejs/plugin-react 6 requires Vite 8.
+      - dependency-name: vite
+        update-types: [version-update:semver-major]
+      - dependency-name: "@vitejs/plugin-react"
+        update-types: [version-update:semver-major]
+      # Held: tracks the Node runtime bundled by Electron, not the latest Node.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
