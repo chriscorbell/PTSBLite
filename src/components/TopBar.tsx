@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import "@/components/TopBar.css";
 import { Icons } from "@/components/Icons";
 import type { SettingsTab } from "@/components/SettingsModal";
 
@@ -39,39 +40,11 @@ export function TopBar({
   onAbout
 }: TopBarProps) {
   return (
-    <div
-      className="topbar nosel"
-      style={{
-        height: 46,
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "0 var(--topbar-right-padding) 0 var(--topbar-left-padding)",
-        background: "linear-gradient(180deg, #181C25, #14181F)",
-        borderBottom: "1px solid var(--line)",
-        position: "relative",
-        zIndex: 10,
-        whiteSpace: "nowrap"
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
-        <div style={{ fontSize: 16, fontWeight: 600 }}>PTSBuilder</div>
-      </div>
+    <div className="topbar nosel">
+      <div className="topbar__brand">PTSBuilder</div>
       <FileMenu onNew={onNew} onOpen={onOpen} onSave={onSave} onSaveAs={onSaveAs} />
       {documentLabel && (
-        <span
-          className="nosel"
-          title={documentLabel}
-          style={{
-            fontSize: 11.5,
-            color: "var(--text-dim)",
-            maxWidth: 220,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap"
-          }}
-        >
+        <span className="topbar__document nosel" title={documentLabel}>
           {documentLabel}
         </span>
       )}
@@ -94,7 +67,7 @@ export function TopBar({
       >
         <Icons.Redo size={15} />
       </button>
-      <div style={{ flex: 1 }} />
+      <div className="topbar__spacer" />
       <button
         className={"topbtn topbar-no-drag" + (showLabels ? " active" : "")}
         title={showLabels ? "Hide part labels" : "Show part labels"}
@@ -119,36 +92,6 @@ export function TopBar({
       >
         <Icons.Info size={15} />
       </button>
-      <style>{`
-        .topbtn {
-          display: inline-flex; align-items: center; gap: 6px;
-          height: 28px; padding: 0 10px; border-radius: 6px;
-          background: transparent; color: var(--text-mut);
-          border: 1px solid var(--line);
-          font-family: var(--font-sans); font-size: 12px; font-weight: 500;
-          cursor: pointer; transition: all .12s; white-space: nowrap;
-          flex-shrink: 0;
-        }
-        .topbtn.icon { width: 28px; padding: 0; justify-content: center; }
-        .topbtn:hover { color: var(--text); border-color: var(--line-2); background: var(--panel-2); }
-        .topbtn:disabled {
-          opacity: 0.4; cursor: default; color: var(--text-mut);
-          border-color: var(--line); background: transparent;
-        }
-        .topbtn.active {
-          background: color-mix(in oklab, var(--accent) 18%, transparent);
-          color: var(--accent); border-color: color-mix(in oklab, var(--accent) 35%, transparent);
-        }
-        .topbtn.active:hover { background: color-mix(in oklab, var(--accent) 26%, transparent); color: #fff; }
-        .filemenu-item {
-          display: flex; align-items: center; gap: 8px;
-          width: 100%; height: 30px; padding: 0 10px; border-radius: 5px;
-          background: transparent; color: var(--text-mut); border: none;
-          font-family: var(--font-sans); font-size: 12px; font-weight: 500;
-          cursor: pointer; text-align: left; white-space: nowrap;
-        }
-        .filemenu-item:hover { background: var(--panel-2); color: var(--text); }
-      `}</style>
     </div>
   );
 }
@@ -190,7 +133,7 @@ function FileMenu({
   };
 
   return (
-    <div ref={rootRef} style={{ position: "relative", flexShrink: 0 }}>
+    <div ref={rootRef} className="topbar-menu">
       <button
         className={"topbtn topbar-no-drag" + (open ? " active" : "")}
         aria-haspopup="true"
@@ -200,25 +143,7 @@ function FileMenu({
         File {open ? <Icons.ChevU size={12} /> : <Icons.ChevD size={12} />}
       </button>
       {open && (
-        <div
-          role="menu"
-          className="topbar-no-drag"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            minWidth: 150,
-            padding: 5,
-            borderRadius: 8,
-            border: "1px solid var(--line-2)",
-            background: "color-mix(in oklab, var(--panel) 96%, #000)",
-            boxShadow: "0 16px 36px rgba(0,0,0,0.5)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            zIndex: 20
-          }}
-        >
+        <div role="menu" className="topbar-menu__panel topbar-menu__panel--file topbar-no-drag">
           <button
             className="filemenu-item topbar-no-drag"
             role="menuitem"
@@ -280,7 +205,7 @@ function EditMenu({ onEdit }: { onEdit?: (tab: SettingsTab) => void }) {
   };
 
   return (
-    <div ref={rootRef} style={{ position: "relative", flexShrink: 0 }}>
+    <div ref={rootRef} className="topbar-menu">
       <button
         className={"topbtn topbar-no-drag" + (open ? " active" : "")}
         aria-haspopup="true"
@@ -290,25 +215,7 @@ function EditMenu({ onEdit }: { onEdit?: (tab: SettingsTab) => void }) {
         Edit {open ? <Icons.ChevU size={12} /> : <Icons.ChevD size={12} />}
       </button>
       {open && (
-        <div
-          role="menu"
-          className="topbar-no-drag"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            minWidth: 168,
-            padding: 5,
-            borderRadius: 8,
-            border: "1px solid var(--line-2)",
-            background: "color-mix(in oklab, var(--panel) 96%, #000)",
-            boxShadow: "0 16px 36px rgba(0,0,0,0.5)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            zIndex: 20
-          }}
-        >
+        <div role="menu" className="topbar-menu__panel topbar-menu__panel--edit topbar-no-drag">
           <button
             className="filemenu-item topbar-no-drag"
             role="menuitem"

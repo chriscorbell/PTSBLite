@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icons } from "@/components/Icons";
+import "@/components/UpdateNotification.css";
 
 export type UpdateNotificationProps = {
   version: string;
@@ -18,50 +19,14 @@ export function UpdateNotification({ version, onDismiss }: UpdateNotificationPro
   };
 
   return (
-    <div
-      className="nosel"
-      role="status"
-      style={{
-        position: "absolute",
-        right: 16,
-        bottom: 16,
-        zIndex: 90,
-        width: 320,
-        background: "var(--panel)",
-        border: "1px solid var(--line-2)",
-        borderRadius: 10,
-        boxShadow: "0 16px 48px rgba(0,0,0,0.45)",
-        animation: "updateToastIn .18s ease-out"
-      }}
-    >
-      <style>{`
-        @keyframes updateToastIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
-        <span
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 28,
-            height: 28,
-            flexShrink: 0,
-            borderRadius: 7,
-            color: "var(--accent)",
-            background: "var(--accent-bg)"
-          }}
-        >
+    <div className="update-toast nosel" role="status">
+      <div className="update-toast__header">
+        <span className="update-toast__icon">
           <Icons.Refresh size={15} />
         </span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Update ready</div>
-          <div style={{ fontSize: 12, color: "var(--text-mut)", marginTop: 2 }}>
-            PTSBuilder {version} has been downloaded.
-          </div>
+        <div className="update-toast__text">
+          <div className="update-toast__title">Update ready</div>
+          <div className="update-toast__detail">PTSBuilder {version} has been downloaded.</div>
         </div>
         <button
           onClick={onDismiss}
@@ -72,28 +37,11 @@ export function UpdateNotification({ version, onDismiss }: UpdateNotificationPro
         </button>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 8,
-          padding: "0 14px 14px"
-        }}
-      >
+      <div className="update-toast__actions">
         <button className="topbtn" onClick={onDismiss}>
           Later
         </button>
-        <button
-          className="topbtn"
-          onClick={restart}
-          disabled={restarting}
-          style={{
-            background: "var(--accent)",
-            borderColor: "transparent",
-            color: "#06121a",
-            fontWeight: 600
-          }}
-        >
+        <button className="topbtn primary" onClick={restart} disabled={restarting}>
           {restarting ? "Restarting…" : "Restart now"}
         </button>
       </div>

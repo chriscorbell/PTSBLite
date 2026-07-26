@@ -1,4 +1,7 @@
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import "@/components/Modal.css";
+
+export type ModalSize = "sm" | "md" | "lg" | "xl";
 
 export type ModalProps = {
   /** Accessible name for the dialog, announced when it opens. */
@@ -9,31 +12,13 @@ export type ModalProps = {
    * uncommitted form state, where a stray click would discard typing.
    */
   dismissOnBackdrop?: boolean;
-  /** CSS width for the panel, e.g. `"min(420px, 92%)"`. */
-  width: string;
-  /** Extra panel styles, for the few dialogs that need to bound their height. */
-  panelStyle?: CSSProperties;
+  /**
+   * How wide the panel is. A named size rather than a CSS length: the
+   * dimensions belong with the dialog's own stylesheet, not threaded in as a
+   * string (ADR-0009).
+   */
+  size: ModalSize;
   children: ReactNode;
-};
-
-const PANEL_BASE: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  background: "var(--panel)",
-  borderRadius: 10,
-  border: "1px solid var(--line-2)",
-  boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
-  padding: 0,
-  // `margin: auto` is what centres a modal <dialog> in the viewport — the UA
-  // stylesheet sets it alongside `inset: 0`, and overriding it with `0` pins
-  // the dialog to the top-left corner instead. Do not "tidy" this away.
-  margin: "auto",
-  // maxWidth is released so an explicit width like "min(820px, 92%)" applies;
-  // maxHeight is deliberately left to the UA default, which keeps a tall
-  // dialog on screen. The two dialogs that want more override it themselves.
-  maxWidth: "none",
-  color: "var(--text)",
-  overflow: "hidden"
 };
 
 /**
@@ -48,14 +33,7 @@ const PANEL_BASE: CSSProperties = {
  * The previous hand-rolled version was four copies of the same absolutely
  * positioned overlay, none of which did any of that.
  */
-export function Modal({
-  label,
-  onClose,
-  dismissOnBackdrop = true,
-  width,
-  panelStyle,
-  children
-}: ModalProps) {
+export function Modal({ label, onClose, dismissOnBackdrop = true, size, children }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -71,8 +49,7 @@ export function Modal({
     <dialog
       ref={ref}
       aria-label={label}
-      className="modal-dialog nosel"
-      style={{ ...PANEL_BASE, width, ...panelStyle }}
+      className={`modal-dialog modal-dialog--${size} nosel`}
       onCancel={(event) => {
         // Escape. Prevented so the browser does not also close the dialog out
         // from under React, which would leave the parent still rendering it.

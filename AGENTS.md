@@ -52,6 +52,10 @@ which `validation.ts` flags rather than forbids.
 
 - Prettier and ESLint are authoritative; don't hand-format. `build/entitlements.mac.plist` is
   prettier-ignored on purpose — `codesign` parses it with a parser that rejects valid XML.
+- Component styling goes in a colocated `Component.css` with component-prefixed class names, never
+  in a `style={{…}}` prop or a `<style>` block. `style=` is for values only known at runtime, and
+  the permitted exceptions are listed exhaustively in
+  [ADR-0009](docs/adr/0009-component-styling-lives-in-stylesheets.md).
 - Commit subjects are imperative and sentence case, with a body explaining *why*. Match the existing
   log; it is unusually good and worth keeping that way.
 - `main` is protected and requires a green `verify` check, so all work goes through a PR.

@@ -67,7 +67,7 @@ export function AboutModal({ onClose }: AboutModalProps) {
     update.kind === "result" && update.result.status === "manual" ? update.result.url : null;
 
   return (
-    <Modal label="About PTSBuilder" onClose={onClose} width="min(420px, 92%)">
+    <Modal label="About PTSBuilder" onClose={onClose} size="sm">
       <>
         <div
           style={{
