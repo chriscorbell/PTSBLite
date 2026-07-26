@@ -608,3 +608,67 @@ describe("settings persistence", () => {
     expect(flashText()).not.toContain("Could not read");
   });
 });
+
+describe("the quote export gate", () => {
+  const PRICED = {
+    pricing: { blower: 4250, terminal: 1850, tube6: 78, bend90: 142 },
+    taxRate: 0.0825,
+    company: {
+      name: "Tube Co",
+      tagline: "PTS",
+      address: "1 Way",
+      phone: "555",
+      email: "a@b.co"
+    },
+    quote: {
+      billTo: { name: "Acme", lines: ["Attn"] },
+      project: { name: "P", lines: [] },
+      quoteNumber: "Q-1",
+      notes: "Terms."
+    }
+  };
+
+  function openExport() {
+    fireEvent.click(screen.getByRole("button", { name: "BOM" }));
+    fireEvent.click(screen.getByRole("button", { name: /Export PDF quote/ }));
+  }
+
+  it("refuses to quote from a fresh install and names what is missing", async () => {
+    // The commercial guarantee from ADR-0003: the app ships no prices, no tax
+    // rate and no company details, so a fresh install cannot produce a quote
+    // containing invented money.
+    stubBridge();
+    await renderApp();
+
+    openExport();
+
+    const dialog = screen.getByRole("dialog", { name: /Finish setup/ });
+    const text = dialog.textContent ?? "";
+    expect(text).toContain("Company name");
+    expect(text).toContain("Tax rate");
+    expect(text).toMatch(/Price for/);
+    // There is no way from here to a PDF.
+    expect(within(dialog).queryByRole("button", { name: /Download/ })).toBeNull();
+  });
+
+  it("offers the settings screen that fixes each blocker", async () => {
+    stubBridge();
+    await renderApp();
+
+    openExport();
+    const dialog = screen.getByRole("dialog", { name: /Finish setup/ });
+
+    expect(within(dialog).getByRole("button", { name: /Open Company settings/ })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: /Open Pricing settings/ })).toBeTruthy();
+  });
+
+  it("shows the quote once every value has been entered", async () => {
+    stubBridge({ getSettings: vi.fn().mockResolvedValue({ data: PRICED }) });
+    await renderApp();
+
+    openExport();
+
+    expect(screen.getByRole("dialog", { name: /Quote preview/ })).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: /Finish setup/ })).toBeNull();
+  });
+});
