@@ -568,3 +568,43 @@ describe("closing the window", () => {
     expect(confirmClose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("settings persistence", () => {
+  /** The error flash is the app's one channel for "that did not work". */
+  function flashText() {
+    return document.body.textContent ?? "";
+  }
+
+  it("says so when settings cannot be written", async () => {
+    // Settings hold the only copy of prices and the tax rate, so a silent
+    // failure means the next launch blocks quote export with no explanation
+    // (issue #73).
+    const setSettings = vi.fn().mockResolvedValue({ ok: false, error: "EACCES" });
+    stubBridge({ setSettings });
+    await renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Edit/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Quote/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Save/ }));
+
+    await waitFor(() => expect(setSettings).toHaveBeenCalled());
+    await waitFor(() => expect(flashText()).toContain("Settings not saved"));
+    expect(flashText()).toContain("EACCES");
+  });
+
+  it("says so when saved settings cannot be read", async () => {
+    // Distinct from a first run, which reports no data and no error. Showing
+    // defaults silently would invite re-entering prices that are still on disk.
+    stubBridge({ getSettings: vi.fn().mockResolvedValue({ data: null, error: "EIO" }) });
+    await renderApp();
+
+    await waitFor(() => expect(flashText()).toContain("Could not read saved settings"));
+  });
+
+  it("stays quiet on a first run, where there is simply no file yet", async () => {
+    stubBridge({ getSettings: vi.fn().mockResolvedValue({ data: null }) });
+    await renderApp();
+
+    expect(flashText()).not.toContain("Could not read");
+  });
+});
