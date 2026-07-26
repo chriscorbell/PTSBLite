@@ -181,16 +181,6 @@ export class Topology {
     return this.openPorts().filter((p) => vEq(p.cell, cell));
   }
 
-  addPart(part: Part): void {
-    this.partPorts.set(part.id, computePartPorts(part, this.registry));
-    this.rebuild();
-  }
-
-  removePart(partId: string): void {
-    this.partPorts.delete(partId);
-    this.rebuild();
-  }
-
   private rebuild(): void {
     this._ports = [...this.partPorts.values()].flat();
     this._connected = computeConnectedKeys(this._ports);

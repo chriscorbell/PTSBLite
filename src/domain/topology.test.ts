@@ -156,17 +156,4 @@ describe("Topology open and connected ports", () => {
     expect(topology.openPorts().map((p) => `${p.partId}:${p.index}`)).toEqual(["t1:0"]);
     expect(topology.openPortsNear([1, 0, 0])).toEqual([]);
   });
-
-  it("updates connection state when parts are added and removed", () => {
-    const topology = new Topology();
-
-    topology.addPart({ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] });
-    expect(topology.openPorts().map((p) => p.partId)).toEqual(["b1"]);
-
-    topology.addPart({ id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] });
-    expect(topology.openPorts().map((p) => `${p.partId}:${p.index}`)).toEqual(["t1:0"]);
-
-    topology.removePart("t1");
-    expect(topology.openPorts().map((p) => p.partId)).toEqual(["b1"]);
-  });
 });
