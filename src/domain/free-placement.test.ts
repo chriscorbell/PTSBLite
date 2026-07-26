@@ -12,6 +12,7 @@ import {
 } from "@/domain/free-placement";
 import { computeTopology } from "@/domain/topology";
 import type { DesignState, Vec3 } from "@/types";
+import { expectGridMatchesDesign } from "@/test/design-invariants";
 
 function withObstacle(cell: Vec3): DesignState {
   const design = emptyDesign();
@@ -126,6 +127,7 @@ describe("free placement commits", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.design.parts).toMatchObject([
       { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }
     ]);
@@ -147,6 +149,7 @@ describe("free placement commits", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.design.parts.at(-1)).toMatchObject({
       id: "t2",
       type: "terminal",

@@ -10,6 +10,7 @@ import {
   setObstaclePlacementFootprint,
   startObstaclePlacement
 } from "@/domain/obstacle-placement";
+import { expectGridMatchesDesign } from "@/test/design-invariants";
 
 describe("obstacle volume placement", () => {
   it("enumerates every one-cell-high grid cell inside two XZ corners", () => {
@@ -38,6 +39,7 @@ describe("obstacle volume placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.design.obstacles).toEqual([{ id: "o1", min: [0, 0, 0], max: [1, 0, 2] }]);
     for (const cell of obstacleVolumeCells([0, 0, 0], [1, 0, 2])) {
       expect(result.design.grid.query(cell)).toBe("o1");

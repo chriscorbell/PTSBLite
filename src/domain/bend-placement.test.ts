@@ -12,6 +12,7 @@ import {
   validBendOrientations
 } from "@/domain/bend-placement";
 import type { Vec3 } from "@/types";
+import { expectGridMatchesDesign } from "@/test/design-invariants";
 
 function designWithBlower(dir: Vec3 = [1, 0, 0], cell: Vec3 = [0, 0, 0]) {
   const design = emptyDesign();
@@ -132,6 +133,7 @@ describe("90 degree bend snap placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
 
     const expectedFootprint = bendFootprint(result.part, partRegistry);
     expect(expectedFootprint.length).toBeGreaterThan(1);
