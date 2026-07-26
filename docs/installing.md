@@ -1,14 +1,13 @@
 ## Installing
 
-These builds are not code-signed, so your operating system will warn you the first time you run the
-app. This is expected — see
+**Windows** — these builds are not code-signed, so SmartScreen shows "Windows protected your PC" the
+first time you run the installer. Click **More info**, then **Run anyway**. You will only see this
+once: later updates are applied by the app itself and do not warn. See
 [ADR-0006](https://github.com/chriscorbell/PTSBuilder/blob/main/docs/adr/0006-ship-unsigned-builds.md).
 
-**Windows** — SmartScreen shows "Windows protected your PC". Click **More info**, then **Run
-anyway**. You will only see this once: later updates are applied by the app itself and do not warn.
-
-**macOS** — macOS refuses to open the app. Open **System Settings › Privacy & Security**, scroll to
-the message about PTSBuilder, and click **Open Anyway**. macOS builds do not update themselves —
-check the releases page for new versions.
+**macOS** — signed and notarized by Apple. Open the `.dmg` and drag PTSBuilder to Applications. The
+first launch shows the standard "downloaded from the Internet — are you sure?" confirmation that
+macOS shows for any downloaded app; click **Open**. Updates install themselves.
 
 **Linux** — no warning. Make the AppImage executable (`chmod +x`) and run it, or install the Flatpak.
+AppImage builds update themselves; Flatpak is managed by your package manager.

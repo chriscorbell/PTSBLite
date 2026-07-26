@@ -84,14 +84,17 @@ Pushing a `v*` tag builds and publishes installers for macOS, Windows, and Linux
 release notes from the commit log. The tag drives the version — `package.json` is synced to it
 during the build rather than bumped by hand.
 
-Builds are **not code-signed**, by deliberate decision — see
-[ADR-0006](docs/adr/0006-ship-unsigned-builds.md). Every platform therefore warns on first run;
-[`docs/installing.md`](docs/installing.md) covers what users see and what to do, and is inlined into
-every release's notes so it appears on the download page itself.
+macOS builds are signed with a Developer ID and notarized; Windows builds are not signed, so
+SmartScreen warns once at first install. Both are deliberate — see
+[ADR-0006](docs/adr/0006-ship-unsigned-builds.md). [`docs/installing.md`](docs/installing.md) covers
+what users see per platform, and is inlined into every release's notes so it appears on the download
+page itself.
 
-Self-update works on Windows and Linux AppImage: those apply in place and never re-warn. macOS and
-non-AppImage Linux check GitHub and point the user at the download page instead, because Squirrel.Mac
-will not apply an update that is not signed with a Developer ID.
+Self-update works on Windows, macOS, and Linux AppImage. Flatpak and non-AppImage Linux launches are
+managed by the host, so those check GitHub and point the user at the download page instead.
+
+Signing requires five repository secrets on the macOS runner; ADR-0006 lists them and how to produce
+them. A local `pnpm run package` needs none of it and simply builds unsigned.
 
 ## License
 

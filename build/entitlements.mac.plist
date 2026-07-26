@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for the Hardened Runtime, which notarization requires.
+
+  Only the two V8 needs: Chromium's JavaScript engine compiles to executable
+  memory at runtime, which the Hardened Runtime forbids by default.
+
+  Deliberately NOT included: com.apple.security.cs.disable-library-validation.
+  It is the usual third entry in Electron guides, but it exists to permit
+  loading unsigned dynamic libraries, and this app has no native modules —
+  `npmRebuild: false`, one pure-JS production dependency, zero .node binaries.
+  Add it if a native dependency is ever introduced; until then it would weaken
+  the runtime for nothing.
+-->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true />
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true />
+  </dict>
+</plist>

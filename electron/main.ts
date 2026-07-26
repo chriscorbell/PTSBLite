@@ -30,17 +30,17 @@ function timestampedFilename(ext: string, date = new Date()): string {
 }
 
 // Self-update via GitHub releases (electron-updater reads the publish config
-// baked into app-update.yml at build time). Only wired for platforms where it
-// works without a paid code-signing certificate:
+// baked into app-update.yml at build time).
 //   - Windows (NSIS): updates apply unsigned; SmartScreen only warns on the
 //     first manual download, not on app-delivered updates.
+//   - macOS: Squirrel.Mac verifies the signature of an update before applying
+//     it, so this depends on the release being signed with a Developer ID and
+//     notarized. That is wired up in the release workflow — see ADR-0006.
 //   - Linux AppImage: self-updates in place. Flatpak (sandboxed, managed by
-//     flathub) and any non-AppImage launch are skipped.
-//   - macOS: skipped — Squirrel.Mac will not apply an unsigned update, and
-//     these builds are unsigned by decision (ADR-0006). Mac users update by hand.
+//     flathub) and any non-AppImage launch are skipped, which is the one
+//     remaining platform that falls back to the manual GitHub check below.
 function autoUpdateSupported(): boolean {
   if (isDev || !app.isPackaged) return false;
-  if (process.platform === "darwin") return false;
   if (process.platform === "linux" && !process.env.APPIMAGE) return false;
   return true;
 }
