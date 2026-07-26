@@ -53,14 +53,15 @@ automatically; locally, run `git config blame.ignoreRevsFile .git-blame-ignore-r
 
 ## Architecture
 
-Four deliberately separated layers:
+Five deliberately separated layers:
 
 | Path | Contains |
 |---|---|
 | `src/domain/` | Pure logic: geometry, placement rules, topology, routing, validation, pricing, file format. No React, no Three.js. Most tests live here |
-| `src/renderer/` | The Three.js viewport. Pure math is extracted into testable helpers; imperative scene-building lives in effects |
+| `src/renderer/` | The Three.js viewport, split into meshes, scene affordances, pure interaction helpers, and the React lifecycle |
 | `src/components/` | React UI |
 | `electron/` | Main process and preload bridge |
+| `shared/` | Types and channel names shared by the Electron main process and the renderer |
 
 **Read [`CONTEXT.md`](CONTEXT.md) before changing domain code.** It defines the vocabulary (design,
 part, terminal, bend, cell, centerline, open port) and — critically — which numbers in this codebase
