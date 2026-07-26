@@ -14,9 +14,7 @@ function designWith(parts: Part[]): DesignState {
 
 describe("openPortMarkers", () => {
   it("returns empty for tools that don't depend on connections", () => {
-    const design = designWith([
-      { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }
-    ]);
+    const design = designWith([{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }]);
     expect(openPortMarkers(design, "cursor")).toEqual([]);
     expect(openPortMarkers(design, "blower")).toEqual([]);
     expect(openPortMarkers(design, "terminal")).toEqual([]);
@@ -66,19 +64,12 @@ describe("partLabels", () => {
       }
     ]);
     const labels = partLabels(design);
-    expect(labels.map((l) => l.text)).toEqual([
-      "BL-2020-A",
-      "TM-2020-S",
-      "ST-06-4OD",
-      "BN-90-3R"
-    ]);
+    expect(labels.map((l) => l.text)).toEqual(["BL-2020-A", "TM-2020-S", "ST-06-4OD", "BN-90-3R"]);
     expect(labels.every((l) => l.anchor.length === 3)).toBe(true);
   });
 
   it("anchors tube labels at the midpoint", () => {
-    const design = designWith([
-      { id: "st1", type: "tube", from: [0, 0, 0], to: [6, 0, 0] }
-    ]);
+    const design = designWith([{ id: "st1", type: "tube", from: [0, 0, 0], to: [6, 0, 0] }]);
     const [label] = partLabels(design);
     expect(label.anchor[0]).toBeCloseTo(3, 5);
     expect(label.anchor[2]).toBeCloseTo(0, 5);
@@ -87,12 +78,12 @@ describe("partLabels", () => {
 
 describe("labelTextForPart", () => {
   it("returns catalog part numbers verbatim", () => {
-    expect(
-      labelTextForPart({ id: "b", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] })
-    ).toBe("BL-2020-A");
-    expect(
-      labelTextForPart({ id: "t", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] })
-    ).toBe("TM-2020-S");
+    expect(labelTextForPart({ id: "b", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] })).toBe(
+      "BL-2020-A"
+    );
+    expect(labelTextForPart({ id: "t", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] })).toBe(
+      "TM-2020-S"
+    );
   });
 });
 

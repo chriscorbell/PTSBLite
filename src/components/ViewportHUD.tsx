@@ -69,13 +69,17 @@ export function ViewportHUD({
             label="Base"
             value={`Y=${obstacleDraft.baseY}ft`}
             onDecrement={() => onObstacleBaseYChange(Math.max(0, obstacleDraft.baseY - 1))}
-            onIncrement={() => onObstacleBaseYChange(Math.min(150 - obstacleDraft.height, obstacleDraft.baseY + 1))}
+            onIncrement={() =>
+              onObstacleBaseYChange(Math.min(150 - obstacleDraft.height, obstacleDraft.baseY + 1))
+            }
           />
           <ObstacleStepper
             label="Height"
             value={`${obstacleDraft.height}ft`}
             onDecrement={() => onObstacleHeightChange(Math.max(1, obstacleDraft.height - 1))}
-            onIncrement={() => onObstacleHeightChange(Math.min(150 - obstacleDraft.baseY, obstacleDraft.height + 1))}
+            onIncrement={() =>
+              onObstacleHeightChange(Math.min(150 - obstacleDraft.baseY, obstacleDraft.height + 1))
+            }
           />
           <button
             type="button"
@@ -133,7 +137,9 @@ export function ViewportHUD({
             pointerEvents: "auto"
           }}
         >
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>{scene.hint.title}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>
+            {scene.hint.title}
+          </div>
           <div style={{ fontSize: 12, color: "var(--text-mut)", marginTop: 3, lineHeight: 1.45 }}>
             {scene.hint.body}
           </div>
@@ -240,4 +246,3 @@ function ObstacleStepper({
     </div>
   );
 }
-

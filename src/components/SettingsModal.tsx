@@ -176,7 +176,9 @@ export function SettingsModal({
                 borderRadius: 6,
                 border: "1px solid " + (activeTab === t.id ? "var(--line-2)" : "transparent"),
                 background:
-                  activeTab === t.id ? "color-mix(in oklab, var(--accent) 14%, transparent)" : "transparent",
+                  activeTab === t.id
+                    ? "color-mix(in oklab, var(--accent) 14%, transparent)"
+                    : "transparent",
                 color: activeTab === t.id ? "var(--accent)" : "var(--text-mut)",
                 fontFamily: "var(--font-sans)",
                 fontSize: 12,
@@ -246,7 +248,9 @@ export function SettingsModal({
               <Field label="Bill-to name">
                 <input
                   value={draft.quote.billTo.name}
-                  onChange={(e) => setQuote({ billTo: { ...draft.quote.billTo, name: e.target.value } })}
+                  onChange={(e) =>
+                    setQuote({ billTo: { ...draft.quote.billTo, name: e.target.value } })
+                  }
                   style={inputStyle}
                 />
               </Field>
@@ -265,7 +269,9 @@ export function SettingsModal({
               <Field label="Project name">
                 <input
                   value={draft.quote.project.name}
-                  onChange={(e) => setQuote({ project: { ...draft.quote.project, name: e.target.value } })}
+                  onChange={(e) =>
+                    setQuote({ project: { ...draft.quote.project, name: e.target.value } })
+                  }
                   style={inputStyle}
                 />
               </Field>
@@ -290,8 +296,8 @@ export function SettingsModal({
           {activeTab === "company" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <p style={{ fontSize: 11, color: "var(--text-mut)", margin: 0 }}>
-                Your company appears in the letterhead of every exported quote. These are global
-                and apply to every system.
+                Your company appears in the letterhead of every exported quote. These are global and
+                apply to every system.
               </p>
               <Field label="Company name">
                 <input

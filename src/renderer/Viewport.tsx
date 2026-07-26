@@ -3,10 +3,7 @@ import * as THREE from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import {
-  type PartLabel,
-  type PortMarker
-} from "@/domain/renderer-affordances";
+import { type PartLabel, type PortMarker } from "@/domain/renderer-affordances";
 import { boundsFromBuildArea, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, Camera, Ghost, Scene, ToolId, Vec3 } from "@/types";
 
@@ -100,7 +97,11 @@ function buildBlowerMesh({ ghost = false } = {}): THREE.Group {
   g.add(hole);
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(0.92, 0.92, 0.92)),
-    new THREE.LineBasicMaterial({ color: VP.blowerEdge, transparent: ghost, opacity: ghost ? 0.6 : 0.8 })
+    new THREE.LineBasicMaterial({
+      color: VP.blowerEdge,
+      transparent: ghost,
+      opacity: ghost ? 0.6 : 0.8
+    })
   );
   g.add(edges);
   const ring = new THREE.Mesh(
@@ -152,7 +153,11 @@ function buildTerminalMesh({ ghost = false } = {}): THREE.Group {
   );
   pixel.position.set(0.1, 0.05, 0.477);
   g.add(pixel);
-  const mat = new THREE.MeshStandardMaterial({ color: VP.terminalEdge, roughness: 0.4, metalness: 0.5 });
+  const mat = new THREE.MeshStandardMaterial({
+    color: VP.terminalEdge,
+    roughness: 0.4,
+    metalness: 0.5
+  });
   const f1 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.08, 24), mat);
   f1.rotation.z = Math.PI / 2;
   f1.position.set(0.5, -0.07, 0);
@@ -171,7 +176,11 @@ function buildTerminalMesh({ ghost = false } = {}): THREE.Group {
   }
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(0.92, 0.78, 0.92)),
-    new THREE.LineBasicMaterial({ color: VP.terminalEdge, transparent: ghost, opacity: ghost ? 0.6 : 0.75 })
+    new THREE.LineBasicMaterial({
+      color: VP.terminalEdge,
+      transparent: ghost,
+      opacity: ghost ? 0.6 : 0.75
+    })
   );
   edges.position.y = -0.07;
   g.add(edges);
@@ -241,7 +250,11 @@ export function bendConnectorSpans(bend: BendShape): Array<{ from: Vec3; to: Vec
 function buildTubeMesh(
   from: Vec3,
   to: Vec3,
-  { ghost = false, blocked = false, accent = false }: { ghost?: boolean; blocked?: boolean; accent?: boolean } = {}
+  {
+    ghost = false,
+    blocked = false,
+    accent = false
+  }: { ghost?: boolean; blocked?: boolean; accent?: boolean } = {}
 ): THREE.Group {
   const g = new THREE.Group();
   const span = tubeRenderSpan(from, to);
@@ -398,7 +411,12 @@ function buildObstacleMesh(min: Vec3, max: Vec3, opts: { ghost?: boolean } = {})
   return g;
 }
 
-function buildGroundLines(positions: number[], color: number, opacity: number, y: number): THREE.LineSegments {
+function buildGroundLines(
+  positions: number[],
+  color: number,
+  opacity: number,
+  y: number
+): THREE.LineSegments {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
@@ -494,14 +512,30 @@ function buildLandingCellHighlight(cell: Vec3, tool: ToolId): THREE.Group {
       "position",
       new THREE.Float32BufferAttribute(
         [
-          cell[0] + 0.05, cell[1] + 0.026, cell[2] + 0.05,
-          cell[0] + 0.95, cell[1] + 0.026, cell[2] + 0.05,
-          cell[0] + 0.95, cell[1] + 0.026, cell[2] + 0.05,
-          cell[0] + 0.95, cell[1] + 0.026, cell[2] + 0.95,
-          cell[0] + 0.95, cell[1] + 0.026, cell[2] + 0.95,
-          cell[0] + 0.05, cell[1] + 0.026, cell[2] + 0.95,
-          cell[0] + 0.05, cell[1] + 0.026, cell[2] + 0.95,
-          cell[0] + 0.05, cell[1] + 0.026, cell[2] + 0.05
+          cell[0] + 0.05,
+          cell[1] + 0.026,
+          cell[2] + 0.05,
+          cell[0] + 0.95,
+          cell[1] + 0.026,
+          cell[2] + 0.05,
+          cell[0] + 0.95,
+          cell[1] + 0.026,
+          cell[2] + 0.05,
+          cell[0] + 0.95,
+          cell[1] + 0.026,
+          cell[2] + 0.95,
+          cell[0] + 0.95,
+          cell[1] + 0.026,
+          cell[2] + 0.95,
+          cell[0] + 0.05,
+          cell[1] + 0.026,
+          cell[2] + 0.95,
+          cell[0] + 0.05,
+          cell[1] + 0.026,
+          cell[2] + 0.95,
+          cell[0] + 0.05,
+          cell[1] + 0.026,
+          cell[2] + 0.05
         ],
         3
       )
@@ -711,7 +745,10 @@ export function createViewportDragState(): ViewportDragState {
   };
 }
 
-export function beginViewportDrag(state: ViewportDragState, point: PointerPoint): ViewportDragState {
+export function beginViewportDrag(
+  state: ViewportDragState,
+  point: PointerPoint
+): ViewportDragState {
   return {
     ...state,
     active: true,
@@ -945,7 +982,7 @@ export function Viewport({
         // World units per screen pixel at the target plane, so the scene tracks
         // the cursor 1:1 and panning feels consistent at any zoom level.
         const worldPerPixel =
-          (2 * cam.distance * Math.tan(((camera.fov * Math.PI) / 180) / 2)) / rect.height;
+          (2 * cam.distance * Math.tan((camera.fov * Math.PI) / 180 / 2)) / rect.height;
         camera.updateMatrixWorld();
         camera.matrixWorld.extractBasis(panRight, panUp, new THREE.Vector3());
         cam.target.addScaledVector(panRight, -dx * worldPerPixel);
@@ -1224,7 +1261,11 @@ export function Viewport({
   return (
     <div
       ref={mountRef}
-      style={{ position: "absolute", inset: 0, cursor: tool && tool !== "cursor" ? "crosshair" : "grab" }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        cursor: tool && tool !== "cursor" ? "crosshair" : "grab"
+      }}
       onContextMenu={(e) => e.preventDefault()}
     />
   );

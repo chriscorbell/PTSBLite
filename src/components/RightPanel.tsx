@@ -7,7 +7,12 @@ import type { DesignState } from "@/types";
 function formatPct(rate: number): string {
   return String(+(rate * 100).toFixed(4));
 }
-const th: CSSProperties = { textAlign: "left", padding: "6px 8px", fontWeight: 500, fontFamily: "var(--font-mono)" };
+const th: CSSProperties = {
+  textAlign: "left",
+  padding: "6px 8px",
+  fontWeight: 500,
+  fontFamily: "var(--font-mono)"
+};
 const td: CSSProperties = { padding: "8px 8px", verticalAlign: "top" };
 
 export type RightPanelProps = {
@@ -54,7 +59,14 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
           whiteSpace: "nowrap"
         }}
       >
-        <div style={{ fontSize: 12, color: "var(--text)", fontFamily: "var(--font-sans)", fontWeight: 600 }}>
+        <div
+          style={{
+            fontSize: 12,
+            color: "var(--text)",
+            fontFamily: "var(--font-sans)",
+            fontWeight: 600
+          }}
+        >
           Bill of Materials
         </div>
         <div style={{ flex: 1 }} />
@@ -81,7 +93,9 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
       <div style={{ padding: "10px 14px", fontSize: 12, color: "var(--text-mut)" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, whiteSpace: "nowrap" }}>
           <span>System:</span>
-          <span style={{ fontFamily: "var(--font-sans)", color: "var(--text)" }}>{design.metadata.filename}</span>
+          <span style={{ fontFamily: "var(--font-sans)", color: "var(--text)" }}>
+            {design.metadata.filename}
+          </span>
         </div>
         <div
           style={{
@@ -102,7 +116,14 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
       <div style={{ flex: 1, overflowY: "auto", padding: "0 8px", minHeight: 60 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
-            <tr style={{ color: "var(--text-dim)", fontFamily: "var(--font-sans)", fontSize: 10, letterSpacing: 0.6 }}>
+            <tr
+              style={{
+                color: "var(--text-dim)",
+                fontFamily: "var(--font-sans)",
+                fontSize: 10,
+                letterSpacing: 0.6
+              }}
+            >
               <th style={th}>PART</th>
               <th style={{ ...th, textAlign: "right" }}>QTY</th>
               <th style={{ ...th, textAlign: "right" }}>EACH</th>
@@ -115,9 +136,19 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
                 <td style={td}>
                   <div style={{ display: "flex", flexDirection: "column" }}>
                     <span style={{ color: "var(--text)" }}>{r.name}</span>
-                    <span style={{ fontFamily: "var(--font-sans)", fontSize: 10, color: "var(--text-dim)" }}>{r.partNo}</span>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: 10,
+                        color: "var(--text-dim)"
+                      }}
+                    >
+                      {r.partNo}
+                    </span>
                     {r.note && (
-                      <span style={{ fontSize: 10, color: "var(--accent)", marginTop: 2 }}>{r.note}</span>
+                      <span style={{ fontSize: 10, color: "var(--accent)", marginTop: 2 }}>
+                        {r.note}
+                      </span>
                     )}
                   </div>
                 </td>
@@ -131,10 +162,24 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
                 >
                   {r.qty}
                 </td>
-                <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-sans)", color: "var(--text-mut)" }}>
+                <td
+                  style={{
+                    ...td,
+                    textAlign: "right",
+                    fontFamily: "var(--font-sans)",
+                    color: "var(--text-mut)"
+                  }}
+                >
                   ${r.unitPrice.toFixed(2)}
                 </td>
-                <td style={{ ...td, textAlign: "right", fontFamily: "var(--font-sans)", color: "var(--text)" }}>
+                <td
+                  style={{
+                    ...td,
+                    textAlign: "right",
+                    fontFamily: "var(--font-sans)",
+                    color: "var(--text)"
+                  }}
+                >
                   ${(r.qty * r.unitPrice).toFixed(2)}
                 </td>
               </tr>
@@ -182,7 +227,17 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
   );
 }
 
-function Row({ label, value, dim, bold }: { label: string; value: string; dim?: boolean; bold?: boolean }) {
+function Row({
+  label,
+  value,
+  dim,
+  bold
+}: {
+  label: string;
+  value: string;
+  dim?: boolean;
+  bold?: boolean;
+}) {
   return (
     <div
       style={{
@@ -193,7 +248,9 @@ function Row({ label, value, dim, bold }: { label: string; value: string; dim?: 
         whiteSpace: "nowrap"
       }}
     >
-      <span style={{ fontSize: 12, color: dim ? "var(--text-dim)" : "var(--text-mut)" }}>{label}</span>
+      <span style={{ fontSize: 12, color: dim ? "var(--text-dim)" : "var(--text-mut)" }}>
+        {label}
+      </span>
       <span
         style={{
           fontFamily: "var(--font-mono)",

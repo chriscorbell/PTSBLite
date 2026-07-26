@@ -186,10 +186,18 @@ function FileMenu({ onOpen, onSave }: { onOpen?: () => void; onSave?: () => void
             zIndex: 20
           }}
         >
-          <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={() => choose(onOpen)}>
+          <button
+            className="filemenu-item topbar-no-drag"
+            role="menuitem"
+            onClick={() => choose(onOpen)}
+          >
             <Icons.Open size={14} /> Open…
           </button>
-          <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={() => choose(onSave)}>
+          <button
+            className="filemenu-item topbar-no-drag"
+            role="menuitem"
+            onClick={() => choose(onSave)}
+          >
             <Icons.Save size={14} /> Save
           </button>
         </div>
@@ -254,16 +262,32 @@ function EditMenu({ onEdit }: { onEdit?: (tab: SettingsTab) => void }) {
             zIndex: 20
           }}
         >
-          <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={() => choose("pricing")}>
+          <button
+            className="filemenu-item topbar-no-drag"
+            role="menuitem"
+            onClick={() => choose("pricing")}
+          >
             <Icons.Bom size={14} /> Parts Pricing…
           </button>
-          <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={() => choose("quote")}>
+          <button
+            className="filemenu-item topbar-no-drag"
+            role="menuitem"
+            onClick={() => choose("quote")}
+          >
             <Icons.Pdf size={14} /> Quote &amp; Tax…
           </button>
-          <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={() => choose("company")}>
+          <button
+            className="filemenu-item topbar-no-drag"
+            role="menuitem"
+            onClick={() => choose("company")}
+          >
             <Icons.Info size={14} /> Company Info…
           </button>
-          <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={() => choose("system")}>
+          <button
+            className="filemenu-item topbar-no-drag"
+            role="menuitem"
+            onClick={() => choose("system")}
+          >
             <Icons.Layers size={14} /> System Details…
           </button>
         </div>

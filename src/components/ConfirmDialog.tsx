@@ -84,7 +84,14 @@ export function ConfirmDialog({
           </button>
         </div>
 
-        <div style={{ padding: "18px 18px 4px", fontSize: 13, color: "var(--text-mut)", lineHeight: 1.5 }}>
+        <div
+          style={{
+            padding: "18px 18px 4px",
+            fontSize: 13,
+            color: "var(--text-mut)",
+            lineHeight: 1.5
+          }}
+        >
           {message}
         </div>
 
@@ -105,8 +112,18 @@ export function ConfirmDialog({
             autoFocus
             style={
               danger
-                ? { background: "var(--danger)", borderColor: "transparent", color: "#0b0e13", fontWeight: 600 }
-                : { background: "var(--accent)", borderColor: "transparent", color: "#06121a", fontWeight: 600 }
+                ? {
+                    background: "var(--danger)",
+                    borderColor: "transparent",
+                    color: "#0b0e13",
+                    fontWeight: 600
+                  }
+                : {
+                    background: "var(--accent)",
+                    borderColor: "transparent",
+                    color: "#06121a",
+                    fontWeight: 600
+                  }
             }
           >
             {confirmLabel}

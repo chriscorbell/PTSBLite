@@ -116,7 +116,9 @@ describe("deserializeDesign", () => {
   });
 
   it("rejects missing schemaVersion", () => {
-    const result = deserializeDesign(JSON.stringify({ parts: [], obstacles: [], metadata: { filename: "x", revision: "1" } }));
+    const result = deserializeDesign(
+      JSON.stringify({ parts: [], obstacles: [], metadata: { filename: "x", revision: "1" } })
+    );
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.message).toMatch(/schemaVersion/i);
@@ -124,7 +126,13 @@ describe("deserializeDesign", () => {
 
   it("rejects wrong schemaVersion", () => {
     const result = deserializeDesign(
-      JSON.stringify({ schemaVersion: "99", appVersion: "0.1.0", parts: [], obstacles: [], metadata: { filename: "x", revision: "1" } })
+      JSON.stringify({
+        schemaVersion: "99",
+        appVersion: "0.1.0",
+        parts: [],
+        obstacles: [],
+        metadata: { filename: "x", revision: "1" }
+      })
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -133,7 +141,12 @@ describe("deserializeDesign", () => {
 
   it("rejects missing parts array", () => {
     const result = deserializeDesign(
-      JSON.stringify({ schemaVersion: CURRENT_SCHEMA_VERSION, appVersion: "0.1.0", obstacles: [], metadata: { filename: "x", revision: "1" } })
+      JSON.stringify({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        appVersion: "0.1.0",
+        obstacles: [],
+        metadata: { filename: "x", revision: "1" }
+      })
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;

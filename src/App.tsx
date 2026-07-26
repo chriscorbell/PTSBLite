@@ -25,12 +25,7 @@ import {
 } from "@/domain/app-settings";
 import { bendLandingCells, bendPlacementGhost, placeBend } from "@/domain/bend-placement";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
-import {
-  canRedo,
-  canUndo,
-  designHistoryReducer,
-  initDesignHistory
-} from "@/domain/design-history";
+import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
 import { designFromScene, emptyDesign, partsWithinBuildArea } from "@/domain/design-state";
 import { eraseAtCell } from "@/domain/erase-placement";
 import {
@@ -63,7 +58,11 @@ import {
 } from "@/domain/pathfinder";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
-import { placeTerminal, terminalLandingCells, terminalPlacementGhost } from "@/domain/terminal-placement";
+import {
+  placeTerminal,
+  terminalLandingCells,
+  terminalPlacementGhost
+} from "@/domain/terminal-placement";
 import { placeTube, tubeLandingCells, tubePlacementGhost } from "@/domain/tube-placement";
 import { validate } from "@/domain/validation";
 import { Viewport } from "@/renderer/Viewport";
@@ -186,10 +185,8 @@ export default function App() {
   // The design and its undo/redo stacks move together, so they are one reducer.
   // `dispatchHistory` is stable, which is what lets the history callbacks below
   // stay stable without mirroring the current design into a ref.
-  const [history, dispatchHistory] = useReducer(
-    designHistoryReducer,
-    DESIGN_METADATA,
-    (metadata) => initDesignHistory(emptyDesign(metadata))
+  const [history, dispatchHistory] = useReducer(designHistoryReducer, DESIGN_METADATA, (metadata) =>
+    initDesignHistory(emptyDesign(metadata))
   );
   const design = history.present;
   const undoAvailable = canUndo(history);
@@ -221,7 +218,8 @@ export default function App() {
   const [autoBuilding, setAutoBuilding] = useState(false);
   const [autoBuildJustRan, setAutoBuildJustRan] = useState(false);
   const [autoBuildSummary, setAutoBuildSummary] = useState<AutoBuildSummary | null>(null);
-  const [optimizationMode, setOptimizationMode] = useState<OptimizationMode>(DEFAULT_AUTO_BUILD_MODE);
+  const [optimizationMode, setOptimizationMode] =
+    useState<OptimizationMode>(DEFAULT_AUTO_BUILD_MODE);
   const [activeElevation, setActiveElevation] = useState(0);
   const [showLabels, setShowLabels] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -313,23 +311,26 @@ export default function App() {
     void window.ptsbuilder?.setSettings(JSON.stringify(next, null, 2));
   }, []);
 
-  const updateMetadata = useCallback((metadata: DesignState["metadata"]) => {
-    const d = design;
-    const prev = d.metadata.buildArea;
-    const next = metadata.buildArea;
-    const areaChanged =
-      prev.width !== next.width || prev.depth !== next.depth || prev.height !== next.height;
-    if (!areaChanged) {
-      // Cosmetic metadata (name/revision): swap in place, not an undoable edit.
-      dispatchHistory({ type: "replace-present", design: { ...d, metadata } });
-      setDirty(true);
-      return;
-    }
-    // Build area changed: drop any parts that no longer fit the new bounds and
-    // rebuild the grid. Commit as one undoable step so the deletion is reversible.
-    const keptParts = partsWithinBuildArea(d.parts, next);
-    commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
-  }, [commitDesign, design]);
+  const updateMetadata = useCallback(
+    (metadata: DesignState["metadata"]) => {
+      const d = design;
+      const prev = d.metadata.buildArea;
+      const next = metadata.buildArea;
+      const areaChanged =
+        prev.width !== next.width || prev.depth !== next.depth || prev.height !== next.height;
+      if (!areaChanged) {
+        // Cosmetic metadata (name/revision): swap in place, not an undoable edit.
+        dispatchHistory({ type: "replace-present", design: { ...d, metadata } });
+        setDirty(true);
+        return;
+      }
+      // Build area changed: drop any parts that no longer fit the new bounds and
+      // rebuild the grid. Commit as one undoable step so the deletion is reversible.
+      const keptParts = partsWithinBuildArea(d.parts, next);
+      commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
+    },
+    [commitDesign, design]
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -502,7 +503,9 @@ export default function App() {
           return;
         }
         commitDesign(result.design);
-        setFreePlacementMemory((memory) => rememberFreePlacementOrientation(memory, tool, orientation));
+        setFreePlacementMemory((memory) =>
+          rememberFreePlacementOrientation(memory, tool, orientation)
+        );
         setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
         setAutoBuildJustRan(false);
         return;
@@ -710,15 +713,12 @@ export default function App() {
     [design, autoBuildJustRan, autoBuildSummary]
   );
 
-  const landingCells = useMemo(
-    () => {
-      if (tool === "terminal") return terminalLandingCells(design);
-      if (tool === "tube") return tubeLandingCells(design);
-      if (tool === "bend") return bendLandingCells(design);
-      return [];
-    },
-    [tool, design]
-  );
+  const landingCells = useMemo(() => {
+    if (tool === "terminal") return terminalLandingCells(design);
+    if (tool === "tube") return tubeLandingCells(design);
+    if (tool === "bend") return bendLandingCells(design);
+    return [];
+  }, [tool, design]);
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
   const labels = useMemo(() => partLabels(design), [design]);

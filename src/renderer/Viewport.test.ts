@@ -20,19 +20,11 @@ const vec = (x: number, y: number, z: number): [number, number, number] => [x, y
 
 describe("Viewport click cell resolution", () => {
   it("uses the clicked part's world cell for erase instead of the active plane cell", () => {
-    expect(clickCellForTool("erase", [2, 0, 3], { x: 2.45, y: 7.82, z: 3.5 })).toEqual([
-      2,
-      7,
-      3
-    ]);
+    expect(clickCellForTool("erase", [2, 0, 3], { x: 2.45, y: 7.82, z: 3.5 })).toEqual([2, 7, 3]);
   });
 
   it("keeps non-erase clicks on the active placement plane", () => {
-    expect(clickCellForTool("tube", [2, 0, 3], { x: 2.45, y: 7.82, z: 3.5 })).toEqual([
-      2,
-      0,
-      3
-    ]);
+    expect(clickCellForTool("tube", [2, 0, 3], { x: 2.45, y: 7.82, z: 3.5 })).toEqual([2, 0, 3]);
   });
 
   it("floors world hit coordinates to grid cells, including negative coordinates", () => {
@@ -118,9 +110,7 @@ describe("Viewport tube and bend render alignment", () => {
       to: [4.5, 0.5, 10],
       length: 6
     });
-    expect(tubeSectionJointPoints([4.5, 0.5, 4.5], [4.5, 0.5, 10.5])[0]).toEqual(
-      exitExtension.to
-    );
+    expect(tubeSectionJointPoints([4.5, 0.5, 4.5], [4.5, 0.5, 10.5])[0]).toEqual(exitExtension.to);
   });
 
   it("adds bend tangent extensions without shifting straight tube boundaries", () => {
