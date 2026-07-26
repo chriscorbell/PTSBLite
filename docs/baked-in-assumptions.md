@@ -85,7 +85,7 @@ price — `loadPartRegistry` rejects one.
 
 **The stock-tube purchasing rule is an open question**, not a decision. `bomRows` currently uses
 `ceil(total tube feet / 6)`, which assumes offcuts are not reused — and the default quote wording
-disclaims exactly that. See [open questions](requirements/open-questions.md) and issue #48.
+disclaims exactly that. See issue #48.
 
 ---
 
