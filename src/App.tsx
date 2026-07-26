@@ -19,7 +19,6 @@ import { TopBar } from "@/components/TopBar";
 import { UpdateNotification } from "@/components/UpdateNotification";
 import { ViewportHUD } from "@/components/ViewportHUD";
 import { DEFAULT_SETTINGS, mergeSettings, type AppSettings } from "@/domain/app-settings";
-import { bendLandingCells, bendPlacementGhost, placeBend } from "@/domain/bend-placement";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
 import { canRedo, canUndo } from "@/domain/design-history";
 import {
@@ -37,47 +36,26 @@ import {
   obstaclesWithinBuildArea,
   partsWithinBuildArea
 } from "@/domain/design-state";
-import { eraseAtCell } from "@/domain/erase-placement";
-import {
-  DEFAULT_FREE_PLACEMENT_MEMORY,
-  DEFAULT_FREE_PLACEMENT_ROTATION,
-  freePlacementGhost,
-  placeFreePart,
-  rememberFreePlacementOrientation,
-  type FreePlacementMemory,
-  type FreePlacementRotation,
-  type FreePlacementType
-} from "@/domain/free-placement";
-import {
-  cancelObstaclePlacement,
-  moveObstaclePlacementBase,
-  obstaclePlacementDraftBounds,
-  obstaclePlacementDraftHasFootprint,
-  obstaclePlacementGhost,
-  placeObstacleVolume,
-  resizeObstaclePlacementHeight,
-  setObstaclePlacementFootprint,
-  startObstaclePlacement,
-  type ObstaclePlacementDraft
-} from "@/domain/obstacle-placement";
 import { totalPathLength } from "@/domain/parts";
+import {
+  attemptPlacement,
+  commitObstacleDraft,
+  INITIAL_PLACEMENT_SESSION,
+  placementGhost,
+  placementLandingCells,
+  placementSessionReducer,
+  type PlacementResult
+} from "@/domain/placement-session";
 import {
   autoBuildOpenPortPair,
   type OptimizationMode,
   type UnroutedPair
 } from "@/domain/pathfinder";
-import { clampElevation } from "@/domain/sparse-grid";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
-import {
-  placeTerminal,
-  terminalLandingCells,
-  terminalPlacementGhost
-} from "@/domain/terminal-placement";
-import { placeTube, tubeLandingCells, tubePlacementGhost } from "@/domain/tube-placement";
 import { validate } from "@/domain/validation";
 import { Viewport, type ViewportHandle } from "@/renderer/Viewport";
-import type { AutoBuildSummary, DesignState, Ghost, Hint, Scene, ToolId, Vec3 } from "@/types";
+import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
 
 const OPTIMIZATION_MODE_LABELS: Record<OptimizationMode, string> = {
   shortest: "Shortest path",
@@ -98,10 +76,6 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
 };
 
 const DESIGN_METADATA = { filename: DEFAULT_FILENAME, revision: DEFAULT_REVISION };
-
-function isFreePlacementTool(tool: ToolId): tool is FreePlacementType {
-  return tool === "blower" || tool === "terminal";
-}
 
 /**
  * Resolve after the browser has had a chance to paint. requestAnimationFrame
@@ -135,12 +109,6 @@ function describeLoss(parts: number, obstacles: number): string {
     return `${plural(parts, "part")} and ${plural(obstacles, "obstacle")}`;
   }
   return parts > 0 ? plural(parts, "part") : plural(obstacles, "obstacle");
-}
-
-function ghostOrientation(ghost: Ghost): Vec3 | null {
-  if (ghost.type === "blower") return ghost.dir;
-  if (ghost.type === "terminal") return ghost.axis;
-  return null;
 }
 
 export default function App() {
@@ -181,16 +149,16 @@ export default function App() {
 
   const viewportRef = useRef<ViewportHandle>(null);
 
-  const [tool, setToolRaw] = useState<ToolId>("cursor");
-  const [hoverCell, setHoverCell] = useState<Vec3 | null>(null);
-  const [obstacleDraft, setObstacleDraft] = useState<ObstaclePlacementDraft | null>(null);
-  const [ghostRotation, setGhostRotation] = useState(0);
-  const [freePlacementMemory, setFreePlacementMemory] = useState<FreePlacementMemory>(
-    DEFAULT_FREE_PLACEMENT_MEMORY
+  // One value, not seven: the placement rules that tie them together live in
+  // the domain module, where they can be tested without a renderer.
+  const [placement, dispatchPlacement] = useReducer(
+    placementSessionReducer,
+    INITIAL_PLACEMENT_SESSION
   );
-  const [freePlacementRotation, setFreePlacementRotation] = useState<FreePlacementRotation>(
-    DEFAULT_FREE_PLACEMENT_ROTATION
-  );
+  const tool = placement.tool;
+  const obstacleDraft = placement.obstacleDraft;
+  const activeElevation = placement.activeElevation;
+
   const [rightOpen, setRightOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -209,16 +177,12 @@ export default function App() {
   const [autoBuildSummary, setAutoBuildSummary] = useState<AutoBuildSummary | null>(null);
   const [optimizationMode, setOptimizationMode] =
     useState<OptimizationMode>(DEFAULT_AUTO_BUILD_MODE);
-  const [activeElevation, setActiveElevation] = useState(0);
   const [showLabels, setShowLabels] = useState(false);
   const [errorFlash, setErrorFlashRaw] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Switching tools abandons anything in flight for the previous one. */
   const selectTool = useCallback((next: ToolId) => {
-    setToolRaw(next);
-    setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
-    setObstacleDraft(null);
+    dispatchPlacement({ type: "select-tool", tool: next });
   }, []);
 
   const setErrorFlash = useCallback((msg: string | null) => {
@@ -247,7 +211,7 @@ export default function App() {
    * that is no longer on screen.
    */
   const clearTransientAfterHistoryMove = useCallback(() => {
-    setObstacleDraft(null);
+    dispatchPlacement({ type: "cancel-obstacle-draft" });
     setAutoBuildJustRan(false);
     setAutoBuildSummary(null);
   }, []);
@@ -257,28 +221,17 @@ export default function App() {
     dispatchDocument({ type: "commit", design: next });
   }, []);
 
-  /**
-   * Apply a placement result, or flash why it failed.
-   *
-   * Every tool branch below ended with the same six lines. The branches
-   * themselves stay explicit: the tools take genuinely different arguments —
-   * a source part, a rotation index, an orientation memory — and a table
-   * mapping tool to handler would have hidden that behind optional fields and
-   * casts. Only the identical tail is shared.
-   *
-   * Returns the successful result so a branch can do its own extra work.
-   */
-  const applyPlacement = useCallback(
-    <T extends { ok: true; design: DesignState } | { ok: false; message: string }>(
-      result: T
-    ): (T & { ok: true }) | null => {
-      if (!result.ok) {
+  /** Commit whatever a placement attempt decided, or flash why it failed. */
+  const applyPlacementResult = useCallback(
+    (result: PlacementResult) => {
+      if (result.status === "error") {
         setErrorFlash(result.message);
-        return null;
+        return;
       }
-      commitDesign(result.design);
-      setAutoBuildJustRan(false);
-      return result as T & { ok: true };
+      if (result.status === "committed") {
+        commitDesign(result.design);
+        setAutoBuildJustRan(false);
+      }
     },
     [commitDesign, setErrorFlash]
   );
@@ -377,8 +330,7 @@ export default function App() {
         commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
         // The active plane and any half-built obstacle may now sit above the
         // ceiling; both are re-derived from the area rather than left stale.
-        setActiveElevation((y) => clampElevation(y, next));
-        setObstacleDraft(null);
+        dispatchPlacement({ type: "constrain-to-build-area", buildArea: next });
       };
 
       if (droppedParts === 0 && droppedObstacles === 0) {
@@ -413,202 +365,59 @@ export default function App() {
       }
       if (KEY_TOOL_MAP[k] && !e.metaKey && !e.ctrlKey) selectTool(KEY_TOOL_MAP[k]);
       if (k === "r" && !e.metaKey && !e.ctrlKey) {
-        if (isFreePlacementTool(tool)) {
-          setFreePlacementRotation((rotation) =>
-            e.shiftKey
-              ? { ...rotation, verticalSteps: rotation.verticalSteps + 1 }
-              : { horizontalSteps: rotation.horizontalSteps + 1, verticalSteps: 0 }
-          );
-        } else {
-          setGhostRotation((r) => (r + (e.shiftKey ? 3 : 1)) % 4);
-        }
+        dispatchPlacement({ type: "rotate", reverse: e.shiftKey });
       }
       if (k === "escape") selectTool("cursor");
       if (k === "[" && !e.metaKey && !e.ctrlKey) {
-        setActiveElevation((y) => clampElevation(y - 1, buildArea));
+        dispatchPlacement({ type: "nudge-elevation", delta: -1, buildArea });
       }
       if (k === "]" && !e.metaKey && !e.ctrlKey) {
-        setActiveElevation((y) => clampElevation(y + 1, buildArea));
+        dispatchPlacement({ type: "nudge-elevation", delta: 1, buildArea });
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tool, undo, redo, selectTool, buildArea]);
+  }, [undo, redo, selectTool, buildArea]);
 
-  /**
-   * The ghost is derived, not stored. It was previously computed in an effect
-   * that called setGhostState, which cost a second render pass on every mouse
-   * move — the hover cell changes, React renders, the effect runs, React renders
-   * again. Computing it during render halves that, and removes the possibility
-   * of the stored ghost disagreeing with the state it was supposed to reflect.
-   */
-  const ghostState = useMemo<Ghost | null>(() => {
-    if (!hoverCell || tool === "cursor" || tool === "erase") return null;
-    if (tool === "blower") {
-      return freePlacementGhost({
-        type: tool,
-        design,
-        cell: hoverCell,
-        memory: freePlacementMemory,
-        rotationSteps: freePlacementRotation.horizontalSteps,
-        verticalRotationSteps: freePlacementRotation.verticalSteps
-      });
-    }
-    if (tool === "terminal") {
-      return terminalPlacementGhost({
-        design,
-        cell: hoverCell,
-        memory: freePlacementMemory,
-        rotationSteps: freePlacementRotation.horizontalSteps,
-        verticalRotationSteps: freePlacementRotation.verticalSteps
-      });
-    }
-    if (tool === "tube") return tubePlacementGhost(design, hoverCell);
-    if (tool === "bend") {
-      return bendPlacementGhost(design, hoverCell, { rotationIndex: ghostRotation });
-    }
-    if (tool === "obstacle") return obstaclePlacementGhost(obstacleDraft, hoverCell);
-    return null;
-  }, [
-    hoverCell,
-    tool,
-    ghostRotation,
-    design,
-    freePlacementMemory,
-    freePlacementRotation,
-    obstacleDraft
-  ]);
+  const ghostState = useMemo(() => placementGhost(placement, design), [placement, design]);
 
   const cancelObstacleDraft = useCallback(() => {
-    setObstacleDraft((draft) => cancelObstaclePlacement(draft));
+    dispatchPlacement({ type: "cancel-obstacle-draft" });
   }, []);
 
-  const commitObstacleDraft = useCallback(() => {
-    if (!obstaclePlacementDraftHasFootprint(obstacleDraft)) return;
-    const bounds = obstaclePlacementDraftBounds(obstacleDraft);
-    const result = placeObstacleVolume(design, {
-      id: newOccupantId(design, "o"),
-      cornerA: bounds.min,
-      cornerB: bounds.max
-    });
-    if (!applyPlacement(result)) return;
-    setObstacleDraft(null);
-  }, [applyPlacement, design, obstacleDraft]);
+  const commitObstacle = useCallback(() => {
+    const { session, result } = commitObstacleDraft(placement, design, newOccupantId(design, "o"));
+    dispatchPlacement({ type: "apply-attempt", session });
+    applyPlacementResult(result);
+  }, [applyPlacementResult, design, placement]);
 
   const setObstacleBaseY = useCallback(
     (baseY: number) => {
-      setObstacleDraft((draft) =>
-        draft ? moveObstaclePlacementBase(draft, baseY, buildArea) : draft
-      );
+      dispatchPlacement({ type: "set-obstacle-base", baseY, buildArea });
     },
     [buildArea]
   );
 
   const setObstacleHeight = useCallback(
     (height: number) => {
-      setObstacleDraft((draft) =>
-        draft ? resizeObstaclePlacementHeight(draft, height, buildArea) : draft
-      );
+      dispatchPlacement({ type: "set-obstacle-height", height, buildArea });
     },
     [buildArea]
   );
 
   const onPlace = useCallback(
     (cell: Vec3, target?: { partId?: string }) => {
-      if (tool === "cursor") return;
-      if (tool === "erase") {
-        applyPlacement(eraseAtCell(design, cell));
-        return;
-      }
-      if (tool === "terminal") {
-        const result = placeTerminal(design, {
-          id: newOccupantId(design, "p"),
-          cell,
-          memory: freePlacementMemory,
-          rotationSteps: freePlacementRotation.horizontalSteps,
-          verticalRotationSteps: freePlacementRotation.verticalSteps
-        });
-        const placed = applyPlacement(result);
-        if (!placed) return;
-        const orientation = placed.part.type === "terminal" ? placed.part.axis : null;
-        if (orientation) {
-          setFreePlacementMemory((memory) =>
-            rememberFreePlacementOrientation(memory, "terminal", orientation)
-          );
-        }
-        setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
-        return;
-      }
-      if (tool === "blower") {
-        const preview = freePlacementGhost({
-          type: tool,
-          design,
-          cell,
-          memory: freePlacementMemory,
-          rotationSteps: freePlacementRotation.horizontalSteps,
-          verticalRotationSteps: freePlacementRotation.verticalSteps
-        });
-        const orientation = preview ? ghostOrientation(preview) : freePlacementMemory[tool];
-        if (!orientation) return;
-        const result = placeFreePart(design, {
-          id: newOccupantId(design, "p"),
-          type: tool,
-          cell,
-          orientation
-        });
-        if (!applyPlacement(result)) return;
-        setFreePlacementMemory((memory) =>
-          rememberFreePlacementOrientation(memory, tool, orientation)
-        );
-        setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
-        return;
-      }
-      if (tool === "tube") {
-        const result = placeTube(design, {
-          id: newOccupantId(design, "p"),
-          cell,
-          sourcePartId: target?.partId
-        });
-        applyPlacement(result);
-        return;
-      }
-      if (tool === "bend") {
-        const result = placeBend(design, {
-          id: newOccupantId(design, "p"),
-          cell,
-          sourcePartId: target?.partId,
-          rotationIndex: ghostRotation
-        });
-        applyPlacement(result);
-        return;
-      }
-      if (tool === "obstacle") {
-        if (!obstacleDraft) {
-          const result = startObstaclePlacement(design, cell);
-          if (!result.ok) {
-            setErrorFlash(result.message);
-            return;
-          }
-          setObstacleDraft(result.draft);
-          return;
-        }
-        if (!obstaclePlacementDraftHasFootprint(obstacleDraft)) {
-          setObstacleDraft(setObstaclePlacementFootprint(obstacleDraft, cell));
-          return;
-        }
-        return;
-      }
+      const { session, result } = attemptPlacement(
+        placement,
+        design,
+        cell,
+        newOccupantId(design, "p"),
+        target?.partId
+      );
+      dispatchPlacement({ type: "apply-attempt", session });
+      applyPlacementResult(result);
     },
-    [
-      applyPlacement,
-      tool,
-      setErrorFlash,
-      design,
-      freePlacementMemory,
-      freePlacementRotation,
-      ghostRotation,
-      obstacleDraft
-    ]
+    [applyPlacementResult, design, placement]
   );
 
   /**
@@ -818,12 +627,7 @@ export default function App() {
     [design, autoBuildJustRan, autoBuildSummary]
   );
 
-  const landingCells = useMemo(() => {
-    if (tool === "terminal") return terminalLandingCells(design);
-    if (tool === "tube") return tubeLandingCells(design);
-    if (tool === "bend") return bendLandingCells(design);
-    return [];
-  }, [tool, design]);
+  const landingCells = useMemo(() => placementLandingCells(placement, design), [placement, design]);
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
   const labels = useMemo(() => partLabels(design), [design]);
@@ -864,7 +668,7 @@ export default function App() {
             ghost={ghostState}
             tool={tool}
             onPlace={onPlace}
-            onHover={setHoverCell}
+            onHover={(cell) => dispatchPlacement({ type: "hover", cell })}
             landingCells={landingCells}
             activeElevation={activeElevation}
             portMarkers={portMarkers}
@@ -880,7 +684,7 @@ export default function App() {
             buildArea={buildArea}
             onObstacleBaseYChange={setObstacleBaseY}
             onObstacleHeightChange={setObstacleHeight}
-            onObstacleConfirm={commitObstacleDraft}
+            onObstacleConfirm={commitObstacle}
             onObstacleCancel={cancelObstacleDraft}
           />
           <RightPanel
