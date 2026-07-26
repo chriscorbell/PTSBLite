@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import * as THREE from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
@@ -724,6 +724,8 @@ type ViewportState = {
   labelsGroup?: THREE.Group;
   groundGroup?: THREE.Group;
   hoverPlane?: THREE.Mesh;
+  zoomBy?: (delta: number) => void;
+  resetView?: () => void;
   cleanup?: () => void;
 };
 
@@ -802,7 +804,23 @@ export type ViewportPlaceTarget = {
   partId?: string;
 };
 
+/**
+ * What another component may ask the camera to do.
+ *
+ * These were previously `window.dispatchEvent(new CustomEvent("ptsb-zoom"))`
+ * from the status bar, with a matching listener here — an untyped global side
+ * channel between two components that are already siblings under `App`, which
+ * neither TypeScript nor the test suite could see (issue #19).
+ */
+export type ViewportHandle = {
+  /** Multiply the camera distance. Positive pulls back, negative moves in. */
+  zoomBy: (delta: number) => void;
+  /** Return to the framing the app opens with. */
+  resetView: () => void;
+};
+
 export type ViewportProps = {
+  ref?: Ref<ViewportHandle>;
   scene: Scene;
   buildArea?: BuildArea;
   ghost: Ghost | null;
@@ -849,6 +867,7 @@ export function clickCellForTool(
 }
 
 export function Viewport({
+  ref,
   scene,
   buildArea = DEFAULT_BUILD_AREA,
   ghost,
@@ -865,6 +884,15 @@ export function Viewport({
   const stateRef = useRef<ViewportState>({});
   const toolRef = useRef<ToolId>(tool);
   const callbacksRef = useRef<Pick<ViewportProps, "onPlace" | "onHover">>({ onPlace, onHover });
+
+  useImperativeHandle(
+    ref,
+    (): ViewportHandle => ({
+      zoomBy: (delta) => stateRef.current.zoomBy?.(delta),
+      resetView: () => stateRef.current.resetView?.()
+    }),
+    []
+  );
 
   useEffect(() => {
     toolRef.current = tool;
@@ -1071,20 +1099,17 @@ export function Viewport({
     dom.addEventListener("wheel", onWheel, { passive: false });
     dom.addEventListener("contextmenu", onContextMenu);
 
-    const onExternalZoom = (ev: Event) => {
-      const delta = (ev as CustomEvent<number>).detail ?? 0;
+    stateRef.current.zoomBy = (delta: number) => {
       cam.distance = Math.max(8, Math.min(80, cam.distance * (1 + delta)));
       applyCamera();
     };
-    const onResetView = () => {
+    stateRef.current.resetView = () => {
       cam.yaw = DEFAULT_CAMERA_FRAMING.yaw;
       cam.pitch = DEFAULT_CAMERA_FRAMING.pitch;
       cam.distance = DEFAULT_CAMERA_FRAMING.distance;
       cam.target.set(...DEFAULT_CAMERA_FRAMING.target);
       applyCamera();
     };
-    window.addEventListener("ptsb-zoom", onExternalZoom);
-    window.addEventListener("ptsb-reset-view", onResetView);
 
     let raf = 0;
     const tick = () => {
@@ -1112,8 +1137,6 @@ export function Viewport({
       window.removeEventListener("mouseup", onUp);
       dom.removeEventListener("wheel", onWheel);
       dom.removeEventListener("contextmenu", onContextMenu);
-      window.removeEventListener("ptsb-zoom", onExternalZoom);
-      window.removeEventListener("ptsb-reset-view", onResetView);
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);
       }

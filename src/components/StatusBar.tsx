@@ -21,6 +21,8 @@ export type StatusBarProps = {
   autoBuilding: boolean;
   optimizationMode: OptimizationMode;
   onOptimizationModeChange: (mode: OptimizationMode) => void;
+  onZoom: (delta: number) => void;
+  onResetView: () => void;
 };
 
 export function StatusBar({
@@ -31,7 +33,9 @@ export function StatusBar({
   onAutoBuild,
   autoBuilding,
   optimizationMode,
-  onOptimizationModeChange
+  onOptimizationModeChange,
+  onZoom,
+  onResetView
 }: StatusBarProps) {
   const errors = warnings.filter((w) => w.level === "error").length;
   const warns = warnings.filter((w) => w.level === "warn").length;
@@ -190,7 +194,7 @@ export function StatusBar({
         <Meta label="PARTS" value={`${design.parts.length}`} />
 
         <div style={{ flex: 1 }} />
-        <ViewControls />
+        <ViewControls onZoom={onZoom} onResetView={onResetView} />
         <Sep />
         <AutoBuildControl
           onAutoBuild={onAutoBuild}
@@ -203,25 +207,22 @@ export function StatusBar({
   );
 }
 
-function ViewControls() {
+function ViewControls({
+  onZoom,
+  onResetView
+}: {
+  onZoom: (delta: number) => void;
+  onResetView: () => void;
+}) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-      <ViewButton
-        title="Zoom out"
-        onClick={() => window.dispatchEvent(new CustomEvent("ptsb-zoom", { detail: 0.25 }))}
-      >
+      <ViewButton title="Zoom out" onClick={() => onZoom(0.25)}>
         <Icons.ZoomOut size={13} />
       </ViewButton>
-      <ViewButton
-        title="Zoom in"
-        onClick={() => window.dispatchEvent(new CustomEvent("ptsb-zoom", { detail: -0.2 }))}
-      >
+      <ViewButton title="Zoom in" onClick={() => onZoom(-0.2)}>
         <Icons.ZoomIn size={13} />
       </ViewButton>
-      <ViewButton
-        title="Reset view"
-        onClick={() => window.dispatchEvent(new CustomEvent("ptsb-reset-view"))}
-      >
+      <ViewButton title="Reset view" onClick={onResetView}>
         Reset view
       </ViewButton>
     </div>
