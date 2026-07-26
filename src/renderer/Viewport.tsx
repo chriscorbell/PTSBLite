@@ -75,6 +75,7 @@ type ViewportState = {
   labelsGroup?: THREE.Group;
   groundGroup?: THREE.Group;
   hoverPlane?: THREE.Mesh;
+  requestRender?: () => void;
   zoomBy?: (delta: number) => void;
   resetView?: () => void;
   cleanup?: () => void;
@@ -171,6 +172,26 @@ export function Viewport({
       distance: DEFAULT_CAMERA_FRAMING.distance,
       target: new THREE.Vector3(...DEFAULT_CAMERA_FRAMING.target)
     };
+    /**
+     * Draw one frame, coalescing every invalidation raised before it runs.
+     *
+     * Nothing in this scene animates, so the perpetual rAF loop this replaces
+     * redrew an identical image forever, for the whole time the app was open
+     * (issue #14). In exchange, anything that changes what is on screen now has
+     * to say so. That includes the paths that *remove* something and return
+     * early — clearing the ghost group when there is no ghost, or the label
+     * group when labels are off, changes the picture exactly as much as adding
+     * to it does.
+     */
+    let raf = 0;
+    const requestRender = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        renderer.render(scene3, camera);
+      });
+    };
+
     function applyCamera() {
       const r = cam.distance;
       camera.position.set(
@@ -179,6 +200,7 @@ export function Viewport({
         cam.target.z + r * Math.cos(cam.pitch) * Math.cos(cam.yaw)
       );
       camera.lookAt(cam.target);
+      requestRender();
     }
     applyCamera();
 
@@ -234,7 +256,8 @@ export function Viewport({
       planeGroup,
       portsGroup,
       labelsGroup,
-      hoverPlane
+      hoverPlane,
+      requestRender
     };
 
     let drag = createViewportDragState();
@@ -359,13 +382,6 @@ export function Viewport({
       applyCamera();
     };
 
-    let raf = 0;
-    const tick = () => {
-      renderer.render(scene3, camera);
-      raf = requestAnimationFrame(tick);
-    };
-    tick();
-
     const onResize = () => {
       const W = mount.clientWidth;
       const H = mount.clientHeight;
@@ -373,12 +389,13 @@ export function Viewport({
       camera.aspect = W / H;
       camera.updateProjectionMatrix();
       updateLineResolutions(scene3, W, H);
+      requestRender();
     };
     const ro = new ResizeObserver(onResize);
     ro.observe(mount);
 
     stateRef.current.cleanup = () => {
-      cancelAnimationFrame(raf);
+      if (raf) cancelAnimationFrame(raf);
       ro.disconnect();
       dom.removeEventListener("mousedown", onDown);
       window.removeEventListener("mousemove", onMove);
@@ -431,6 +448,7 @@ export function Viewport({
       const size = s.renderer.getSize(new THREE.Vector2());
       updateLineResolutions(s.obstaclesGroup, size.x, size.y);
     }
+    s.requestRender?.();
   }, [scene]);
 
   // Builds the ground plane + grid, and rebuilds it whenever the configured build
@@ -448,40 +466,46 @@ export function Viewport({
     const ground = buildGround({ width: areaWidth, depth: areaDepth, height: areaHeight });
     s.scene3.add(ground);
     s.groundGroup = ground;
+    s.requestRender?.();
   }, [areaWidth, areaDepth, areaHeight]);
 
   useEffect(() => {
     const s = stateRef.current;
     if (!s.ghostGroup) return;
+    // Clearing the group is itself a visible change, so the render request below
+    // is outside the `if` — a ghost that has just been dismissed must be
+    // repainted away.
     clearGroup(s.ghostGroup);
-    if (!ghost) return;
     let mesh: THREE.Group | null = null;
-    if (ghost.type === "blower") {
-      mesh = buildBlowerMesh({ ghost: true });
-      const c = cellCenter(ghost.cell);
-      mesh.position.set(c[0], c[1], c[2]);
-      mesh.quaternion.copy(dirToQuat(ghost.dir));
-    } else if (ghost.type === "terminal") {
-      mesh = buildTerminalMesh({ ghost: true });
-      const c = cellCenter(ghost.cell);
-      mesh.position.set(c[0], c[1], c[2]);
-      mesh.quaternion.copy(dirToQuat(ghost.axis));
-    } else if (ghost.type === "tube") {
-      mesh = buildTubeMesh(ghost.from, ghost.to, {
-        ghost: true,
-        blocked: ghost.blocked,
-        accent: !ghost.blocked
-      });
-    } else if (ghost.type === "bend") {
-      mesh = buildBendMesh(ghost, { ghost: true, accent: true });
-    } else if (ghost.type === "obstacle") {
-      mesh = buildObstacleMesh(ghost.min, ghost.max, { ghost: true });
+    if (ghost) {
+      if (ghost.type === "blower") {
+        mesh = buildBlowerMesh({ ghost: true });
+        const c = cellCenter(ghost.cell);
+        mesh.position.set(c[0], c[1], c[2]);
+        mesh.quaternion.copy(dirToQuat(ghost.dir));
+      } else if (ghost.type === "terminal") {
+        mesh = buildTerminalMesh({ ghost: true });
+        const c = cellCenter(ghost.cell);
+        mesh.position.set(c[0], c[1], c[2]);
+        mesh.quaternion.copy(dirToQuat(ghost.axis));
+      } else if (ghost.type === "tube") {
+        mesh = buildTubeMesh(ghost.from, ghost.to, {
+          ghost: true,
+          blocked: ghost.blocked,
+          accent: !ghost.blocked
+        });
+      } else if (ghost.type === "bend") {
+        mesh = buildBendMesh(ghost, { ghost: true, accent: true });
+      } else if (ghost.type === "obstacle") {
+        mesh = buildObstacleMesh(ghost.min, ghost.max, { ghost: true });
+      }
+      if (mesh) s.ghostGroup.add(mesh);
+      if (s.renderer) {
+        const size = s.renderer.getSize(new THREE.Vector2());
+        updateLineResolutions(s.ghostGroup, size.x, size.y);
+      }
     }
-    if (mesh) s.ghostGroup.add(mesh);
-    if (s.renderer) {
-      const size = s.renderer.getSize(new THREE.Vector2());
-      updateLineResolutions(s.ghostGroup, size.x, size.y);
-    }
+    s.requestRender?.();
   }, [ghost]);
 
   useEffect(() => {
@@ -491,6 +515,7 @@ export function Viewport({
     for (const cell of landingCells) {
       s.overlayGroup.add(buildLandingCellHighlight(cell, tool));
     }
+    s.requestRender?.();
   }, [landingCells, tool]);
 
   useEffect(() => {
@@ -498,6 +523,7 @@ export function Viewport({
     if (!s.planeGroup || !s.hoverPlane) return;
     clearGroup(s.planeGroup);
     s.hoverPlane.position.y = activeElevation;
+    s.requestRender?.();
   }, [activeElevation]);
 
   useEffect(() => {
@@ -508,17 +534,22 @@ export function Viewport({
     for (const marker of portMarkers) {
       group.add(buildPortGlow(marker));
     }
+    s.requestRender?.();
   }, [portMarkers]);
 
   useEffect(() => {
     const s = stateRef.current;
     if (!s.labelsGroup) return;
     const group = s.labelsGroup;
+    // As with the ghost: switching labels off empties the group, and that has to
+    // reach the screen too.
     clearGroup(group);
-    if (!showLabels) return;
-    for (const label of labels) {
-      group.add(buildLabelSprite(label));
+    if (showLabels) {
+      for (const label of labels) {
+        group.add(buildLabelSprite(label));
+      }
     }
+    s.requestRender?.();
   }, [labels, showLabels]);
 
   return (
