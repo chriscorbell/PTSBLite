@@ -1,0 +1,14 @@
+.confirm-dialog__icon {
+  display: flex;
+  color: var(--text-mut);
+}
+.confirm-dialog__icon--danger {
+  color: var(--danger);
+}
+
+.confirm-dialog__message {
+  padding: 18px 18px 4px;
+  font-size: 13px;
+  color: var(--text-mut);
+  line-height: 1.5;
+}

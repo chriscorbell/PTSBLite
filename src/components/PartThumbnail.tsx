@@ -1,3 +1,5 @@
+import "@/components/PartThumbnail.css";
+
 // Isometric, shaded part illustrations for the Build drawer. Each part is drawn
 // from simple 3D primitives (boxes / cylinders) projected through a shared iso
 // transform, then face-mounted details (fan grille, ports) are placed with a
@@ -313,7 +315,7 @@ export function PartThumbnail({ type, color }: { type: string; color: string }) 
       height="100%"
       viewBox="0 0 64 56"
       preserveAspectRatio="xMidYMid meet"
-      style={{ display: "block" }}
+      className="part-thumbnail"
     >
       {type === "blower" && <Blower color={color} />}
       {type === "terminal" && <Terminal color={color} />}
