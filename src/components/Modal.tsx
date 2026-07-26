@@ -24,9 +24,14 @@ const PANEL_BASE: CSSProperties = {
   border: "1px solid var(--line-2)",
   boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
   padding: 0,
-  margin: 0,
+  // `margin: auto` is what centres a modal <dialog> in the viewport — the UA
+  // stylesheet sets it alongside `inset: 0`, and overriding it with `0` pins
+  // the dialog to the top-left corner instead. Do not "tidy" this away.
+  margin: "auto",
+  // maxWidth is released so an explicit width like "min(820px, 92%)" applies;
+  // maxHeight is deliberately left to the UA default, which keeps a tall
+  // dialog on screen. The two dialogs that want more override it themselves.
   maxWidth: "none",
-  maxHeight: "none",
   color: "var(--text)",
   overflow: "hidden"
 };
