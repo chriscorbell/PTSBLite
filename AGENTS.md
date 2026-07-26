@@ -6,13 +6,18 @@ vocabulary and, more importantly, says which numbers in this codebase are author
 ## Commands
 
 ```sh
-pnpm dev            # run the app
-pnpm run check      # format:check + lint + typecheck + test, in CI's order
-pnpm run format     # fix formatting
-pnpm run package    # build installers into release/
+bun install
+bun run dev        # run the app
+bun run check      # format:check + lint + typecheck + test, in CI's order
+bun run format     # fix formatting
+bun run package    # build installers into release/
 ```
 
-Every PR must leave `pnpm run check` green. CI runs the same four gates.
+Every PR must leave `bun run check` green. CI runs the same four gates.
+
+**`bun run test`, not `bun test`.** Bun's own runner picks up the same files, ignores the Vitest
+config, and reports failures that are not real. See [ADR-0008](docs/adr/0008-bun-as-package-manager.md),
+which also records what moving off pnpm cost.
 
 ## The two things most likely to be got wrong
 
