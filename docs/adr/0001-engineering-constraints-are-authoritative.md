@@ -29,9 +29,12 @@ express it, not the other way round.
 
 - New validation rules are additive. Existing thresholds are not tuning knobs.
 - The 300 ft cap has one home, `MAX_CENTERLINE_FEET`. User-facing copy must interpolate it rather
-  than restating "300ft" (currently violated at `src/App.tsx:644` — issue #18).
+  than restating "300ft". Enforced as of #52; `StatusBar`, `RightPanel` and the warning strings in
+  `validation.ts` all interpolate it, and the left rail's tool labels read part names and numbers from
+  the registry rather than repeating them.
 - Anything reading a spec-derived number from the catalog needs a validation guard, so a future
-  catalog edit cannot silently contradict the spec (issue #26).
+  catalog edit cannot silently contradict the spec. `loadPartRegistry` does this for the declared
+  `cells` count, and separately refuses any entry carrying a `unitPrice` (ADR-0003).
 - Deriving spec numbers afresh from geometry is forbidden even where it looks equivalent; the sampled
   arc approximation in `computeBendFootprints` is a rendering/occupancy detail, not a source of truth.
 

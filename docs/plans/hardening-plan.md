@@ -95,8 +95,8 @@ Phases 1–7.
    unsigned executables.
 3. **Repository settings.** `main` is currently unprotected, and GitHub vulnerability alerts and
    automated security fixes are disabled. See §§7.3–7.4.
-4. **Requirements ledger.** Create `docs/requirements/open-questions.md` and seed it with the
-   questions this codebase already knows it has (§9).
+4. ~~**Requirements ledger.**~~ **Done** — `docs/requirements/open-questions.md`, seeded with the
+   six questions from §9.
 
 **Done when:** every commercially sensitive decision is explicit, and no engineer has to infer a
 business rule from prototype behaviour.

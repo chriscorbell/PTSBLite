@@ -41,7 +41,8 @@ Obstacles are **not** parts. Modelled by `Part`.
 **Tube** — a straight run. Stocked in 6 ft lengths; shorter runs are cut on site.
 
 **Bend** — a 90°, 3 ft radius turn. Occupies a 7-cell staircase footprint within a 4×4 bounding box
-(not the 5 cells the catalog currently claims — see issue #26). Contributes 4.71 ft of centerline.
+Contributes 4.71 ft of centerline. `loadPartRegistry` checks the catalog's declared
+`cells` against the footprint the geometry actually produces, so the two cannot drift.
 
 **Obstacle** — a rectangular volume the routing must avoid. Costs nothing, appears in no BOM, and
 occupies grid cells so nothing can be placed inside it.
