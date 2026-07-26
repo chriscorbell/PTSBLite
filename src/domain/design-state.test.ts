@@ -4,6 +4,7 @@ import {
   DEFAULT_REVISION,
   designFromScene,
   emptyDesign,
+  newOccupantId,
   partsWithinBuildArea
 } from "@/domain/design-state";
 import { bendFootprint } from "@/domain/bend-placement";
@@ -150,5 +151,37 @@ describe("partsWithinBuildArea", () => {
     const parts: Part[] = [{ id: "t", type: "tube", from: [0, 0, 0], to: [8, 0, 0] }];
     // The tube occupies cells x = 0..7, which exceed the [-5, 5) X bound.
     expect(partsWithinBuildArea(parts, { width: 10, depth: 10, height: 4 })).toEqual([]);
+  });
+});
+
+describe("newOccupantId", () => {
+  /** Hands out the given values in order, so a collision can be forced. */
+  function sequence(...values: string[]): () => string {
+    let i = 0;
+    return () => values[Math.min(i++, values.length - 1)];
+  }
+
+  it("prefixes parts with p and obstacles with o", () => {
+    const design = emptyDesign();
+    expect(newOccupantId(design, "p", sequence("abc"))).toBe("pabc");
+    expect(newOccupantId(design, "o", sequence("abc"))).toBe("oabc");
+  });
+
+  it("retries when the candidate is already taken by a part", () => {
+    const design = designFromScene({
+      parts: [{ id: "ptaken", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }],
+      obstacles: []
+    });
+    expect(newOccupantId(design, "p", sequence("taken", "free"))).toBe("pfree");
+  });
+
+  it("retries when a part's candidate collides with an obstacle", () => {
+    // Parts and obstacles share one occupant namespace, so a part id must avoid
+    // obstacle ids too — the grid stores both under the same keys.
+    const design = designFromScene({
+      parts: [],
+      obstacles: [{ id: "ptaken", min: [0, 0, 0], max: [1, 1, 1] }]
+    });
+    expect(newOccupantId(design, "p", sequence("taken", "free"))).toBe("pfree");
   });
 });

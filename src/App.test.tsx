@@ -69,7 +69,7 @@ function clickCell(cell: Vec3) {
   const onPlace = viewport.props?.onPlace;
   if (!onPlace) throw new Error("Viewport received no onPlace handler");
   act(() => {
-    onPlace(cell, new MouseEvent("click"));
+    onPlace(cell);
   });
 }
 
