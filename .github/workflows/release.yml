@@ -18,26 +18,22 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 24
-          cache: pnpm
+          bun-version: 1.3.14
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Lint
-        run: pnpm run lint
+        run: bun run lint
 
       - name: Typecheck
-        run: pnpm run typecheck
+        run: bun run typecheck
 
       - name: Test
-        run: pnpm test
+        run: bun run test
 
   release:
     needs: verify
@@ -49,24 +45,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 24
-          cache: pnpm
+          bun-version: 1.3.14
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Sync package version to tag
         shell: bash
-        run: pnpm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+        run: bun pm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
 
       - name: Build
-        run: pnpm run build
+        run: bun run build
 
       - name: Install Linux packaging tools
         if: runner.os == 'Linux'
@@ -116,7 +108,7 @@ jobs:
 
       - name: Package & publish
         shell: bash
-        run: pnpm exec electron-builder --publish always
+        run: bun x electron-builder --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # A tag carrying a prerelease suffix (v0.1.4-rc.1) publishes as a GitHub
