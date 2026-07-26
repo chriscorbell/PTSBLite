@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icons } from "@/components/Icons";
 import { totalPathLength } from "@/domain/parts";
 import type { OptimizationMode } from "@/domain/pathfinder";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { DesignState, Warning } from "@/types";
-
-const monoStyle: CSSProperties = { fontFamily: "var(--font-mono)" };
+import "@/components/StatusBar.css";
 
 const OPTIMIZATION_OPTIONS: Array<{ value: OptimizationMode; label: string; title: string }> = [
   { value: "shortest", label: "Shortest path", title: "Minimize total centerline length" },
@@ -41,69 +40,21 @@ export function StatusBar({
   const warns = warnings.filter((w) => w.level === "warn").length;
   const len = totalPathLength(design);
   const okState = warnings.length === 0 && design.parts.length > 0;
+  const state = okState ? "ok" : errors ? "error" : warns ? "warn" : "none";
   return (
-    <div
-      className="nosel"
-      style={{
-        flexShrink: 0,
-        background: "var(--panel)",
-        borderTop: "1px solid var(--line)",
-        position: "relative",
-        zIndex: 5
-      }}
-    >
+    <div className="status-bar nosel">
       {expanded && warnings.length > 0 && (
-        <div style={{ padding: "8px 14px 12px", borderBottom: "1px solid var(--line)" }}>
-          <div
-            style={{
-              ...monoStyle,
-              fontSize: 10,
-              color: "var(--text-dim)",
-              letterSpacing: 0.6,
-              marginBottom: 6
-            }}
-          >
-            VALIDATION
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="status-bar__validation">
+          <div className="status-bar__validation-heading">VALIDATION</div>
+          <div className="status-bar__warnings">
             {warnings.map((w) => (
-              <div
-                key={w.id}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 10,
-                  padding: "8px 10px",
-                  border: "1px solid var(--line)",
-                  borderRadius: 6,
-                  background: "var(--ink-2)"
-                }}
-              >
-                <div
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: w.level === "error" ? "var(--danger)" : "var(--warn)",
-                    background:
-                      w.level === "error"
-                        ? "color-mix(in oklab, var(--danger) 18%, transparent)"
-                        : "color-mix(in oklab, var(--warn) 18%, transparent)"
-                  }}
-                >
+              <div key={w.id} className={`warning${w.level === "error" ? " warning--error" : ""}`}>
+                <div className="warning__badge">
                   <Icons.Warn size={11} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500 }}>
-                    {w.title}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-mut)", marginTop: 2 }}>
-                    {w.detail}
-                  </div>
+                <div className="warning__text">
+                  <div className="warning__title">{w.title}</div>
+                  <div className="warning__detail">{w.detail}</div>
                 </div>
               </div>
             ))}
@@ -111,62 +62,16 @@ export function StatusBar({
         </div>
       )}
 
-      <div
-        style={{
-          height: 32,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "0 12px",
-          fontSize: 11,
-          whiteSpace: "nowrap"
-        }}
-      >
-        <button
-          onClick={onToggle}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            height: 22,
-            padding: "0 8px",
-            borderRadius: 4,
-            background: "transparent",
-            border: "1px solid var(--line)",
-            color: "var(--text-mut)",
-            cursor: "pointer",
-            fontSize: 11,
-            fontFamily: "var(--font-sans)",
-            whiteSpace: "nowrap",
-            flexShrink: 0
-          }}
-        >
-          {okState ? (
-            <>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--ok)" }} />
-              <span style={{ color: "var(--ok)" }}>All checks pass</span>
-            </>
-          ) : (
-            <>
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: errors ? "var(--danger)" : warns ? "var(--warn)" : "var(--text-dim)"
-                }}
-              />
-              <span
-                style={{
-                  color: errors ? "var(--danger)" : warns ? "var(--warn)" : "var(--text-mut)"
-                }}
-              >
-                {warnings.length === 0
-                  ? "No system yet"
-                  : `${warnings.length} issue${warnings.length === 1 ? "" : "s"}`}
-              </span>
-            </>
-          )}
+      <div className="status-bar__row">
+        <button className="status-bar__toggle" data-state={state} onClick={onToggle}>
+          <span className="status-bar__dot" />
+          <span className="status-bar__state-label">
+            {okState
+              ? "All checks pass"
+              : warnings.length === 0
+                ? "No system yet"
+                : `${warnings.length} issue${warnings.length === 1 ? "" : "s"}`}
+          </span>
           {warnings.length > 0 &&
             (expanded ? <Icons.ChevD size={11} /> : <Icons.ChevU size={11} />)}
         </button>
@@ -176,12 +81,13 @@ export function StatusBar({
           label="LENGTH"
           value={`${len.toFixed(1)}ft`}
           hint={`/ ${MAX_CENTERLINE_FEET}`}
-          pct={Math.min(1, len / MAX_CENTERLINE_FEET)}
+          used={len}
+          capacity={MAX_CENTERLINE_FEET}
         />
         <Sep />
         <Meta label="PARTS" value={`${design.parts.length}`} />
 
-        <div style={{ flex: 1 }} />
+        <div className="status-bar__spacer" />
         <ViewControls onZoom={onZoom} onResetView={onResetView} />
         <Sep />
         <AutoBuildControl
@@ -203,11 +109,11 @@ function ViewControls({
   onResetView: () => void;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-      <ViewButton title="Zoom out" onClick={() => onZoom(0.25)}>
+    <div className="view-controls">
+      <ViewButton title="Zoom out" onClick={() => onZoom(0.25)} iconOnly>
         <Icons.ZoomOut size={13} />
       </ViewButton>
-      <ViewButton title="Zoom in" onClick={() => onZoom(-0.2)}>
+      <ViewButton title="Zoom in" onClick={() => onZoom(-0.2)} iconOnly>
         <Icons.ZoomIn size={13} />
       </ViewButton>
       <ViewButton title="Reset view" onClick={onResetView}>
@@ -220,39 +126,21 @@ function ViewControls({
 function ViewButton({
   title,
   onClick,
+  iconOnly = false,
   children
 }: {
   title: string;
   onClick: () => void;
+  iconOnly?: boolean;
   children: ReactNode;
 }) {
-  const [hover, setHover] = useState(false);
-  const iconOnly = typeof children !== "string";
   return (
     <button
       type="button"
+      className={`view-controls__button${iconOnly ? " view-controls__button--icon" : ""}`}
       onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       title={title}
       aria-label={title}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: 24,
-        width: iconOnly ? 26 : undefined,
-        padding: iconOnly ? 0 : "0 10px",
-        borderRadius: 5,
-        background: hover ? "var(--panel-2)" : "transparent",
-        border: "1px solid var(--line)",
-        color: hover ? "var(--text)" : "var(--text-mut)",
-        fontFamily: "var(--font-sans)",
-        fontSize: 11,
-        fontWeight: 500,
-        cursor: "pointer",
-        whiteSpace: "nowrap"
-      }}
     >
       {children}
     </button>
@@ -296,34 +184,12 @@ function AutoBuildControl({
   }, [expanded]);
 
   return (
-    <div
-      ref={rootRef}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        position: "relative",
-        flexShrink: 0
-      }}
-    >
+    <div ref={rootRef} className="auto-build">
       {expanded && (
         <div
+          className="auto-build__menu"
           role="radiogroup"
           aria-label="Auto-build optimization mode"
-          style={{
-            position: "absolute",
-            right: 0,
-            bottom: "calc(100% + 8px)",
-            width: 196,
-            padding: 6,
-            borderRadius: 6,
-            border: "1px solid var(--line-2)",
-            background: "color-mix(in oklab, var(--panel) 92%, #000)",
-            boxShadow: "0 16px 36px rgba(0,0,0,0.45)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 3,
-            zIndex: 20
-          }}
         >
           {OPTIMIZATION_OPTIONS.map((opt) => {
             const active = opt.value === mode;
@@ -331,32 +197,13 @@ function AutoBuildControl({
               <button
                 key={opt.value}
                 type="button"
+                className="auto-build__option"
                 role="radio"
                 aria-checked={active}
                 title={opt.title}
                 onClick={() => {
                   onModeChange(opt.value);
                   setOpen(false);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  width: "100%",
-                  height: 28,
-                  padding: "0 8px",
-                  borderRadius: 4,
-                  border: `1px solid ${active ? "color-mix(in oklab, var(--accent) 35%, transparent)" : "transparent"}`,
-                  background: active
-                    ? "color-mix(in oklab, var(--accent) 14%, var(--panel-2))"
-                    : "transparent",
-                  color: active ? "var(--accent)" : "var(--text-mut)",
-                  fontFamily: "var(--font-sans)",
-                  fontSize: 11,
-                  fontWeight: active ? 600 : 500,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap"
                 }}
               >
                 <span>{opt.label}</span>
@@ -368,63 +215,23 @@ function AutoBuildControl({
       )}
       <button
         type="button"
+        className="auto-build__run"
         onClick={() => {
           setOpen(false);
           onAutoBuild();
         }}
         disabled={autoBuilding}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          height: 24,
-          padding: "0 10px 0 12px",
-          borderRadius: "5px 0 0 5px",
-          background: autoBuilding
-            ? "var(--panel-2)"
-            : "color-mix(in oklab, var(--accent) 18%, transparent)",
-          color: "var(--accent)",
-          border: "1px solid color-mix(in oklab, var(--accent) 35%, transparent)",
-          borderRight: "none",
-          fontFamily: "var(--font-sans)",
-          fontSize: 11,
-          fontWeight: 500,
-          cursor: autoBuilding ? "default" : "pointer",
-          whiteSpace: "nowrap"
-        }}
       >
         <Icons.Auto size={13} /> {autoBuilding ? "Routing…" : "Auto-build"}
       </button>
       <button
         type="button"
+        className="auto-build__mode"
         aria-label="Choose Auto-build routing mode"
         aria-haspopup="true"
         aria-expanded={expanded}
         disabled={autoBuilding}
         onClick={() => setOpen((next) => !next)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          height: 24,
-          padding: "0 8px",
-          borderRadius: "0 5px 5px 0",
-          background: expanded
-            ? "color-mix(in oklab, var(--accent) 22%, var(--panel-2))"
-            : "var(--panel-2)",
-          color: expanded ? "var(--accent)" : "var(--text-mut)",
-          border: `1px solid ${
-            expanded
-              ? "color-mix(in oklab, var(--accent) 45%, transparent)"
-              : "color-mix(in oklab, var(--accent) 35%, transparent)"
-          }`,
-          borderLeft: "1px solid color-mix(in oklab, var(--accent) 25%, transparent)",
-          fontFamily: "var(--font-sans)",
-          fontSize: 11,
-          fontWeight: 500,
-          cursor: autoBuilding ? "default" : "pointer",
-          whiteSpace: "nowrap"
-        }}
       >
         <span>{activeLabel}</span>
         {expanded ? <Icons.ChevD size={11} /> : <Icons.ChevU size={11} />}
@@ -434,69 +241,43 @@ function AutoBuildControl({
 }
 
 function Sep() {
-  return <div style={{ width: 1, height: 14, background: "var(--line)" }} />;
+  return <div className="status-bar__sep" />;
 }
 
 function Meta({
   label,
   value,
   hint,
-  pct
+  used,
+  capacity
 }: {
   label: string;
   value: string;
   hint?: string;
-  pct?: number;
+  used?: number;
+  capacity?: number;
 }) {
+  const load =
+    used !== undefined && capacity !== undefined
+      ? used / capacity > 0.9
+        ? "over"
+        : used / capacity > 0.7
+          ? "warn"
+          : "ok"
+      : null;
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "baseline",
-        gap: 5,
-        whiteSpace: "nowrap",
-        flexShrink: 0
-      }}
-    >
-      <span
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: 0.6,
-          color: "var(--text-dim)"
-        }}
-      >
-        {label}
-      </span>
-      <span style={{ fontFamily: "var(--font-sans)", fontSize: 10, color: "var(--text)" }}>
-        {value}
-      </span>
-      {hint && (
-        <span style={{ fontFamily: "var(--font-sans)", fontSize: 10, color: "var(--text-dim)" }}>
-          {hint}
-        </span>
-      )}
-      {pct !== undefined && (
-        <div
-          style={{
-            width: 44,
-            height: 4,
-            background: "var(--line)",
-            borderRadius: 2,
-            overflow: "hidden",
-            marginLeft: 2
-          }}
-        >
-          <div
-            style={{
-              width: `${pct * 100}%`,
-              height: "100%",
-              background: pct > 0.9 ? "var(--danger)" : pct > 0.7 ? "var(--warn)" : "var(--accent)",
-              transition: "width .3s"
-            }}
-          />
-        </div>
+    <div className="meta">
+      <span className="meta__label">{label}</span>
+      <span className="meta__value">{value}</span>
+      {hint && <span className="meta__hint">{hint}</span>}
+      {used !== undefined && capacity !== undefined && (
+        <progress
+          className="meta__meter"
+          data-load={load}
+          value={Math.min(used, capacity)}
+          max={capacity}
+          aria-label={`${label.toLowerCase()} used`}
+        />
       )}
     </div>
   );
