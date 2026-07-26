@@ -87,18 +87,18 @@
   font-size: 13px;
 }
 
-.field {
+.settings__field {
   display: block;
 }
 
-.field__label {
+.settings__label {
   font-size: 11px;
   color: var(--text-mut);
   margin-bottom: 4px;
   display: block;
 }
 
-.field__input {
+.settings__input {
   width: 100%;
   height: 32px;
   padding: 0 10px;
@@ -112,21 +112,21 @@
 }
 
 /* A money or percentage entry does not need the full column width. */
-.field__input--narrow {
+.settings__input--narrow {
   width: 140px;
 }
-.field__input--price {
+.settings__input--price {
   width: 120px;
   text-align: right;
 }
 
-textarea.field__input {
+textarea.settings__input {
   height: auto;
   padding: 8px;
   resize: vertical;
 }
 
-.field__action {
+.settings__field-action {
   margin-top: 6px;
   align-self: flex-start;
 }

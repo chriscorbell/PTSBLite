@@ -25,7 +25,7 @@
   gap: 6px;
 }
 
-.warning {
+.status-bar__warning {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -35,7 +35,7 @@
   background: var(--ink-2);
 }
 
-.warning__badge {
+.status-bar__warning-badge {
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -46,22 +46,22 @@
   color: var(--warn);
   background: color-mix(in oklab, var(--warn) 18%, transparent);
 }
-.warning--error .warning__badge {
+.status-bar__warning--error .status-bar__warning-badge {
   color: var(--danger);
   background: color-mix(in oklab, var(--danger) 18%, transparent);
 }
 
-.warning__text {
+.status-bar__warning-text {
   flex: 1;
 }
 
-.warning__title {
+.status-bar__warning-title {
   font-size: 12px;
   color: var(--text);
   font-weight: 500;
 }
 
-.warning__detail {
+.status-bar__warning-detail {
   font-size: 11px;
   color: var(--text-mut);
   margin-top: 2px;
@@ -135,7 +135,7 @@
   flex: 1;
 }
 
-.meta {
+.status-bar__meta {
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -145,17 +145,17 @@
   font-size: 10px;
 }
 
-.meta__label {
+.status-bar__meta-label {
   font-weight: 600;
   letter-spacing: 0.6px;
   color: var(--text-dim);
 }
 
-.meta__value {
+.status-bar__meta-value {
   color: var(--text);
 }
 
-.meta__hint {
+.status-bar__meta-hint {
   color: var(--text-dim);
 }
 
@@ -164,7 +164,7 @@
  * carries the value: the number is data, and belongs in an attribute where
  * assistive technology can reach it (ADR-0009).
  */
-.meta__meter {
+.status-bar__meta-meter {
   width: 44px;
   height: 4px;
   margin-left: 2px;
@@ -174,17 +174,17 @@
   overflow: hidden;
   background: var(--line);
 }
-.meta__meter::-webkit-progress-bar {
+.status-bar__meta-meter::-webkit-progress-bar {
   background: var(--line);
 }
-.meta__meter::-webkit-progress-value {
+.status-bar__meta-meter::-webkit-progress-value {
   background: var(--accent);
   transition: width 0.3s;
 }
-.meta__meter[data-load="warn"]::-webkit-progress-value {
+.status-bar__meta-meter[data-load="warn"]::-webkit-progress-value {
   background: var(--warn);
 }
-.meta__meter[data-load="over"]::-webkit-progress-value {
+.status-bar__meta-meter[data-load="over"]::-webkit-progress-value {
   background: var(--danger);
 }
 

@@ -159,7 +159,13 @@ export function placementSessionReducer(
       return { ...session, obstacleDraft: cancelObstaclePlacement(session.obstacleDraft) };
 
     case "apply-attempt":
-      return action.session;
+      // The attempt was computed from a session read during render, so it can be
+      // a pointer-move behind by the time it is applied. Everything else in it
+      // is a consequence of the click and should win, but where the pointer is
+      // now is not something a placement gets a say in — keeping the live hover
+      // cell stops a click from dragging the ghost back to where the pointer
+      // used to be.
+      return { ...action.session, hoverCell: session.hoverCell };
   }
 }
 
