@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Icons } from "@/components/Icons";
 import { useEscapeKey } from "@/components/useEscapeKey";
-import type { AppSettings } from "@/domain/app-settings";
+import { SUGGESTED_QUOTE_NOTES, type AppSettings } from "@/domain/app-settings";
 import { partRegistry } from "@/domain/part-registry";
 import { BUILD_AREA_LIMITS, clampBuildArea } from "@/domain/sparse-grid";
 import type { BuildArea, DesignMetadata } from "@/types";
@@ -218,7 +218,8 @@ export function SettingsModal({
                       type="number"
                       min={0}
                       step="0.01"
-                      value={draft.pricing[key] ?? entry.unitPrice}
+                      value={draft.pricing[key] ?? ""}
+                      placeholder="Not set"
                       onChange={(e) => {
                         const v = e.target.value;
                         setPrice(key, v === "" ? undefined : Math.max(0, Number(v)));
@@ -238,10 +239,15 @@ export function SettingsModal({
                   type="number"
                   min={0}
                   step="0.01"
-                  value={+(draft.taxRate * 100).toFixed(4)}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, taxRate: Math.max(0, Number(e.target.value) / 100) }))
-                  }
+                  value={draft.taxRate === null ? "" : +(draft.taxRate * 100).toFixed(4)}
+                  placeholder="Not set"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDraft((d) => ({
+                      ...d,
+                      taxRate: v === "" ? null : Math.max(0, Number(v) / 100)
+                    }));
+                  }}
                   style={{ ...inputStyle, width: 140 }}
                 />
               </Field>
@@ -287,8 +293,19 @@ export function SettingsModal({
                   value={draft.quote.notes}
                   onChange={(e) => setQuote({ notes: e.target.value })}
                   rows={4}
+                  placeholder="Printed at the foot of the quote."
                   style={{ ...inputStyle, height: "auto", padding: 8, resize: "vertical" }}
                 />
+                {draft.quote.notes.trim() === "" && (
+                  <button
+                    type="button"
+                    className="topbtn"
+                    style={{ marginTop: 6, alignSelf: "flex-start" }}
+                    onClick={() => setQuote({ notes: SUGGESTED_QUOTE_NOTES })}
+                  >
+                    Use suggested wording
+                  </button>
+                )}
               </Field>
             </div>
           )}

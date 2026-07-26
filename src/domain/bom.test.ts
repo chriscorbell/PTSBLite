@@ -1,8 +1,12 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { setPriceOverrides } from "@/domain/app-settings";
+import { describe, expect, it } from "vitest";
 import { emptyDesign } from "@/domain/design-state";
-import { bomRows, partLength, totalPathLength, tubeFeet } from "@/domain/parts";
+import { bomRows, partLength, totalPathLength, tubeFeet, type Pricing } from "@/domain/parts";
 import type { DesignState, Part } from "@/types";
+
+// Explicit fixture rather than catalog values: the catalog ships no prices
+// (ADR-0003), and a test that asserted against shipped numbers would be
+// asserting against invented ones.
+const PRICES: Pricing = { blower: 4250, terminal: 1850, tube6: 78, bend90: 142 };
 
 function designWith(parts: Part[]): DesignState {
   return { ...emptyDesign(), parts };
@@ -56,40 +60,49 @@ describe("BOM derivation", () => {
   });
 
   it("bomRows aggregates parts into catalog rows", () => {
-    const rows = bomRows(designWith(sampleParts));
+    const rows = bomRows(designWith(sampleParts), PRICES);
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
     expect(byKey.blower.qty).toBe(1);
     expect(byKey.terminal.qty).toBe(2);
-    expect(byKey.bend.qty).toBe(1);
-    expect(byKey.tube.qty).toBe(Math.ceil(15 / 6));
-    expect(byKey.tube.note).toMatch(/15\.0ft total/);
-    expect(byKey.tube.note).toMatch(/1 cut on-site/);
+    expect(byKey.bend90.qty).toBe(1);
+    expect(byKey.tube6.qty).toBe(Math.ceil(15 / 6));
+    expect(byKey.tube6.note).toMatch(/15\.0ft total/);
+    expect(byKey.tube6.note).toMatch(/1 cut on-site/);
     expect(byKey.blower.partNo).toBe("BL-2020-A");
   });
 
   it("bomRows yields zero quantities for an empty design", () => {
-    const rows = bomRows(emptyDesign());
+    const rows = bomRows(emptyDesign(), PRICES);
     expect(rows.every((r) => r.qty === 0)).toBe(true);
-    expect(rows.map((r) => r.key).sort()).toEqual(["bend", "blower", "terminal", "tube"]);
+    expect(rows.map((r) => r.key).sort()).toEqual(["bend90", "blower", "terminal", "tube6"]);
   });
 });
 
-describe("bomRows pricing overrides", () => {
-  afterEach(() => setPriceOverrides({}));
-
-  it("uses the catalog price when no override is set", () => {
-    const byKey = Object.fromEntries(bomRows(designWith(sampleParts)).map((r) => [r.key, r]));
-    expect(byKey.blower.unitPrice).toBe(4250);
-    expect(byKey.tube.unitPrice).toBe(78);
+describe("bomRows pricing", () => {
+  it("prices each row from the supplied map, keyed by registry key", () => {
+    const byKey = Object.fromEntries(
+      bomRows(designWith(sampleParts), { blower: 9999, tube6: 100, bend90: 200 }).map((r) => [
+        r.key,
+        r
+      ])
+    );
+    expect(byKey.blower.unitPrice).toBe(9999);
+    expect(byKey.tube6.unitPrice).toBe(100);
+    expect(byKey.bend90.unitPrice).toBe(200);
   });
 
-  it("reflects price overrides keyed by registry key (tube→tube6, bend→bend90)", () => {
-    setPriceOverrides({ blower: 9999, tube6: 100, bend90: 200 });
-    const byKey = Object.fromEntries(bomRows(designWith(sampleParts)).map((r) => [r.key, r]));
-    expect(byKey.blower.unitPrice).toBe(9999);
-    expect(byKey.tube.unitPrice).toBe(100);
-    expect(byKey.bend.unitPrice).toBe(200);
-    // Unoverridden parts keep the catalog price.
-    expect(byKey.terminal.unitPrice).toBe(1850);
+  it("reports a part absent from the map as unpriced rather than free", () => {
+    const byKey = Object.fromEntries(
+      bomRows(designWith(sampleParts), { blower: 9999 }).map((r) => [r.key, r])
+    );
+    expect(byKey.terminal.unitPrice).toBeNull();
+    expect(byKey.tube6.unitPrice).toBeNull();
+  });
+
+  it("is a pure function of its arguments", () => {
+    const design = designWith(sampleParts);
+    expect(bomRows(design, PRICES)).toEqual(bomRows(design, PRICES));
+    expect(bomRows(design, {})[0].unitPrice).toBeNull();
+    expect(bomRows(design, PRICES)[0].unitPrice).toBe(4250);
   });
 });

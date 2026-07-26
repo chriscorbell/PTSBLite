@@ -13,7 +13,6 @@ describe("PartRegistry", () => {
     const blower = partRegistry.get("blower");
     expect(blower.type).toBe("blower");
     expect(blower.partNo).toBe("BL-2020-A");
-    expect(blower.unitPrice).toBeGreaterThan(0);
   });
 
   it("throws on unknown keys", () => {
@@ -60,7 +59,6 @@ describe("PartRegistry", () => {
         type: "blower",
         name: "Sample",
         partNo: "SMP-1",
-        unitPrice: 10,
         color: "#000000"
       }
     });
@@ -74,7 +72,6 @@ describe("PartRegistry", () => {
           type: "",
           name: "Broken",
           partNo: "X",
-          unitPrice: 1,
           color: "#000"
         }
       })
@@ -85,7 +82,6 @@ describe("PartRegistry", () => {
           type: "x",
           name: "Broken",
           partNo: "",
-          unitPrice: 1,
           color: "#000"
         }
       })
@@ -94,7 +90,7 @@ describe("PartRegistry", () => {
 
   it("freezes its entry map", () => {
     const r = new PartRegistry({
-      a: { type: "x", name: "A", partNo: "A-1", unitPrice: 1, color: "#000" }
+      a: { type: "x", name: "A", partNo: "A-1", color: "#000" }
     });
     expect(() => {
       (r as unknown as { entries: Record<string, unknown> }).entries.b = {};
@@ -108,7 +104,6 @@ describe("declared cell counts", () => {
       type: "bend",
       name: "90° Bend (3ft radius)",
       partNo: "BN-90-3R",
-      unitPrice: 142,
       color: "#9AA4B4",
       cells,
       ports: 2,
@@ -130,5 +125,28 @@ describe("declared cell counts", () => {
   it("leaves entries without a declared cell count alone", () => {
     const { cells: _cells, ...withoutCells } = bend(7).bend90;
     expect(() => loadPartRegistry({ bend90: withoutCells })).not.toThrow();
+  });
+});
+
+describe("catalog prices", () => {
+  it("rejects an entry that carries a unitPrice", () => {
+    // The guard used to require one. ADR-0003 inverted it: prices are
+    // installer-entered, so a catalog edit must not be able to reintroduce a
+    // plausible-looking placeholder.
+    expect(() =>
+      loadPartRegistry({
+        sneaky: {
+          type: "blower",
+          name: "Sneaky",
+          partNo: "SNK-1",
+          color: "#000",
+          unitPrice: 4250
+        } as never
+      })
+    ).toThrow(/unitPrice/i);
+  });
+
+  it("ships a catalog with no prices at all", () => {
+    expect(partRegistry.all().every((entry) => !("unitPrice" in entry))).toBe(true);
   });
 });

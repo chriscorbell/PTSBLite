@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { inflateSync } from "node:zlib";
 import { PDFDocument } from "pdf-lib";
-import { DEFAULT_SETTINGS } from "@/domain/app-settings";
 import { emptyDesign } from "@/domain/design-state";
-import { bomRows } from "@/domain/parts";
-import { generateQuotePdf } from "@/domain/quote-pdf";
+import { bomRows, type Pricing } from "@/domain/parts";
+import { generateQuotePdf, sanitize } from "@/domain/quote-pdf";
+import { quoteReadiness, quoteSubtotal, type ReadyQuote } from "@/domain/quote-readiness";
 import type { DesignState, Part } from "@/types";
 
 function designWith(parts: Part[]): DesignState {
@@ -78,9 +78,40 @@ function extractText(bytes: Uint8Array): string {
   return collected.join("\n");
 }
 
+// A fully-entered quote. Every value here is a test fixture: the app ships none
+// of them, which is the point of ADR-0003 and of quote-readiness.ts.
+const PRICES: Pricing = { blower: 4250, terminal: 1850, tube6: 78, bend90: 142 };
+const TAX_RATE = 0.0825;
+
+function readyQuoteFor(design: DesignState): ReadyQuote {
+  const readiness = quoteReadiness(design, {
+    pricing: PRICES,
+    taxRate: TAX_RATE,
+    company: {
+      name: "Tube Co",
+      tagline: "Pneumatic Tube Systems",
+      address: "1 Example Way",
+      phone: "(555) 111-2222",
+      email: "sales@tube.example"
+    },
+    quote: {
+      billTo: { name: "Acme Hospital", lines: ["Attn: Facilities"] },
+      project: { name: "West Wing", lines: [] },
+      quoteNumber: "Q-1001",
+      notes: "Installation quoted separately."
+    }
+  });
+  if (!readiness.ready) {
+    throw new Error(
+      `fixture is not quotable: ${readiness.blockers.map((b) => b.label).join(", ")}`
+    );
+  }
+  return readiness.quote;
+}
+
 describe("generateQuotePdf", () => {
   it("returns valid PDF bytes for an empty design", async () => {
-    const bytes = await generateQuotePdf(emptyDesign());
+    const bytes = await generateQuotePdf(emptyDesign(), readyQuoteFor(emptyDesign()));
     expect(bytes).toBeInstanceOf(Uint8Array);
     expect(bytes.length).toBeGreaterThan(0);
     const doc = await PDFDocument.load(bytes);
@@ -88,16 +119,17 @@ describe("generateQuotePdf", () => {
   });
 
   it("returns valid PDF bytes for a populated design", async () => {
-    const bytes = await generateQuotePdf(designWith(sampleParts));
+    const design = designWith(sampleParts);
+    const bytes = await generateQuotePdf(design, readyQuoteFor(design));
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBeGreaterThan(0);
   });
 
   it("embeds the BOM table — part numbers and quantities match bomRows", async () => {
     const design = designWith(sampleParts);
-    const bytes = await generateQuotePdf(design);
+    const bytes = await generateQuotePdf(design, readyQuoteFor(design));
     const text = extractText(bytes);
-    const rows = bomRows(design);
+    const rows = bomRows(design, PRICES);
     for (const row of rows) {
       if (row.qty === 0) continue;
       expect(text).toContain(row.partNo);
@@ -106,11 +138,10 @@ describe("generateQuotePdf", () => {
 
   it("embeds totals that match bomRows subtotal/tax/total", async () => {
     const design = designWith(sampleParts);
-    const bytes = await generateQuotePdf(design);
+    const bytes = await generateQuotePdf(design, readyQuoteFor(design));
     const text = extractText(bytes);
-    const rows = bomRows(design);
-    const subtotal = rows.reduce((a, r) => a + r.qty * r.unitPrice, 0);
-    const tax = subtotal * 0.0825;
+    const subtotal = quoteSubtotal(readyQuoteFor(design).rows);
+    const tax = subtotal * TAX_RATE;
     const total = subtotal + tax;
     expect(text).toContain(subtotal.toFixed(2));
     expect(text).toContain(tax.toFixed(2));
@@ -119,9 +150,9 @@ describe("generateQuotePdf", () => {
 
   it("embeds letterhead, bill-to, project, and notes blocks", async () => {
     const design = designWith(sampleParts);
-    const bytes = await generateQuotePdf(design);
+    const bytes = await generateQuotePdf(design, readyQuoteFor(design));
     const text = extractText(bytes);
-    expect(text).toContain(DEFAULT_SETTINGS.company.name);
+    expect(text).toContain("Tube Co");
     expect(text).toContain("BILL TO");
     expect(text).toContain("PROJECT");
     expect(text).toContain("NOTES");
@@ -130,8 +161,36 @@ describe("generateQuotePdf", () => {
 
   it("includes the design filename and centerline length in the project block", async () => {
     const design = designWith(sampleParts);
-    const bytes = await generateQuotePdf(design);
+    const bytes = await generateQuotePdf(design, readyQuoteFor(design));
     const text = extractText(bytes);
     expect(text).toContain(design.metadata.filename);
+  });
+});
+
+describe("sanitize", () => {
+  it("keeps everything the WinAnsi standard fonts can encode", () => {
+    // The old implementation replaced every one of these with "-", which mangled
+    // any accented name, currency symbol, or pasted smart quote (#8).
+    for (const text of ["Zoë Müller", "Ångström & Co", "£1,200 — €950", "«Beaulieu»", "naïve"]) {
+      expect(sanitize(text)).toBe(text);
+    }
+  });
+
+  it("keeps CP1252 punctuation above the Latin-1 range", () => {
+    expect(sanitize("“curly” ‘quotes’ – dash… •")).toBe("“curly” ‘quotes’ – dash… •");
+  });
+
+  it("marks genuinely unencodable text as substituted rather than as a dash", () => {
+    expect(sanitize("東京")).toBe("??");
+    expect(sanitize("naïve 東京")).toBe("naïve ??");
+  });
+
+  it("transliterates characters that have a close WinAnsi equivalent", () => {
+    expect(sanitize("6\u2032 tube")).toBe("6' tube");
+    expect(sanitize("A\u2011B")).toBe("A-B");
+  });
+
+  it("drops control characters", () => {
+    expect(sanitize("a\u0000b")).toBe("a?b");
   });
 });

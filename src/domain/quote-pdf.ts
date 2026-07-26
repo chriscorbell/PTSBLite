@@ -1,26 +1,12 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { DEFAULT_SETTINGS, type CompanyInfo } from "@/domain/app-settings";
-import { bomRows, totalPathLength } from "@/domain/parts";
+import { totalPathLength } from "@/domain/parts";
+import type { ReadyQuote } from "@/domain/quote-readiness";
 import type { DesignState } from "@/types";
 
+/** The one field a quote does not get from settings. Defaults to today. */
 export type QuotePdfOptions = {
-  company?: CompanyInfo;
-  quoteNumber?: string;
   date?: string;
-  billTo?: { name: string; lines: string[] };
-  project?: { name: string; lines: string[] };
-  notes?: string;
-  taxRate?: number;
 };
-
-// Fallbacks mirror the shared app-settings defaults so a quote generated without
-// explicit options still reads sensibly (used mainly by tests).
-const DEFAULT_COMPANY = DEFAULT_SETTINGS.company;
-const DEFAULT_BILL_TO = DEFAULT_SETTINGS.quote.billTo;
-const DEFAULT_PROJECT_NAME = DEFAULT_SETTINGS.quote.project.name;
-const DEFAULT_NOTES = DEFAULT_SETTINGS.quote.notes;
-const DEFAULT_QUOTE_NUMBER = DEFAULT_SETTINGS.quote.quoteNumber;
-const DEFAULT_TAX_RATE = DEFAULT_SETTINGS.taxRate;
 
 /** Long-form date for the quote header, e.g. "May 26, 2026". Defaults to today. */
 export function formatQuoteDate(date = new Date()): string {
@@ -38,16 +24,59 @@ const MUT = rgb(0.478, 0.502, 0.564);
 const HAIRLINE = rgb(0.843, 0.824, 0.773);
 const NOTE_BG = rgb(0.937, 0.925, 0.875);
 
-function sanitize(s: string): string {
-  // pdf-lib's WinAnsi encoding rejects many unicode codepoints. The em-dash is
-  // the only non-ASCII char we intentionally emit (—); fall back to "-"
-  // for anything outside latin-1, since fonts are StandardFonts (WinAnsi).
+/**
+ * Codepoints WinAnsi (CP1252) encodes above Latin-1's range — the curly quotes,
+ * dashes, ellipsis and symbols that word processors produce and that therefore
+ * arrive in pasted company and customer details.
+ */
+const CP1252_EXTRAS = new Set([
+  0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030, 0x0160, 0x2039, 0x0152,
+  0x017d, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, 0x02dc, 0x2122, 0x0161, 0x203a,
+  0x0153, 0x017e, 0x0178
+]);
+
+/** Characters WinAnsi cannot encode, mapped to something readable. */
+const TRANSLITERATIONS: Record<string, string> = {
+  "‑": "-", // non-breaking hyphen
+  "‒": "-", // figure dash
+  "―": "-", // horizontal bar
+  "′": "'", // prime
+  "″": '"', // double prime
+  " ": " ", // no-break space (encodable, but a plain space lays out better)
+  " ": " ",
+  " ": " ",
+  " ": " ",
+  " ": " "
+};
+
+/**
+ * Coerce text into something the standard WinAnsi fonts can draw.
+ *
+ * The quote is typeset with `StandardFonts`, which pdf-lib encodes as WinAnsi;
+ * an unencodable codepoint throws at draw time. This used to replace every
+ * codepoint above 0x7e with "-", which mangled any accented name, currency
+ * symbol, or smart quote — despite WinAnsi encoding all of those perfectly
+ * well. Its comment claimed to allow Latin-1 while the code did not.
+ *
+ * Anything genuinely outside WinAnsi (CJK, Cyrillic, emoji) still degrades, but
+ * to "?" rather than "-", so a substitution is legible as a substitution.
+ * Embedding a Unicode font is the real fix if client text ever needs it —
+ * ADR-0004 records why that is deferred.
+ */
+export function sanitize(s: string): string {
   let out = "";
   for (const ch of s) {
+    const replacement = TRANSLITERATIONS[ch];
+    if (replacement !== undefined) {
+      out += replacement;
+      continue;
+    }
     const code = ch.codePointAt(0) ?? 0;
-    if (code === 0x2014) out += "—";
-    else if (code < 0x20 || code > 0x7e) out += "-";
-    else out += ch;
+    const encodable =
+      (code >= 0x20 && code <= 0x7e) || // ASCII printable
+      (code >= 0xa0 && code <= 0xff) || // Latin-1 supplement
+      CP1252_EXTRAS.has(code);
+    out += encodable ? ch : "?";
   }
   return out;
 }
@@ -116,8 +145,17 @@ function wrapLines(font: PDFFont, size: number, text: string, maxWidth: number):
   return lines;
 }
 
+/**
+ * Render `quote` to PDF bytes.
+ *
+ * Takes a `ReadyQuote` rather than a bag of optional fields with fallbacks. The
+ * fallbacks were the defect: every one of them turned a value the installer had
+ * not entered into a plausible one the customer would read as authoritative.
+ * There is now no argument that can express an incomplete quote (ADR-0003).
+ */
 export async function generateQuotePdf(
   design: DesignState,
+  quote: ReadyQuote,
   options: QuotePdfOptions = {}
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
@@ -128,19 +166,19 @@ export async function generateQuotePdf(
   const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const p: Painter = { page, sans, sansBold, mono };
 
-  const billTo = options.billTo ?? DEFAULT_BILL_TO;
-  const project = options.project ?? {
-    name: DEFAULT_PROJECT_NAME,
-    lines: [
-      `Single-direction · ${totalPathLength(design).toFixed(1)}ft centerline`,
-      `Designed in PTSBuilder · System file ${design.metadata.filename}`
-    ]
+  const { company, billTo, quoteNumber, notes, taxRate, rows } = quote;
+  // Project detail lines are derived from the design when the installer left
+  // them blank — they describe the drawing, not the commercial terms.
+  const project = {
+    name: quote.project.name,
+    lines: quote.project.lines.length
+      ? quote.project.lines
+      : [
+          `Single-direction · ${totalPathLength(design).toFixed(1)}ft centerline`,
+          `Designed in PTSBuilder · System file ${design.metadata.filename}`
+        ]
   };
-  const quoteNumber = options.quoteNumber ?? DEFAULT_QUOTE_NUMBER;
   const date = options.date ?? formatQuoteDate();
-  const notes = options.notes ?? DEFAULT_NOTES;
-  const taxRate = options.taxRate ?? DEFAULT_TAX_RATE;
-  const company = options.company ?? DEFAULT_COMPANY;
   const companyContact = [company.phone, company.email].filter(Boolean).join(" · ");
 
   // Letterhead
@@ -214,7 +252,6 @@ export async function generateQuotePdf(
   });
 
   // BOM table
-  const rows = bomRows(design);
   const tableTop = y - 18;
   const cols = {
     partNo: MARGIN_X,
