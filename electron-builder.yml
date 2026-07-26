@@ -15,6 +15,10 @@ files:
   - package.json
   - build/icon.png
   - build/icon.ico
+  # Apache-2.0 section 4 requires recipients of a distribution to get a copy of
+  # the license and the NOTICE file. Shipping the installers is a distribution.
+  - LICENSE
+  - NOTICE
 
 asar: true
 # No native modules — skip the rebuild step (faster, no node-gyp toolchain needed).
