@@ -26,7 +26,13 @@ import {
 import { bendLandingCells, bendPlacementGhost, placeBend } from "@/domain/bend-placement";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
 import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
-import { designFromScene, emptyDesign, partsWithinBuildArea } from "@/domain/design-state";
+import {
+  DEFAULT_FILENAME,
+  DEFAULT_REVISION,
+  designFromScene,
+  emptyDesign,
+  partsWithinBuildArea
+} from "@/domain/design-state";
 import { eraseAtCell } from "@/domain/erase-placement";
 import {
   DEFAULT_FREE_PLACEMENT_MEMORY,
@@ -51,6 +57,7 @@ import {
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
 import { totalPathLength } from "@/domain/parts";
+import { partRegistry } from "@/domain/part-registry";
 import {
   autoBuildOpenPortPair,
   type OptimizationMode,
@@ -66,27 +73,13 @@ import {
 import { placeTube, tubeLandingCells, tubePlacementGhost } from "@/domain/tube-placement";
 import { validate } from "@/domain/validation";
 import { Viewport } from "@/renderer/Viewport";
-import type {
-  AutoBuildSummary,
-  Camera,
-  DesignState,
-  Ghost,
-  Hint,
-  Part,
-  Scene,
-  ToolId,
-  Vec3
-} from "@/types";
+import type { AutoBuildSummary, DesignState, Ghost, Hint, Scene, ToolId, Vec3 } from "@/types";
 
 const OPTIMIZATION_MODE_LABELS: Record<OptimizationMode, string> = {
   shortest: "Shortest path",
   "fewest-bends": "Fewest bends"
 };
 
-const FILE_NAME = "untitled.ptsb";
-const FILE_REVISION = "0.1";
-
-const DEFAULT_CAMERA: Camera = { yaw: 0.55, pitch: 0.55, distance: 38 };
 const DEFAULT_AUTO_BUILD_MODE: OptimizationMode = "fewest-bends";
 
 const STARTER_HINT: Hint = {
@@ -100,19 +93,25 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
   x: "erase"
 };
 
-function toolLabelShort(t: ToolId): string {
-  return (
-    {
-      cursor: "Select",
-      blower: "Blower · BL-2020-A",
-      terminal: "Terminal · TM-2020-S",
-      tube: "Tube 6ft · ST-06-4OD",
-      bend: "Bend 90° · BN-90-3R",
-      obstacle: "Obstacle volume",
-      erase: "Erase"
-    } satisfies Record<ToolId, string>
-  )[t];
+/** "<name> · <part number>", read from the catalog rather than restated here. */
+function catalogLabel(registryKey: string): string {
+  const { name, partNo } = partRegistry.get(registryKey);
+  return `${name} · ${partNo}`;
 }
+
+// Part names and numbers come from the catalog: ADR-0001 requires user-facing
+// copy to interpolate reference data, not duplicate it. Obstacles are not parts
+// (see CONTEXT.md) and the two non-placing tools have no catalog entry, so those
+// three keep literal labels.
+const TOOL_LABELS: Record<ToolId, string> = {
+  cursor: "Select",
+  blower: catalogLabel("blower"),
+  terminal: catalogLabel("terminal"),
+  tube: catalogLabel("tube6"),
+  bend: catalogLabel("bend90"),
+  obstacle: "Obstacle volume",
+  erase: "Erase"
+};
 
 const kbdStyle = {
   fontFamily: "var(--font-mono)",
@@ -124,7 +123,7 @@ const kbdStyle = {
   color: "var(--text)"
 } as const;
 
-const DESIGN_METADATA = { filename: FILE_NAME, revision: FILE_REVISION };
+const DESIGN_METADATA = { filename: DEFAULT_FILENAME, revision: DEFAULT_REVISION };
 
 function isFreePlacementTool(tool: ToolId): tool is FreePlacementType {
   return tool === "blower" || tool === "terminal";
@@ -555,17 +554,10 @@ export default function App() {
         }
         return;
       }
-      const g = ghostState;
-      if (!g) return;
-      const id = "p" + Math.random().toString(36).slice(2, 8);
-      const newPart: Part = { id, ...g } as Part;
-      commitDesign({ ...design, parts: [...design.parts, newPart] });
-      setAutoBuildJustRan(false);
     },
     [
       commitDesign,
       tool,
-      ghostState,
       setErrorFlash,
       design,
       freePlacementMemory,
@@ -582,7 +574,7 @@ export default function App() {
       return;
     }
     try {
-      const json = JSON.stringify(serializeDesign(design), null, 2);
+      const json = JSON.stringify(serializeDesign(design, __APP_VERSION__), null, 2);
       const result = await api.saveDesign(json);
       if (result.canceled) return;
       if (result.error) {
@@ -705,7 +697,6 @@ export default function App() {
     () => ({
       parts: design.parts,
       obstacles: design.obstacles,
-      camera: DEFAULT_CAMERA,
       hint: design.parts.length === 0 ? STARTER_HINT : null,
       autoBuildJustRan,
       autoBuildSummary
@@ -754,10 +745,8 @@ export default function App() {
             buildArea={design.metadata.buildArea}
             ghost={ghostState}
             tool={tool}
-            camera={DEFAULT_CAMERA}
             onPlace={onPlace}
             onHover={setHoverCell}
-            autoBuildPulse={autoBuilding}
             landingCells={landingCells}
             activeElevation={activeElevation}
             portMarkers={portMarkers}
@@ -808,7 +797,7 @@ export default function App() {
                 style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }}
               />
               <span style={{ color: "var(--text-mut)" }}>Tool</span>
-              <span style={{ fontWeight: 600 }}>{toolLabelShort(tool)}</span>
+              <span style={{ fontWeight: 600 }}>{TOOL_LABELS[tool]}</span>
               {(tool === "blower" ||
                 tool === "terminal" ||
                 tool === "tube" ||

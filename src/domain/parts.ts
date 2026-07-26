@@ -10,10 +10,6 @@ function pricedEntry(registryKey: string): PartCatalogEntry {
 
 export type { PartCatalogEntry } from "@/domain/part-registry";
 
-export const PARTS: Record<string, PartCatalogEntry> = Object.freeze(
-  Object.fromEntries(partRegistry.keys().map((k) => [k, partRegistry.get(k)]))
-);
-
 export function partLength(p: Part): number {
   if (p.type === "tube") {
     const dx = p.to[0] - p.from[0];

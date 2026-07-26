@@ -246,7 +246,8 @@ describe("opening a design", () => {
       designFromScene(
         { parts: [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }], obstacles: [] },
         { filename: "incoming.ptsb", revision: "2" }
-      )
+      ),
+      "9.9.9"
     );
     stubOpenDesign(JSON.stringify(incoming));
     stubConfirm(true);
@@ -337,11 +338,9 @@ describe("auto-build feedback", () => {
     // The regression this guards: the search used to run synchronously in the
     // same tick, so React batched the pending state away and it never rendered.
     expect(screen.getByRole("button", { name: /^Routing/ })).toBeTruthy();
-    expect(viewport.props?.autoBuildPulse).toBe(true);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /^Auto-build$/ })).toBeTruthy();
     });
-    expect(viewport.props?.autoBuildPulse).toBe(false);
   });
 });

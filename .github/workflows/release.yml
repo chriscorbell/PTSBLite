@@ -85,9 +85,9 @@ jobs:
   release-notes:
     # Runs once after all platform builds finish (the release exists by now).
     # electron-builder leaves the body empty, so we fill it from the commit log.
-    # We build notes from `git log` rather than GitHub's generate-notes API
-    # because this project commits directly to main (no PRs), and that API only
-    # summarises merged PRs — it yields an empty changelog for direct commits.
+    # `git log` rather than GitHub's generate-notes API: squash-merged PRs land
+    # as one commit each on main, so the log already reads as a changelog, and
+    # this keeps working for any commit that did not arrive through a PR.
     needs: release
     runs-on: ubuntu-latest
     steps:

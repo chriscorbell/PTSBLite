@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_SETTINGS,
-  getPriceOverrides,
   mergeSettings,
   setPriceOverrides,
   unitPriceFor
@@ -49,6 +48,5 @@ describe("price overrides", () => {
     setPriceOverrides({ blower: 9000 });
     expect(unitPriceFor("blower", 4250)).toBe(9000);
     expect(unitPriceFor("terminal", 1850)).toBe(1850);
-    expect(getPriceOverrides()).toEqual({ blower: 9000 });
   });
 });

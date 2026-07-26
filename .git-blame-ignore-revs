@@ -4,5 +4,14 @@
 # GitHub honours this file automatically. Locally:
 #   git config blame.ignoreRevsFile .git-blame-ignore-revs
 
-# Apply Prettier formatting
-40b63d30379b246cb213c02c7ba0712532336a28
+# Establish the tooling baseline: Prettier, README, Dependabot (#49)
+#
+# The Prettier reformat was authored as its own commit precisely so it could be
+# listed here, but the PR was squash-merged and that commit no longer exists.
+# This SHA is the squash, so it also carries the README and config changes —
+# those were purely additive, and `git blame` cannot skip past a commit that
+# introduced a line, so they stay attributed correctly regardless.
+#
+# Isolating a reformat only survives a merge or rebase merge. Under squash,
+# reformat alone in its own PR.
+6effd1a939593649b260fc4e2ff02a4bb219c877
