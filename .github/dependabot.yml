@@ -1,5 +1,12 @@
 version: 2
 
+# Note for whoever sees a Dependabot PR fail on install with
+# ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION: that is not a broken update. pnpm 11
+# refuses packages published within its minimum release age, as a guard against
+# installing a compromised release in the hours before anyone notices. Dependabot
+# opens the PR as soon as the version exists, so it can outrun that window. Wait
+# and re-run the job rather than working around it.
+
 updates:
   # The repo may sit idle for months while client requirements are pending.
   # Grouping keeps that from returning as a wall of individual PRs, while
@@ -29,6 +36,12 @@ updates:
       - dependency-name: "@types/node"
         update-types: [version-update:semver-major]
 
+  # Actions are grouped without splitting majors, unlike npm above. An Actions
+  # major is usually a runner or Node bump rather than an API change, and they
+  # need to move together: the runner deprecates old Node versions on its own
+  # schedule, so a workflow left behind starts emitting deprecation warnings and
+  # eventually stops running. Splitting them would mean three PRs to fix one
+  # deprecation.
   - package-ecosystem: github-actions
     directory: /
     schedule:
