@@ -1,4 +1,6 @@
 .topbar {
+  /* The frameless window is dragged by its top bar; controls opt back out. */
+  -webkit-app-region: drag;
   height: 46px;
   flex-shrink: 0;
   display: flex;
@@ -62,4 +64,9 @@
 
 .topbar-menu__panel--edit {
   min-width: 168px;
+}
+
+.topbar-no-drag,
+.topbar button {
+  -webkit-app-region: no-drag;
 }

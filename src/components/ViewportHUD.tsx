@@ -120,21 +120,21 @@ function ObstacleStepper({
   disableIncrement?: boolean;
 }) {
   return (
-    <div className="stepper">
-      <span className="stepper__label">{label}</span>
+    <div className="hud__stepper">
+      <span className="hud__stepper-label">{label}</span>
       <button
         type="button"
-        className="stepper__button"
+        className="hud__stepper-button"
         aria-label={`Decrease obstacle ${label.toLowerCase()}`}
         disabled={disableDecrement}
         onClick={onDecrement}
       >
         −
       </button>
-      <span className="stepper__value">{value}</span>
+      <span className="hud__stepper-value">{value}</span>
       <button
         type="button"
-        className="stepper__button"
+        className="hud__stepper-button"
         aria-label={`Increase obstacle ${label.toLowerCase()}`}
         disabled={disableIncrement}
         onClick={onIncrement}

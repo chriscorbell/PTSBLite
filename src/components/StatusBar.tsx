@@ -48,13 +48,18 @@ export function StatusBar({
           <div className="status-bar__validation-heading">VALIDATION</div>
           <div className="status-bar__warnings">
             {warnings.map((w) => (
-              <div key={w.id} className={`warning${w.level === "error" ? " warning--error" : ""}`}>
-                <div className="warning__badge">
+              <div
+                key={w.id}
+                className={`status-bar__warning${
+                  w.level === "error" ? " status-bar__warning--error" : ""
+                }`}
+              >
+                <div className="status-bar__warning-badge">
                   <Icons.Warn size={11} />
                 </div>
-                <div className="warning__text">
-                  <div className="warning__title">{w.title}</div>
-                  <div className="warning__detail">{w.detail}</div>
+                <div className="status-bar__warning-text">
+                  <div className="status-bar__warning-title">{w.title}</div>
+                  <div className="status-bar__warning-detail">{w.detail}</div>
                 </div>
               </div>
             ))}
@@ -266,13 +271,13 @@ function Meta({
           : "ok"
       : null;
   return (
-    <div className="meta">
-      <span className="meta__label">{label}</span>
-      <span className="meta__value">{value}</span>
-      {hint && <span className="meta__hint">{hint}</span>}
+    <div className="status-bar__meta">
+      <span className="status-bar__meta-label">{label}</span>
+      <span className="status-bar__meta-value">{value}</span>
+      {hint && <span className="status-bar__meta-hint">{hint}</span>}
       {used !== undefined && capacity !== undefined && (
         <progress
-          className="meta__meter"
+          className="status-bar__meta-meter"
           data-load={load}
           value={Math.min(used, capacity)}
           max={capacity}
