@@ -55,4 +55,14 @@ describe("Modal", () => {
 
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it("leaves the centring margin alone", () => {
+    // A modal <dialog> is centred by the UA stylesheet's `margin: auto`
+    // alongside `inset: 0`. Overriding it with `0` pins the dialog to the
+    // top-left, which no test caught and no unit test can see, because it is a
+    // UA stylesheet interaction. Assert the override is not reintroduced.
+    const { container } = renderModal();
+    const dialog = container.querySelector("dialog");
+    expect(dialog?.style.margin).toBe("auto");
+  });
 });
