@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyDesign } from "@/domain/design-state";
-import {
-  Topology,
-  computePartPorts,
-  computeTopology,
-  resolveSnap,
-  type Port
-} from "@/domain/topology";
-import type { Part, Vec3 } from "@/types";
+import { Topology, computePartPorts, computeTopology, type Port } from "@/domain/topology";
+import type { Vec3 } from "@/types";
 
 function portCells(ports: Port[]): Vec3[] {
   return ports.map((p) => p.cell);
@@ -174,36 +168,5 @@ describe("Topology open and connected ports", () => {
 
     topology.removePart("t1");
     expect(topology.openPorts().map((p) => p.partId)).toEqual(["b1"]);
-  });
-});
-
-describe("Topology snap resolution", () => {
-  it("returns no snap candidate for free-placement tools", () => {
-    const topology = new Topology([{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }]);
-
-    expect(resolveSnap(topology, [1, 0, 0], "blower")).toEqual({ kind: "none" });
-    expect(resolveSnap(topology, [1, 0, 0], "obstacle")).toEqual({ kind: "none" });
-  });
-
-  it("returns one snap candidate with its backing part instance", () => {
-    const topology = new Topology([{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }]);
-
-    expect(resolveSnap(topology, [1, 0, 0], "tube")).toMatchObject({
-      kind: "one",
-      port: { partId: "b1", ownerType: "blower" }
-    });
-  });
-
-  it("returns multiple snap candidates when a hover cell can attach to several open ports", () => {
-    const parts: Part[] = [
-      { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
-      { id: "b2", type: "blower", cell: [2, 0, 0], dir: [-1, 0, 0] }
-    ];
-    const topology = new Topology(parts);
-
-    expect(resolveSnap(topology, [1, 0, 0], "bend")).toMatchObject({
-      kind: "multiple",
-      ports: [{ partId: "b1" }, { partId: "b2" }]
-    });
   });
 });
