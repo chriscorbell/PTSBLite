@@ -6,18 +6,13 @@ vocabulary and, more importantly, says which numbers in this codebase are author
 ## Commands
 
 ```sh
-bun install
-bun run dev        # run the app
-bun run check      # format:check + lint + typecheck + test, in CI's order
-bun run format     # fix formatting
-bun run package    # build installers into release/
+pnpm dev            # run the app
+pnpm run check      # format:check + lint + typecheck + test, in CI's order
+pnpm run format     # fix formatting
+pnpm run package    # build installers into release/
 ```
 
-Every PR must leave `bun run check` green. CI runs the same four gates.
-
-**`bun run test`, not `bun test`.** Bun's own runner picks up the same files, ignores the Vitest
-config, and reports failures that are not real. See [ADR-0008](docs/adr/0008-bun-as-package-manager.md),
-which also records what moving off pnpm cost.
+Every PR must leave `pnpm run check` green. CI runs the same four gates.
 
 ## The two things most likely to be got wrong
 
@@ -61,6 +56,9 @@ which `validation.ts` flags rather than forbids.
   log; it is unusually good and worth keeping that way.
 - `main` is protected and requires a green `verify` check, so all work goes through a PR.
 - Don't add a dependency, abstraction, or test that isn't earned by a concrete need.
+- pnpm 11 reads its settings from `pnpm-workspace.yaml`, **not** `package.json`. A `pnpm.overrides`
+  key in `package.json` is ignored with only a warning, so a dependency override put there looks
+  applied and isn't — check the resolved version, not the config.
 - Record a decision with lasting consequences as an ADR rather than a comment.
 
 ## Before inventing behaviour

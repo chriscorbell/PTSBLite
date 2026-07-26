@@ -18,38 +18,34 @@
 - React 19 and TypeScript for the UI
 - Three.js for the 3D viewport
 - Vitest for automated tests
-- Bun for package management and script running
+- pnpm for package management
 
 ## Development
 
-Requires **Bun 1.3+** (see `engines` in `package.json`). Bun is the package manager and script
-runner; Vitest and electron-vite still do the testing and bundling — see
-[ADR-0008](docs/adr/0008-bun-as-package-manager.md).
+Requires **Node 24** and **pnpm 11** (see `engines` in `package.json`; CI and the Electron runtime
+both track Node 24).
 
 ```sh
-bun install
-bun run dev             # run the app with hot reload
+pnpm install
+pnpm dev             # run the app with hot reload
 ```
 
 Quality gates, in the order CI runs them:
 
 ```sh
-bun run format:check    # or `bun run format` to fix
-bun run lint            # or `bun run lint:fix`
-bun run typecheck
-bun run test
-bun run check           # all four in one go
+pnpm run format:check   # or `pnpm run format` to fix
+pnpm run lint           # or `pnpm run lint:fix`
+pnpm run typecheck
+pnpm test
+pnpm run check          # all four in one go
 ```
-
-> **`bun run test`, not `bun test`.** Bun's own test runner picks up the same files, ignores the
-> Vitest configuration, and reports failures that are not real.
 
 Packaging (writes installers to `release/`):
 
 ```sh
-bun run build           # typecheck + electron-vite build
-bun run package         # build + electron-builder
-bun run package:dir     # unpacked directory, faster for smoke tests
+pnpm run build          # typecheck + electron-vite build
+pnpm run package        # build + electron-builder
+pnpm run package:dir    # unpacked directory, faster for smoke tests
 ```
 
 `git blame` skips the bulk reformat listed in `.git-blame-ignore-revs`. GitHub applies it
@@ -105,7 +101,7 @@ Self-update works on Windows, macOS, and Linux AppImage. Flatpak and non-AppImag
 managed by the host, so those check GitHub and point the user at the download page instead.
 
 Signing requires five repository secrets on the macOS runner; ADR-0006 lists them and how to produce
-them. A local `bun run package` needs none of it and simply builds unsigned.
+them. A local `pnpm run package` needs none of it and simply builds unsigned.
 
 ## License
 
