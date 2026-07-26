@@ -2,9 +2,6 @@ import { partRegistry } from "@/domain/part-registry";
 import { computeTopology, type Port } from "@/domain/topology";
 import type { DesignState, Part, ToolId, Vec3 } from "@/types";
 
-export const BUILD_VOLUME_HALF_EXTENT = 15;
-export const BUILD_VOLUME_MAX_Y = 20;
-
 export type PortMarker = {
   partId: string;
   index: number;
