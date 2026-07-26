@@ -28,17 +28,20 @@ const FULL_SCENE: Scene = {
   obstacles: [{ id: "o1", min: [2, 0, 2], max: [4, 1, 4] }]
 };
 
+// Explicit rather than imported from the build: the point of the argument is
+// that serialization does not source the version itself.
+const TEST_APP_VERSION = "9.9.9";
+
 describe("serializeDesign", () => {
   it("includes schemaVersion and appVersion headers", () => {
-    const file = serializeDesign(emptyDesign());
+    const file = serializeDesign(emptyDesign(), TEST_APP_VERSION);
     expect(file.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-    expect(typeof file.appVersion).toBe("string");
-    expect(file.appVersion.length).toBeGreaterThan(0);
+    expect(file.appVersion).toBe(TEST_APP_VERSION);
   });
 
   it("serializes parts, obstacles, and metadata", () => {
     const design = designFromScene(FULL_SCENE, { filename: "house.ptsb", revision: "0.3" });
-    const file = serializeDesign(design);
+    const file = serializeDesign(design, TEST_APP_VERSION);
     expect(file.parts).toHaveLength(4);
     expect(file.obstacles).toHaveLength(1);
     expect(file.metadata).toEqual({
@@ -50,7 +53,7 @@ describe("serializeDesign", () => {
 
   it("produces JSON-stringifiable output (no live grid handle)", () => {
     const design = designFromScene(FULL_SCENE);
-    const file = serializeDesign(design);
+    const file = serializeDesign(design, TEST_APP_VERSION);
     const text = JSON.stringify(file);
     const parsed = JSON.parse(text) as DesignFile;
     expect(parsed.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
@@ -61,7 +64,7 @@ describe("serializeDesign", () => {
 describe("deserializeDesign", () => {
   it("roundtrips a full design preserving parts, obstacles, and metadata", () => {
     const original = designFromScene(FULL_SCENE, { filename: "house.ptsb", revision: "0.3" });
-    const text = JSON.stringify(serializeDesign(original));
+    const text = JSON.stringify(serializeDesign(original, TEST_APP_VERSION));
     const result = deserializeDesign(text);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -72,7 +75,7 @@ describe("deserializeDesign", () => {
 
   it("rebuilds the grid from serialized parts and obstacles", () => {
     const original = designFromScene(FULL_SCENE);
-    const text = JSON.stringify(serializeDesign(original));
+    const text = JSON.stringify(serializeDesign(original, TEST_APP_VERSION));
     const result = deserializeDesign(text);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -87,7 +90,7 @@ describe("deserializeDesign", () => {
       revision: "0.3",
       buildArea: { width: 40, depth: 80, height: 12 }
     });
-    const result = deserializeDesign(JSON.stringify(serializeDesign(original)));
+    const result = deserializeDesign(JSON.stringify(serializeDesign(original, TEST_APP_VERSION)));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.design.metadata.buildArea).toEqual({ width: 40, depth: 80, height: 12 });

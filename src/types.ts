@@ -84,8 +84,6 @@ export type DesignState = {
   grid: SparseGrid;
 };
 
-export type Camera = { yaw: number; pitch: number; distance: number };
-
 export type Hint = { title: string; body: string };
 
 export type AutoBuildSummary = {
@@ -101,21 +99,17 @@ export type AutoBuildSummary = {
   unrouted: number;
 };
 
+/**
+ * What the viewport and its HUD draw. Deliberately narrow: this began as a
+ * prototype's grab-bag of every flag the mock UI needed, and nine of its twelve
+ * fields were never read by anything.
+ */
 export type Scene = {
-  label?: string;
-  step?: number;
   parts: Part[];
   obstacles: Obstacle[];
-  tool?: ToolId;
-  ghost?: Ghost | null;
-  bomOpen?: boolean;
-  statusOpen?: boolean;
-  export?: boolean;
-  connected?: boolean;
   autoBuildJustRan?: boolean;
   autoBuildSummary?: AutoBuildSummary | null;
   hint?: Hint | null;
-  camera?: Camera;
 };
 
 export type Warning = {

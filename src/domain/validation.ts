@@ -16,8 +16,8 @@ export const checkPathLength: ValidationRule = (design) => {
     {
       id: "path-length",
       level: "error",
-      title: "Exceeds 300ft centerline",
-      detail: `System centerline is ${length.toFixed(1)}ft. Maximum is 300ft.`
+      title: `Exceeds ${MAX_CENTERLINE_FEET}ft centerline`,
+      detail: `System centerline is ${length.toFixed(1)}ft. Maximum is ${MAX_CENTERLINE_FEET}ft.`
     }
   ];
 };
