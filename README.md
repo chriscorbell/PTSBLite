@@ -71,7 +71,8 @@ source. Decisions with lasting consequences are recorded in [`docs/adr/`](docs/a
 
 While the product waits on client requirements,
 [`docs/baked-in-assumptions.md`](docs/baked-in-assumptions.md) says what the current model can and
-cannot express. Questions only the client can answer are tracked as issues labelled `question`.
+cannot express. Questions only the client can answer are tracked as issues labelled `question`, and
+[`docs/client-questions.md`](docs/client-questions.md) is the plain-English version to send them.
 
 ## Controls
 
