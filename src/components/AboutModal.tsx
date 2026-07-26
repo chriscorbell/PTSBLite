@@ -1,6 +1,7 @@
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
+import "@/components/AboutModal.css";
 import type { CheckForUpdatesResult } from "@/global";
 
 export type AboutModalProps = {
@@ -11,19 +12,6 @@ export type AboutModalProps = {
 const GITHUB_URL = __GITHUB_URL__;
 const VERSION = __APP_VERSION__;
 const DESCRIPTION = __APP_DESCRIPTION__;
-
-const iconBtn: CSSProperties = {
-  width: 32,
-  height: 32,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: 6,
-  color: "var(--text-mut)",
-  background: "transparent",
-  border: "1px solid transparent",
-  cursor: "pointer"
-};
 
 type UpdateState =
   { kind: "idle" } | { kind: "checking" } | { kind: "result"; result: CheckForUpdatesResult };
@@ -69,57 +57,27 @@ export function AboutModal({ onClose }: AboutModalProps) {
   return (
     <Modal label="About PTSBuilder" onClose={onClose} size="sm">
       <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 18px",
-            borderBottom: "1px solid var(--line)"
-          }}
-        >
+        <div className="modal__header">
           <Icons.Info size={15} />
-          <div style={{ fontSize: 13, fontWeight: 600 }}>About</div>
-          <div style={{ flex: 1 }} />
-          <button onClick={onClose} style={iconBtn} aria-label="Close about">
+          <div className="modal__title">About</div>
+          <div className="modal__spacer" />
+          <button onClick={onClose} className="icon-btn" aria-label="Close about">
             <Icons.Close size={14} />
           </button>
         </div>
 
-        <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="about__body">
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.2 }}>PTSBuilder</div>
-            <div style={{ fontSize: 13, color: "var(--text-mut)", marginTop: 4 }}>
-              {DESCRIPTION}
-            </div>
+            <div className="about__name">PTSBuilder</div>
+            <div className="about__description">{DESCRIPTION}</div>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 12,
-              color: "var(--text-mut)"
-            }}
-          >
+          <div className="about__version">
             <span>Version</span>
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                padding: "2px 8px",
-                borderRadius: 4,
-                border: "1px solid var(--line-2)",
-                background: "var(--panel-2)",
-                color: "var(--text)"
-              }}
-            >
-              {VERSION}
-            </span>
+            <span className="about__version-number">{VERSION}</span>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="about__links">
             <button className="topbtn" onClick={() => openExternal(GITHUB_URL)}>
               <Icons.Github size={14} /> View on GitHub
             </button>
@@ -133,13 +91,12 @@ export function AboutModal({ onClose }: AboutModalProps) {
           </div>
 
           {updateMessage && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: -4 }}>
-              <div style={{ fontSize: 12, color: "var(--text-mut)" }}>{updateMessage}</div>
+            <div className="about__update">
+              <div className="about__update-message">{updateMessage}</div>
               {manualDownloadUrl && (
                 <button
-                  className="topbtn"
+                  className="topbtn about__update-download"
                   onClick={() => openExternal(manualDownloadUrl)}
-                  style={{ alignSelf: "flex-start" }}
                 >
                   <Icons.Github size={14} /> Download latest release
                 </button>

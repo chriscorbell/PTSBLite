@@ -1,0 +1,10 @@
+.viewport-canvas {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+}
+
+/* A tool is armed, so the pointer is aiming at a cell rather than orbiting. */
+.viewport-canvas--placing {
+  cursor: crosshair;
+}

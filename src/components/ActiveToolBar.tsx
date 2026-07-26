@@ -1,4 +1,5 @@
 import { partRegistry } from "@/domain/part-registry";
+import "@/components/ActiveToolBar.css";
 import type { ToolId } from "@/types";
 
 /**
@@ -26,74 +27,27 @@ function catalogLabel(registryKey: string): string {
   return `${name} · ${partNo}`;
 }
 
-const kbdStyle = {
-  fontFamily: "var(--font-mono)",
-  fontSize: 10.5,
-  padding: "1px 6px",
-  borderRadius: 3,
-  border: "1px solid var(--line-2)",
-  background: "var(--panel-2)",
-  color: "var(--text)"
-} as const;
-
 export function ActiveToolBar({ tool }: { tool: ToolId }) {
   if (tool === "cursor") return null;
+  const placesPart = tool === "blower" || tool === "terminal" || tool === "tube" || tool === "bend";
   return (
-    <div
-      style={{
-        position: "absolute",
-        bottom: 12,
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: "rgba(11,14,19,0.92)",
-        border: "1px solid var(--line-2)",
-        borderRadius: 999,
-        padding: "6px 14px",
-        fontSize: 12,
-        color: "var(--text)",
-        display: "flex",
-        gap: 12,
-        alignItems: "center",
-        pointerEvents: "none",
-        fontFamily: "var(--font-sans)",
-        whiteSpace: "nowrap",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.4)"
-      }}
-    >
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />
-      <span style={{ color: "var(--text-mut)" }}>Tool</span>
-      <span style={{ fontWeight: 600 }}>{TOOL_LABELS[tool]}</span>
-      {(tool === "blower" ||
-        tool === "terminal" ||
-        tool === "tube" ||
-        tool === "bend" ||
-        tool === "obstacle") && (
+    <div className="active-tool-bar">
+      <span className="active-tool-bar__dot" />
+      <span className="active-tool-bar__label">Tool</span>
+      <span className="active-tool-bar__tool">{TOOL_LABELS[tool]}</span>
+      {(placesPart || tool === "obstacle") && (
         <>
-          <span style={{ width: 1, height: 14, background: "var(--line)" }} />
-          {(tool === "blower" || tool === "terminal" || tool === "tube" || tool === "bend") && (
-            <span
-              style={{
-                color: "var(--text-mut)",
-                display: "flex",
-                alignItems: "center",
-                gap: 4
-              }}
-            >
-              <kbd style={kbdStyle}>R</kbd>
+          <span className="active-tool-bar__sep" />
+          {placesPart && (
+            <span className="active-tool-bar__hint">
+              <kbd>R</kbd>
               <span>/</span>
-              <kbd style={kbdStyle}>Shift+R</kbd>
+              <kbd>Shift+R</kbd>
               <span>rotate</span>
             </span>
           )}
-          <span
-            style={{
-              color: "var(--text-mut)",
-              display: "flex",
-              alignItems: "center",
-              gap: 4
-            }}
-          >
-            <kbd style={kbdStyle}>Esc</kbd> cancel
+          <span className="active-tool-bar__hint">
+            <kbd>Esc</kbd> cancel
           </span>
         </>
       )}

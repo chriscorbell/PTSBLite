@@ -152,6 +152,31 @@ body {
   color: #06121a;
   font-weight: 600;
 }
+.topbtn.danger {
+  background: var(--danger);
+  border-color: transparent;
+  color: #0b0e13;
+  font-weight: 600;
+}
+
+/* The close affordance in a dialog header. Was defined identically as an
+   `iconBtn` constant in four separate components. */
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-mut);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
 
 .filemenu-item {
   display: flex;

@@ -23,6 +23,32 @@
   backdrop-filter: blur(6px);
 }
 
+/* Every dialog is a header, a body and a row of actions. These were repeated as
+   near-identical style objects in each of the four. */
+.modal__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.modal__spacer {
+  flex: 1;
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 18px;
+}
+
 /* Widths belong to the dialog being opened, not to the shell. Each caller picks
    one of these rather than passing a CSS length and a style object through
    props. The two tall dialogs bound their height so a long BOM or a full
