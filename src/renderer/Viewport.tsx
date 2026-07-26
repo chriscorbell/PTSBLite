@@ -69,7 +69,6 @@ type ViewportState = {
   partsGroup?: THREE.Group;
   obstaclesGroup?: THREE.Group;
   ghostGroup?: THREE.Group;
-  hoverGroup?: THREE.Group;
   overlayGroup?: THREE.Group;
   planeGroup?: THREE.Group;
   portsGroup?: THREE.Group;
@@ -223,8 +222,6 @@ export function Viewport({
     scene3.add(obstaclesGroup);
     const ghostGroup = new THREE.Group();
     scene3.add(ghostGroup);
-    const hoverGroup = new THREE.Group();
-    scene3.add(hoverGroup);
     const overlayGroup = new THREE.Group();
     scene3.add(overlayGroup);
     const planeGroup = new THREE.Group();
@@ -252,7 +249,6 @@ export function Viewport({
       partsGroup,
       obstaclesGroup,
       ghostGroup,
-      hoverGroup,
       overlayGroup,
       planeGroup,
       portsGroup,

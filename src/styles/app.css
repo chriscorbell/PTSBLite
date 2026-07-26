@@ -67,15 +67,6 @@ body {
   position: relative;
 }
 
-.topbar {
-  -webkit-app-region: drag;
-}
-
-.topbar-no-drag,
-.topbar button {
-  -webkit-app-region: no-drag;
-}
-
 .nosel {
   user-select: none;
   -webkit-user-select: none;
@@ -218,22 +209,4 @@ body {
 }
 ::-webkit-scrollbar-track {
   background: transparent;
-}
-
-@keyframes flashIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-/* The shared modal shell. The panel itself is styled inline in Modal.tsx; this
-   is the backdrop, which can only be reached from CSS. */
-.modal-dialog::backdrop {
-  background: rgba(5, 7, 10, 0.75);
-  backdrop-filter: blur(6px);
 }

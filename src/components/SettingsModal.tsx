@@ -136,7 +136,7 @@ export function SettingsModal({
                         const v = e.target.value;
                         setPrice(key, v === "" ? undefined : Math.max(0, Number(v)));
                       }}
-                      className="field__input field__input--price"
+                      className="settings__input settings__input--price"
                     />
                   </div>
                 </div>
@@ -160,7 +160,7 @@ export function SettingsModal({
                       taxRate: v === "" ? null : Math.max(0, Number(v) / 100)
                     }));
                   }}
-                  className="field__input field__input--narrow"
+                  className="settings__input settings__input--narrow"
                 />
               </Field>
               <Field label="Bill-to name">
@@ -169,7 +169,7 @@ export function SettingsModal({
                   onChange={(e) =>
                     setQuote({ billTo: { ...draft.quote.billTo, name: e.target.value } })
                   }
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
               <Field label="Bill-to address (one line each)">
@@ -181,7 +181,7 @@ export function SettingsModal({
                     })
                   }
                   rows={2}
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
               <Field label="Project name">
@@ -190,14 +190,14 @@ export function SettingsModal({
                   onChange={(e) =>
                     setQuote({ project: { ...draft.quote.project, name: e.target.value } })
                   }
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
               <Field label="Quote number">
                 <input
                   value={draft.quote.quoteNumber}
                   onChange={(e) => setQuote({ quoteNumber: e.target.value })}
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
               <Field label="Notes / terms">
@@ -206,12 +206,12 @@ export function SettingsModal({
                   onChange={(e) => setQuote({ notes: e.target.value })}
                   rows={4}
                   placeholder="Printed at the foot of the quote."
-                  className="field__input"
+                  className="settings__input"
                 />
                 {draft.quote.notes.trim() === "" && (
                   <button
                     type="button"
-                    className="topbtn field__action"
+                    className="topbtn settings__field-action"
                     onClick={() => setQuote({ notes: SUGGESTED_QUOTE_NOTES })}
                   >
                     Use suggested wording
@@ -231,35 +231,35 @@ export function SettingsModal({
                 <input
                   value={draft.company.name}
                   onChange={(e) => setCompany({ name: e.target.value })}
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
               <Field label="Tagline">
                 <input
                   value={draft.company.tagline}
                   onChange={(e) => setCompany({ tagline: e.target.value })}
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
               <Field label="Address">
                 <input
                   value={draft.company.address}
                   onChange={(e) => setCompany({ address: e.target.value })}
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
               <Field label="Phone">
                 <input
                   value={draft.company.phone}
                   onChange={(e) => setCompany({ phone: e.target.value })}
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
               <Field label="Email">
                 <input
                   value={draft.company.email}
                   onChange={(e) => setCompany({ email: e.target.value })}
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
             </div>
@@ -274,23 +274,23 @@ export function SettingsModal({
                 <input
                   value={meta.filename}
                   onChange={(e) => setMeta((m) => ({ ...m, filename: e.target.value }))}
-                  className="field__input"
+                  className="settings__input"
                 />
               </Field>
               <Field label="Revision">
                 <input
                   value={meta.revision}
                   onChange={(e) => setMeta((m) => ({ ...m, revision: e.target.value }))}
-                  className="field__input field__input--narrow"
+                  className="settings__input settings__input--narrow"
                 />
               </Field>
 
               <div>
-                <span className="field__label">Build area (feet)</span>
+                <span className="settings__label">Build area (feet)</span>
                 <div className="settings__axes">
                   {BUILD_AREA_AXES.map(({ key, label }) => (
                     <label key={key} className="settings__axis">
-                      <span className="field__label">{label}</span>
+                      <span className="settings__label">{label}</span>
                       <input
                         type="number"
                         min={BUILD_AREA_LIMITS[key].min}
@@ -298,7 +298,7 @@ export function SettingsModal({
                         step={1}
                         value={meta.buildArea[key]}
                         onChange={(e) => setBuildArea({ [key]: Number(e.target.value) })}
-                        className="field__input"
+                        className="settings__input"
                       />
                     </label>
                   ))}
@@ -327,8 +327,8 @@ export function SettingsModal({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="field">
-      <span className="field__label">{label}</span>
+    <label className="settings__field">
+      <span className="settings__label">{label}</span>
       {children}
     </label>
   );

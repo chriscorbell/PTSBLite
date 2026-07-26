@@ -114,6 +114,20 @@ describe("attemptPlacement", () => {
     expect(result.status === "committed" && result.design.parts[0].id).toBe("p-supplied");
   });
 
+  it("keeps the live hover cell when a stale attempt is applied", () => {
+    // `attemptPlacement` reads a session captured during render, so the pointer
+    // can move on before the result is folded back in. Everything the click
+    // decided should win, but where the pointer is now should not be reverted.
+    const stale = session({ tool: "blower", hoverCell: [0, 0, 0] });
+    const { session: attempted } = attemptPlacement(stale, emptyDesign(), [0, 0, 0], "pb");
+    const live = session({ tool: "blower", hoverCell: [9, 0, 9] });
+
+    const next = placementSessionReducer(live, { type: "apply-attempt", session: attempted });
+
+    expect(next.hoverCell).toEqual([9, 0, 9]);
+    expect(next.freePlacementMemory).toEqual(attempted.freePlacementMemory);
+  });
+
   it("walks the obstacle draft through its two clicks without touching the design", () => {
     const design = emptyDesign();
     const first = attemptPlacement(session({ tool: "obstacle" }), design, [0, 0, 0], "o1");
