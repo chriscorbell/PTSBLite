@@ -110,3 +110,10 @@ body {
     transform: translateX(-50%) translateY(0);
   }
 }
+
+/* The shared modal shell. The panel itself is styled inline in Modal.tsx; this
+   is the backdrop, which can only be reached from CSS. */
+.modal-dialog::backdrop {
+  background: rgba(5, 7, 10, 0.75);
+  backdrop-filter: blur(6px);
+}

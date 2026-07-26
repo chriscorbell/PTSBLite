@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { Icons } from "@/components/Icons";
-import { useEscapeKey } from "@/components/useEscapeKey";
+import { Modal } from "@/components/Modal";
 import type { CheckForUpdatesResult } from "@/global";
 
 export type AboutModalProps = {
@@ -42,7 +42,6 @@ function updateMessageFor(result: CheckForUpdatesResult): string {
 }
 
 export function AboutModal({ onClose }: AboutModalProps) {
-  useEscapeKey(onClose);
   const [update, setUpdate] = useState<UpdateState>({ kind: "idle" });
 
   // Route links through the main process so they open in the system browser
@@ -68,32 +67,8 @@ export function AboutModal({ onClose }: AboutModalProps) {
     update.kind === "result" && update.result.status === "manual" ? update.result.url : null;
 
   return (
-    <div
-      className="nosel"
-      style={{
-        position: "absolute",
-        inset: 0,
-        background: "rgba(5,7,10,0.75)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100
-      }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(420px, 92%)",
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--panel)",
-          borderRadius: 10,
-          border: "1px solid var(--line-2)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.5)"
-        }}
-      >
+    <Modal label="About PTSBuilder" onClose={onClose} width="min(420px, 92%)">
+      <>
         <div
           style={{
             display: "flex",
@@ -172,7 +147,7 @@ export function AboutModal({ onClose }: AboutModalProps) {
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </>
+    </Modal>
   );
 }
