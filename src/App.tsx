@@ -712,6 +712,27 @@ export default function App() {
     guardUnsaved("Open another design", "Discard and open", () => void openDocument());
   }, [guardUnsaved, openDocument]);
 
+  // Main vetoes the window close and asks here, because only the renderer knows
+  // whether there is unsaved work. Re-subscribing when `dirty` changes rather
+  // than mirroring it into a ref: refs must not be written during render, and
+  // an IPC listener swap per commit is far cheaper than that unsafety.
+  useEffect(() => {
+    const api = window.ptsbuilder;
+    if (!api?.onCloseRequested) return;
+    return api.onCloseRequested(() => {
+      if (!dirty) {
+        void api.confirmClose();
+        return;
+      }
+      setConfirm({
+        title: "Close PTSBuilder",
+        message: "This design has unsaved changes. They will be lost.",
+        confirmLabel: "Discard and close",
+        onConfirm: () => void api.confirmClose()
+      });
+    });
+  }, [dirty]);
+
   const handleNew = useCallback(() => {
     guardUnsaved("New design", "Discard and start over", () => {
       dispatchDocument({ type: "new", design: emptyDesign(DESIGN_METADATA) });
