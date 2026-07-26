@@ -87,10 +87,11 @@ Phases 1–7.
    intended. If proprietary delivery, dual licensing, or transfer of ownership is intended, get
    legal advice and confirm ownership of all contributions **before** changing anything — do not
    rewrite public history or flip visibility as a casual cleanup step.
-2. **Code signing.** Decide whether release binaries need Windows signing and macOS
-   signing/notarization. The current unsigned build with manual macOS updates is a reasonable
-   prototype trade-off and is documented in `electron/main.ts`, but may be unacceptable for client
-   deployment. This has cost and lead time; start it early if the answer is yes.
+2. ~~**Code signing.**~~ **Decided 2026-07-26: ship unsigned, buy no certificates** — see
+   ADR-0006. The buyer is a single small business on Windows, where the cost is one SmartScreen
+   prompt at first install and in-app updates never re-warn. macOS builds continue but have no
+   self-update. Revisit if the software is sold beyond one customer or a customer's IT policy blocks
+   unsigned executables.
 3. **Repository settings.** `main` is currently unprotected, and GitHub vulnerability alerts and
    automated security fixes are disabled. See §§7.3–7.4.
 4. **Requirements ledger.** Create `docs/requirements/open-questions.md` and seed it with the

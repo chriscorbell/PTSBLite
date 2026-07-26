@@ -36,7 +36,8 @@ function timestampedFilename(ext: string, date = new Date()): string {
 //     first manual download, not on app-delivered updates.
 //   - Linux AppImage: self-updates in place. Flatpak (sandboxed, managed by
 //     flathub) and any non-AppImage launch are skipped.
-//   - macOS: skipped — Squirrel.Mac requires a Developer ID signature.
+//   - macOS: skipped — Squirrel.Mac will not apply an unsigned update, and
+//     these builds are unsigned by decision (ADR-0006). Mac users update by hand.
 function autoUpdateSupported(): boolean {
   if (isDev || !app.isPackaged) return false;
   if (process.platform === "darwin") return false;

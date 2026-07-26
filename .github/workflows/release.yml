@@ -120,6 +120,14 @@ jobs:
             if [ -n "${commits}" ]; then
               printf "## What's Changed\n\n%s\n\n" "${commits}"
             fi
+
+            # Builds are unsigned by deliberate decision (ADR-0006), so every
+            # platform warns on first run. This page is where people are looking
+            # when they hit that warning, so the notes explain it. Kept in a
+            # separate file so the wording is editable without touching YAML.
+            cat docs/installing.md
+            printf "\n"
+
             if [ -n "${prev_tag}" ]; then
               printf "**Full Changelog**: https://github.com/%s/compare/%s...%s\n" \
                 "${GH_REPO}" "${prev_tag}" "${TAG_NAME}"
