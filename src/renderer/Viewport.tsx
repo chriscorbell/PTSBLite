@@ -34,6 +34,7 @@ import {
 import { type PartLabel, type PortMarker } from "@/domain/renderer-affordances";
 import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, Ghost, Scene, ToolId, Vec3 } from "@/types";
+import "@/renderer/Viewport.css";
 
 /**
  * The React viewport: it owns the WebGL renderer, the scene graph, and the
@@ -555,11 +556,7 @@ export function Viewport({
   return (
     <div
       ref={mountRef}
-      style={{
-        position: "absolute",
-        inset: 0,
-        cursor: tool && tool !== "cursor" ? "crosshair" : "grab"
-      }}
+      className={`viewport-canvas${tool && tool !== "cursor" ? " viewport-canvas--placing" : ""}`}
       onContextMenu={(e) => e.preventDefault()}
     />
   );
