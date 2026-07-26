@@ -8,7 +8,7 @@ import {
   checkTerminalCount,
   validate
 } from "@/domain/validation";
-import type { DesignState, Part } from "@/types";
+import type { BuildArea, DesignState, Part } from "@/types";
 
 const baseParts: Part[] = [
   { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
@@ -17,18 +17,38 @@ const baseParts: Part[] = [
   { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] }
 ];
 
-function designWith(parts: Part[], obstacles: DesignState["obstacles"] = []): DesignState {
-  return designFromScene({ parts, obstacles });
+function designWith(
+  parts: Part[],
+  obstacles: DesignState["obstacles"] = [],
+  buildArea?: BuildArea
+): DesignState {
+  return designFromScene({ parts, obstacles }, buildArea ? { buildArea } : undefined);
 }
+
+/**
+ * The largest build area the app allows is 200 ft on a side, but the centerline
+ * cap is 300 ft — so any design that trips the cap has to fold back on itself.
+ * A single straight run long enough to exceed it does not fit in any legal
+ * design, which is why these fixtures use parallel runs rather than one tube.
+ */
+const LARGE_AREA: BuildArea = { width: 200, depth: 200, height: 30 };
+const LONG_RUN: Part[] = [
+  { id: "st-a", type: "tube", from: [-98, 0, 5], to: [98, 0, 5] },
+  { id: "st-b", type: "tube", from: [-98, 0, 10], to: [98, 0, 10] }
+];
 
 describe("validation engine", () => {
   it("warns when centerline path length exceeds 300ft", () => {
-    const design = designWith([
-      baseParts[0],
-      baseParts[1],
-      { id: "st-long", type: "tube", from: [2, 0, 0], to: [303, 0, 0] },
-      { id: "t2", type: "terminal", cell: [303, 0, 0], axis: [1, 0, 0] }
-    ]);
+    const design = designWith(
+      [
+        baseParts[0],
+        baseParts[1],
+        ...LONG_RUN,
+        { id: "t2", type: "terminal", cell: [20, 0, 0], axis: [1, 0, 0] }
+      ],
+      [],
+      LARGE_AREA
+    );
 
     const warnings = checkPathLength(design);
     expect(warnings.map((w) => w.id)).toEqual(["path-length"]);
@@ -93,11 +113,15 @@ describe("validation engine", () => {
   });
 
   it("aggregates multiple validation warnings in rule order", () => {
-    const design = designWith([
-      { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
-      { id: "st-long", type: "tube", from: [1, 0, 0], to: [302, 0, 0] },
-      { id: "t1", type: "terminal", cell: [302, 0, 0], axis: [1, 0, 0] }
-    ]);
+    const design = designWith(
+      [
+        { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
+        ...LONG_RUN,
+        { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] }
+      ],
+      [],
+      LARGE_AREA
+    );
 
     expect(validate(design).map((w) => w.id)).toEqual(["path-length", "terminal-count"]);
   });

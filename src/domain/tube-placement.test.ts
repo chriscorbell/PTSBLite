@@ -10,6 +10,7 @@ import {
   tubePlacementGhost
 } from "@/domain/tube-placement";
 import type { BendPart } from "@/types";
+import { expectGridMatchesDesign } from "@/test/design-invariants";
 
 describe("Straight tube snap placement", () => {
   it("computes landing cells adjacent to every open port", () => {
@@ -73,6 +74,7 @@ describe("Straight tube snap placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.part).toEqual({
       id: "st1",
       type: "tube",
@@ -103,6 +105,7 @@ describe("Straight tube snap placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.part).toEqual({
       id: "st1",
       type: "tube",
@@ -148,6 +151,7 @@ describe("Straight tube snap placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.part).toMatchObject({
       from: [1.5, 0.5, 0.5],
       to: [1.5, 0.5, -5.5]
@@ -172,6 +176,7 @@ describe("Straight tube partial placement", () => {
     const result = placeTube(design, { id: "st1", cell: [1, 0, 0] });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.part.length).toBe(3);
     expect(result.part.to).toEqual([4.5, 0.5, 0.5]);
     for (let x = 1; x <= 3; x++) expect(result.design.grid.query([x, 0, 0])).toBe("st1");
@@ -186,6 +191,7 @@ describe("Straight tube partial placement", () => {
     const result = placeTube(design, { id: "st1", cell: [1, 0, 0] });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     // X spans [-5, 5): cells 1..4 fit, x = 5 is out of bounds.
     expect(result.part.length).toBe(4);
     expect(result.part.to).toEqual([5.5, 0.5, 0.5]);
@@ -203,6 +209,7 @@ describe("Straight tube partial placement", () => {
     const result = placeTube(design, { id: "st1", cell: [1, 0, 0] });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.part.length).toBe(2); // cells 1..2 fit; cell 3 holds the terminal
     expect(result.part.to).toEqual([3.5, 0.5, 0.5]);
   });

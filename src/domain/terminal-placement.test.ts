@@ -9,6 +9,7 @@ import {
   terminalPlacementMode
 } from "@/domain/terminal-placement";
 import type { BlowerPart, Vec3 } from "@/types";
+import { expectGridMatchesDesign } from "@/test/design-invariants";
 
 function designWithBlower(dir: Vec3) {
   const design = emptyDesign();
@@ -104,6 +105,7 @@ describe("Terminal 1 inline placement", () => {
     });
     expect(t1.ok).toBe(true);
     if (!t1.ok) return;
+    expectGridMatchesDesign(t1.design);
 
     const t2 = placeTerminal(t1.design, {
       id: "t2",
@@ -114,6 +116,7 @@ describe("Terminal 1 inline placement", () => {
 
     expect(t2.ok).toBe(true);
     if (!t2.ok) return;
+    expectGridMatchesDesign(t2.design);
     expect(t2.design.parts.at(-1)).toMatchObject({
       id: "t2",
       type: "terminal",
@@ -144,6 +147,7 @@ describe("Terminal 1 inline placement", () => {
 
     expect(t2.ok).toBe(true);
     if (!t2.ok) return;
+    expectGridMatchesDesign(t2.design);
     expect(t2.part).toMatchObject({
       id: "t2",
       type: "terminal",
