@@ -289,13 +289,19 @@ export default function App() {
     void (async () => {
       const loaded = await window.ptsbuilder?.getSettings();
       if (!active) return;
-      const merged = mergeSettings(DEFAULT_SETTINGS, loaded?.data ?? null);
-      setSettings(merged);
+      setSettings(mergeSettings(DEFAULT_SETTINGS, loaded?.data ?? null));
+      // A missing file on first run reports no error and no data. An actual
+      // read failure looks identical from `data` alone, and silently showing
+      // defaults would invite an installer to re-enter prices that are still
+      // on disk, unreadable.
+      if (loaded?.error) {
+        setErrorFlash(`Could not read saved settings: ${loaded.error}`);
+      }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [setErrorFlash]);
 
   // Surface the on-brand "update ready" prompt. Listen for the live push and
   // also query for an update that finished downloading before this listener
@@ -315,10 +321,23 @@ export default function App() {
     };
   }, []);
 
-  const updateSettings = useCallback((next: AppSettings) => {
-    setSettings(next);
-    void window.ptsbuilder?.setSettings(JSON.stringify(next, null, 2));
-  }, []);
+  const updateSettings = useCallback(
+    (next: AppSettings) => {
+      // Applied on screen either way — the installer's typing should not vanish
+      // because the disk refused it — but a failed write has to be said out
+      // loud. Settings hold the only copy of part prices and the tax rate
+      // (ADR-0003), so silently losing them means the next launch blocks quote
+      // export again with no explanation (issue #73).
+      setSettings(next);
+      void (async () => {
+        const result = await window.ptsbuilder?.setSettings(JSON.stringify(next, null, 2));
+        if (result && !result.ok) {
+          setErrorFlash(`Settings not saved: ${result.error ?? "unknown error"}`);
+        }
+      })();
+    },
+    [setErrorFlash]
+  );
 
   const updateMetadata = useCallback(
     (metadata: DesignState["metadata"]) => {
