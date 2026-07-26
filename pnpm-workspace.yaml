@@ -1,0 +1,16 @@
+allowBuilds:
+  electron: true
+  esbuild: true
+  # We package Windows with NSIS, not Squirrel.Windows, so electron-winstaller
+  # never runs and its build script is intentionally not approved.
+  electron-winstaller: false
+
+overrides:
+  # electron-updater declares ^4.1.0 and resolves js-yaml 4.1.1, which carries a
+  # high-severity quadratic-complexity DoS advisory. 4.3.0 is inside that range
+  # and outside the advisory, so this forces what the range already allowed
+  # rather than pushing electron-updater somewhere it did not agree to go.
+  #
+  # It matters because js-yaml ships: electron-updater parses the latest*.yml
+  # update feed fetched from GitHub, which is remote input. See #84.
+  js-yaml: ^4.3.0
