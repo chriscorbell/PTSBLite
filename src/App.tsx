@@ -33,6 +33,7 @@ import {
   DEFAULT_REVISION,
   designFromScene,
   emptyDesign,
+  newOccupantId,
   obstaclesWithinBuildArea,
   partsWithinBuildArea
 } from "@/domain/design-state";
@@ -224,9 +225,21 @@ export default function App() {
     if (flashTimer.current) clearTimeout(flashTimer.current);
     setErrorFlashRaw(msg);
     if (msg) {
-      flashTimer.current = setTimeout(() => setErrorFlashRaw(null), 2400);
+      flashTimer.current = setTimeout(() => {
+        flashTimer.current = null;
+        setErrorFlashRaw(null);
+      }, 2400);
     }
   }, []);
+
+  // A flash pending at unmount would otherwise fire into a component that is no
+  // longer mounted.
+  useEffect(
+    () => () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    },
+    []
+  );
 
   /**
    * Drop the transient bits tied to the design we just moved away from: an
@@ -474,7 +487,7 @@ export default function App() {
     if (!obstaclePlacementDraftHasFootprint(obstacleDraft)) return;
     const bounds = obstaclePlacementDraftBounds(obstacleDraft);
     const result = placeObstacleVolume(design, {
-      id: "o" + Math.random().toString(36).slice(2, 8),
+      id: newOccupantId(design, "o"),
       cornerA: bounds.min,
       cornerB: bounds.max
     });
@@ -501,7 +514,7 @@ export default function App() {
   );
 
   const onPlace = useCallback(
-    (cell: Vec3, _e?: MouseEvent, target?: { partId?: string }) => {
+    (cell: Vec3, target?: { partId?: string }) => {
       if (tool === "cursor") return;
       if (tool === "erase") {
         applyPlacement(eraseAtCell(design, cell));
@@ -509,7 +522,7 @@ export default function App() {
       }
       if (tool === "terminal") {
         const result = placeTerminal(design, {
-          id: "p" + Math.random().toString(36).slice(2, 8),
+          id: newOccupantId(design, "p"),
           cell,
           memory: freePlacementMemory,
           rotationSteps: freePlacementRotation.horizontalSteps,
@@ -538,7 +551,7 @@ export default function App() {
         const orientation = preview ? ghostOrientation(preview) : freePlacementMemory[tool];
         if (!orientation) return;
         const result = placeFreePart(design, {
-          id: "p" + Math.random().toString(36).slice(2, 8),
+          id: newOccupantId(design, "p"),
           type: tool,
           cell,
           orientation
@@ -552,7 +565,7 @@ export default function App() {
       }
       if (tool === "tube") {
         const result = placeTube(design, {
-          id: "p" + Math.random().toString(36).slice(2, 8),
+          id: newOccupantId(design, "p"),
           cell,
           sourcePartId: target?.partId
         });
@@ -561,7 +574,7 @@ export default function App() {
       }
       if (tool === "bend") {
         const result = placeBend(design, {
-          id: "p" + Math.random().toString(36).slice(2, 8),
+          id: newOccupantId(design, "p"),
           cell,
           sourcePartId: target?.partId,
           rotationIndex: ghostRotation

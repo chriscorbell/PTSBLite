@@ -10,6 +10,36 @@ import type { BuildArea, DesignMetadata, DesignState, Obstacle, Part, Scene } fr
 export const DEFAULT_FILENAME = "untitled.ptsb";
 export const DEFAULT_REVISION = "0.1";
 
+/** `p` for a part, `o` for an obstacle. Both are grid occupants. */
+export type OccupantPrefix = "p" | "o";
+
+/**
+ * A fresh id for a part or an obstacle.
+ *
+ * Parts and obstacles share one occupant namespace, so the candidate is checked
+ * against both lists rather than trusted. A duplicate id would be both a
+ * duplicate React key and a collision in the `SparseGrid`, breaking the
+ * parts-agree-with-grid invariant that the rest of the domain relies on — a
+ * random id makes that unlikely, not impossible, and the check costs nothing at
+ * these list sizes.
+ *
+ * `randomId` is injectable so the retry path can be tested without waiting for a
+ * UUID to collide.
+ */
+export function newOccupantId(
+  design: DesignState,
+  prefix: OccupantPrefix,
+  randomId: () => string = () => crypto.randomUUID()
+): string {
+  for (;;) {
+    const id = prefix + randomId();
+    const taken =
+      design.parts.some((part) => part.id === id) ||
+      design.obstacles.some((obstacle) => obstacle.id === id);
+    if (!taken) return id;
+  }
+}
+
 function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
   return {
     filename: meta?.filename ?? DEFAULT_FILENAME,
