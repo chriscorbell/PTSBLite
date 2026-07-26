@@ -126,12 +126,7 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
   };
 
   return (
-    <Modal
-      label="Quote preview"
-      onClose={onClose}
-      width="min(820px, 92%)"
-      panelStyle={{ maxHeight: "88%" }}
-    >
+    <Modal label="Quote preview" onClose={onClose} size="xl">
       <>
         <div
           style={{
@@ -430,7 +425,7 @@ function QuoteBlockedDialog({ blockers, onClose, onOpenSettings }: QuoteBlockedD
   const tabs = [...new Set(blockers.map((b) => b.tab))];
 
   return (
-    <Modal label="Finish setup before quoting" onClose={onClose} width="min(460px, 92%)">
+    <Modal label="Finish setup before quoting" onClose={onClose} size="md">
       <>
         <div
           style={{

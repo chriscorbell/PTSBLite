@@ -5,7 +5,7 @@ import { Modal } from "@/components/Modal";
 function renderModal(props: Partial<React.ComponentProps<typeof Modal>> = {}) {
   const onClose = vi.fn();
   const utils = render(
-    <Modal label="Test dialog" onClose={onClose} width="400px" {...props}>
+    <Modal label="Test dialog" onClose={onClose} size="sm" {...props}>
       <button>Inside</button>
     </Modal>
   );
@@ -56,13 +56,21 @@ describe("Modal", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("leaves the centring margin alone", () => {
-    // A modal <dialog> is centred by the UA stylesheet's `margin: auto`
-    // alongside `inset: 0`. Overriding it with `0` pins the dialog to the
-    // top-left, which no test caught and no unit test can see, because it is a
-    // UA stylesheet interaction. Assert the override is not reintroduced.
+  it("sets no inline styles that could override the stylesheet", () => {
+    // A modal <dialog> is centred by `margin: auto` alongside the UA
+    // stylesheet's `inset: 0`; overriding the margin with `0` pins it to the
+    // top-left corner. That rule now lives in Modal.css, so what is worth
+    // asserting here is the thing this file *can* see: that the component
+    // reintroduces no inline style at all, since an inline margin would win
+    // over the stylesheet. Whether the dialog actually lands centred is a
+    // visual check — happy-dom applies neither the external stylesheet nor the
+    // UA cascade, so asserting it here would prove nothing.
     const { container } = renderModal();
-    const dialog = container.querySelector("dialog");
-    expect(dialog?.style.margin).toBe("auto");
+    expect(container.querySelector("dialog")?.getAttribute("style")).toBeNull();
+  });
+
+  it("carries the size as a class so the width lives in the stylesheet", () => {
+    const { container } = renderModal({ size: "xl" });
+    expect(container.querySelector("dialog")?.className).toContain("modal-dialog--xl");
   });
 });

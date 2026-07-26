@@ -37,7 +37,7 @@ export function ConfirmDialog({
   onCancel
 }: ConfirmDialogProps) {
   return (
-    <Modal label={title} onClose={onCancel} width="min(420px, 92%)">
+    <Modal label={title} onClose={onCancel} size="sm">
       <>
         <div
           style={{

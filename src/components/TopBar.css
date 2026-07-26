@@ -1,0 +1,65 @@
+.topbar {
+  height: 46px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* The insets are custom properties because Electron reports them per platform
+     at runtime; see ADR-0009. */
+  padding: 0 var(--topbar-right-padding) 0 var(--topbar-left-padding);
+  background: linear-gradient(180deg, #181c25, #14181f);
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.topbar__document {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar__spacer {
+  flex: 1;
+}
+
+.topbar-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.topbar-menu__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  padding: 5px;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  background: color-mix(in oklab, var(--panel) 96%, #000);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+}
+
+.topbar-menu__panel--file {
+  min-width: 150px;
+}
+
+.topbar-menu__panel--edit {
+  min-width: 168px;
+}
