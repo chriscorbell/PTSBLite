@@ -29,6 +29,19 @@ const settingsFilePath = () => join(app.getPath("userData"), "settings.json");
  * prototype builds wrote it.
  */
 const DESIGN_EXTENSION = "ptsb";
+
+/**
+ * Paths this process has itself offered the user, through its own save or open
+ * dialog.
+ *
+ * Save writes without prompting once a document has a home, which means the
+ * renderer names the destination. Main holds full Node privilege precisely so
+ * the renderer does not, and obeying an arbitrary path hands part of that back:
+ * a compromised renderer could write anywhere the user can. Replaying a path
+ * main chose is safe; naming a new one is not, so anything unrecognised falls
+ * back to prompting (issue #77).
+ */
+const userChosenPaths = new Set<string>();
 const DESIGN_FILE_FILTERS = [{ name: "PTSBuilder Design", extensions: [DESIGN_EXTENSION, "json"] }];
 
 function timestampedFilename(ext: string, date = new Date()): string {
@@ -222,6 +235,11 @@ void app.whenReady().then(() => {
       // Save As and the file on disk multiplied (issue #7).
       let filePath = request.filePath ?? null;
 
+      if (filePath && !userChosenPaths.has(filePath)) {
+        console.warn("[security] ignoring a save path the user never chose:", filePath);
+        filePath = null;
+      }
+
       if (!filePath) {
         const result = await dialog.showSaveDialog({
           title: "Save PTSBuilder Design",
@@ -232,6 +250,7 @@ void app.whenReady().then(() => {
           return { canceled: true, filePath: null };
         }
         filePath = result.filePath;
+        userChosenPaths.add(filePath);
       }
 
       try {
@@ -255,6 +274,8 @@ void app.whenReady().then(() => {
     }
 
     const filePath = result.filePaths[0];
+    // Opening a file authorises saving back to it.
+    userChosenPaths.add(filePath);
     try {
       const contents = await readFile(filePath, "utf-8");
       return { canceled: false, filePath, contents };
