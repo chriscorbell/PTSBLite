@@ -16,8 +16,7 @@ export type BendOrientation = {
 };
 
 export type PlaceBendResult =
-  | { ok: true; design: DesignState; part: BendPart }
-  | { ok: false; message: string };
+  { ok: true; design: DesignState; part: BendPart } | { ok: false; message: string };
 
 type SourceSelection = { sourcePartId?: string };
 
@@ -31,14 +30,12 @@ function bendEntry(registry: PartRegistry): BendFootprint[] {
   return registry.get("bend90").bendFootprints ?? [];
 }
 
-function selectPort(
-  topology: Topology,
-  cell: Vec3,
-  selection: SourceSelection = {}
-): Port | null {
+function selectPort(topology: Topology, cell: Vec3, selection: SourceSelection = {}): Port | null {
   let candidates = topology.openPortsNear(cell);
   if (selection.sourcePartId) {
-    const matchingLandingPorts = candidates.filter((port) => port.partId === selection.sourcePartId);
+    const matchingLandingPorts = candidates.filter(
+      (port) => port.partId === selection.sourcePartId
+    );
     candidates =
       matchingLandingPorts.length > 0
         ? matchingLandingPorts
@@ -65,7 +62,9 @@ function toAbsoluteOrientation(port: Port, footprint: BendFootprint): BendOrient
 }
 
 function orientationFits(design: DesignState, orientation: BendOrientation): boolean {
-  return orientation.cells.every((cell) => design.grid.withinBounds(cell) && !design.grid.query(cell));
+  return orientation.cells.every(
+    (cell) => design.grid.withinBounds(cell) && !design.grid.query(cell)
+  );
 }
 
 export function validBendOrientations(
@@ -137,7 +136,12 @@ export function bendFootprint(part: BendPart, registry: PartRegistry = partRegis
 
 export function placeBend(
   design: DesignState,
-  { id, cell, sourcePartId, rotationIndex = 0 }: { id: string; cell: Vec3; sourcePartId?: string; rotationIndex?: number }
+  {
+    id,
+    cell,
+    sourcePartId,
+    rotationIndex = 0
+  }: { id: string; cell: Vec3; sourcePartId?: string; rotationIndex?: number }
 ): PlaceBendResult {
   const port = selectPort(computeTopology(design), cell, { sourcePartId });
   if (!port) return { ok: false, message: BEND_PLACEMENT_MESSAGE };

@@ -6,8 +6,7 @@ export const OBSTACLE_PLACEMENT_MESSAGES = {
 } as const;
 
 export type PlaceObstacleVolumeResult =
-  | { ok: true; design: DesignState }
-  | { ok: false; message: string; design: DesignState };
+  { ok: true; design: DesignState } | { ok: false; message: string; design: DesignState };
 
 export type ObstaclePlacementDraft = {
   cornerA: Vec3;
@@ -17,8 +16,7 @@ export type ObstaclePlacementDraft = {
 };
 
 export type StartObstaclePlacementResult =
-  | { ok: true; draft: ObstaclePlacementDraft }
-  | { ok: false; message: string };
+  { ok: true; draft: ObstaclePlacementDraft } | { ok: false; message: string };
 
 export function startObstaclePlacement(
   design: DesignState,

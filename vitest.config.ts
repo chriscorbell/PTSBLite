@@ -25,9 +25,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_DESCRIPTION__: JSON.stringify(pkg.description),
-    __GITHUB_URL__: JSON.stringify(
-      pkg.repository.url.replace(/^git\+/, "").replace(/\.git$/, "")
-    )
+    __GITHUB_URL__: JSON.stringify(pkg.repository.url.replace(/^git\+/, "").replace(/\.git$/, ""))
   },
   test: {
     globals: false,

@@ -5,8 +5,7 @@ import { cellAt, cellCenter, dirOf, tubeCells, vAdd, vEq } from "@/domain/vec3";
 export const ERASE_EMPTY_MESSAGE = "Nothing to erase here.";
 
 export type EraseResult =
-  | { ok: true; design: DesignState }
-  | { ok: false; message: string; design: DesignState };
+  { ok: true; design: DesignState } | { ok: false; message: string; design: DesignState };
 
 export function eraseAtCell(design: DesignState, cell: Vec3): EraseResult {
   const occupant = design.grid.query(cell);

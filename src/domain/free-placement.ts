@@ -109,7 +109,9 @@ export function freePlacementFootprint(
 ): Vec3[] {
   const cells = registry.get(type).cells ?? 1;
   if (cells !== 1) {
-    throw new Error(`Free placement supports only 1-cell endpoint footprints; ${type} has ${cells}`);
+    throw new Error(
+      `Free placement supports only 1-cell endpoint footprints; ${type} has ${cells}`
+    );
   }
   return [cell];
 }

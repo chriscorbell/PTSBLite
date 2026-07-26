@@ -21,7 +21,13 @@ function projDir(x: number, y: number, z: number): [number, number] {
 
 function shade(hex: string, pct: number): string {
   const c = hex.replace("#", "");
-  const full = c.length === 3 ? c.split("").map((ch) => ch + ch).join("") : c;
+  const full =
+    c.length === 3
+      ? c
+          .split("")
+          .map((ch) => ch + ch)
+          .join("")
+      : c;
   const num = parseInt(full, 16);
   let r = (num >> 16) & 255;
   let g = (num >> 8) & 255;
@@ -40,7 +46,13 @@ function shade(hex: string, pct: number): string {
 }
 
 function polyPoints(pts: Vec3[]): string {
-  return pts.map(([x, y, z]) => iso(x, y, z).map((n) => n.toFixed(1)).join(",")).join(" ");
+  return pts
+    .map(([x, y, z]) =>
+      iso(x, y, z)
+        .map((n) => n.toFixed(1))
+        .join(",")
+    )
+    .join(" ");
 }
 
 // Affine matrix mapping a 2D (u, v) face plane to screen, given the two 3D axis
@@ -90,7 +102,12 @@ function Box({
   ];
   return (
     <>
-      <polygon points={polyPoints(zFace)} fill={shade(color, -0.22)} stroke={edge} strokeWidth={0.5} />
+      <polygon
+        points={polyPoints(zFace)}
+        fill={shade(color, -0.22)}
+        stroke={edge}
+        strokeWidth={0.5}
+      />
       <polygon points={polyPoints(xFace)} fill={color} stroke={edge} strokeWidth={0.5} />
       <polygon points={polyPoints(top)} fill={shade(color, 0.24)} stroke={edge} strokeWidth={0.5} />
     </>
@@ -231,7 +248,14 @@ function Tube({ color }: { color: string }) {
       {/* Segment seams hinting the 6ft length */}
       {[-1.5, 0, 1.5].map((x) => (
         <g key={x} transform={faceMatrix([0, 1, 0], [0, 0, 1], [x, 0, 0])}>
-          <circle cx={0} cy={0} r={1.05} fill="none" stroke={shade(color, -0.3)} strokeWidth={0.08} />
+          <circle
+            cx={0}
+            cy={0}
+            r={1.05}
+            fill="none"
+            stroke={shade(color, -0.3)}
+            strokeWidth={0.08}
+          />
         </g>
       ))}
     </g>
@@ -252,9 +276,7 @@ function Bend({ color }: { color: string }) {
   }
   pts.push([R, L, 0]);
   const screen = pts.map((p) => iso(...p));
-  const d = screen
-    .map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`)
-    .join(" ");
+  const d = screen.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
   const W = 15.5;
   const capR = W / 2 / S;
   const edge = shade(color, -0.5);

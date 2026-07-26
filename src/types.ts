@@ -47,7 +47,15 @@ export type Ghost =
   | { type: "blower"; cell: Vec3; dir: Vec3 }
   | { type: "terminal"; cell: Vec3; axis: Vec3 }
   | { type: "tube"; from: Vec3; to: Vec3; blocked?: boolean; note?: string }
-  | { type: "bend"; entry: Vec3; exit: Vec3; center: Vec3; inDir: Vec3; outDir: Vec3; radius?: number }
+  | {
+      type: "bend";
+      entry: Vec3;
+      exit: Vec3;
+      center: Vec3;
+      inDir: Vec3;
+      outDir: Vec3;
+      radius?: number;
+    }
   | { type: "obstacle"; min: Vec3; max: Vec3 };
 
 /**

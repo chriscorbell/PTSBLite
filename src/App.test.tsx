@@ -195,7 +195,11 @@ describe("opening a design", () => {
   // every other destructive action already uses). Stub it until then.
   function stubConfirm(answer: boolean) {
     const confirm = vi.fn().mockReturnValue(answer);
-    Object.defineProperty(window, "confirm", { value: confirm, configurable: true, writable: true });
+    Object.defineProperty(window, "confirm", {
+      value: confirm,
+      configurable: true,
+      writable: true
+    });
     return confirm;
   }
 

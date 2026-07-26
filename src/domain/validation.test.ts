@@ -99,9 +99,6 @@ describe("validation engine", () => {
       { id: "t1", type: "terminal", cell: [302, 0, 0], axis: [1, 0, 0] }
     ]);
 
-    expect(validate(design).map((w) => w.id)).toEqual([
-      "path-length",
-      "terminal-count"
-    ]);
+    expect(validate(design).map((w) => w.id)).toEqual(["path-length", "terminal-count"]);
   });
 });

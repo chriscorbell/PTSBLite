@@ -24,9 +24,12 @@ export const BUILD_AREA_LIMITS = {
 
 /** Half-open cell ranges [min, max) per axis. */
 export type GridBounds = {
-  xMin: number; xMax: number;
-  yMin: number; yMax: number;
-  zMin: number; zMax: number;
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  zMin: number;
+  zMax: number;
 };
 
 function clampInt(value: number, min: number, max: number, fallback: number): number {
@@ -52,9 +55,12 @@ export function boundsFromBuildArea(area: BuildArea): GridBounds {
   const halfX = Math.floor(area.width / 2);
   const halfZ = Math.floor(area.depth / 2);
   return {
-    xMin: -halfX, xMax: area.width - halfX,
-    yMin: GROUND_PLANE_Y, yMax: GROUND_PLANE_Y + area.height,
-    zMin: -halfZ, zMax: area.depth - halfZ
+    xMin: -halfX,
+    xMax: area.width - halfX,
+    yMin: GROUND_PLANE_Y,
+    yMax: GROUND_PLANE_Y + area.height,
+    zMin: -halfZ,
+    zMax: area.depth - halfZ
   };
 }
 
@@ -77,9 +83,12 @@ export class SparseGrid {
   withinBounds(cell: Vec3): boolean {
     const b = this.bounds;
     return (
-      cell[0] >= b.xMin && cell[0] < b.xMax &&
-      cell[1] >= b.yMin && cell[1] < b.yMax &&
-      cell[2] >= b.zMin && cell[2] < b.zMax
+      cell[0] >= b.xMin &&
+      cell[0] < b.xMax &&
+      cell[1] >= b.yMin &&
+      cell[1] < b.yMax &&
+      cell[2] >= b.zMin &&
+      cell[2] < b.zMax
     );
   }
 

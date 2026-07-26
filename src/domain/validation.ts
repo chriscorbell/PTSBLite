@@ -30,7 +30,8 @@ export const checkTerminalCount: ValidationRule = (design) => {
       id: "terminal-count",
       level: "error",
       title: `${terminals.length} terminals placed`,
-      detail: "Systems require exactly 2 terminals: Terminal 1 inline with the blower and Terminal 2 at the far end."
+      detail:
+        "Systems require exactly 2 terminals: Terminal 1 inline with the blower and Terminal 2 at the far end."
     }
   ];
 };
@@ -44,7 +45,8 @@ export const checkBlowerTerminalAdjacency: ValidationRule = (design) => {
       id: "blower-terminal-adjacency",
       level: "error",
       title: "Blower not adjacent to Terminal 1",
-      detail: "Place Terminal 1 directly adjacent to the blower outlet with zero tubing between them."
+      detail:
+        "Place Terminal 1 directly adjacent to the blower outlet with zero tubing between them."
     }
   ];
 };
@@ -68,7 +70,8 @@ export const checkConnectivity: ValidationRule = (design) => {
       id: "connectivity",
       level: "warn",
       title: "System not fully connected",
-      detail: "There is a gap between endpoints. Connect the open port pairs or use Auto-build to complete the route."
+      detail:
+        "There is a gap between endpoints. Connect the open port pairs or use Auto-build to complete the route."
     }
   ];
 };
@@ -86,7 +89,8 @@ export const checkObstacleIntersections: ValidationRule = (design, registry = pa
       id: "obstacle-intersection",
       level: "error",
       title: "Path passes through an obstacle",
-      detail: "Move the obstacle or reroute the path so tubing and bends do not pass through obstacle cells."
+      detail:
+        "Move the obstacle or reroute the path so tubing and bends do not pass through obstacle cells."
     }
   ];
 };
@@ -99,10 +103,7 @@ export const validationRules: ValidationRule[] = [
   checkObstacleIntersections
 ];
 
-export function validate(
-  design: DesignState,
-  registry: PartRegistry = partRegistry
-): Warning[] {
+export function validate(design: DesignState, registry: PartRegistry = partRegistry): Warning[] {
   return validationRules.flatMap((rule) => rule(design, registry));
 }
 
@@ -145,4 +146,3 @@ function obstacleContainsCell(obstacle: Obstacle, cell: Vec3): boolean {
     cell[2] <= max[2]
   );
 }
-

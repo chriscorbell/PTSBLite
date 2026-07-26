@@ -30,9 +30,7 @@ describe("active build plane elevation", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.design.obstacles).toEqual([
-      { id: "o1", min: [4, 0, 4], max: [4, 3, 4] }
-    ]);
+    expect(result.design.obstacles).toEqual([{ id: "o1", min: [4, 0, 4], max: [4, 3, 4] }]);
     for (let y = 0; y <= 3; y++) {
       expect(result.design.grid.query([4, y, 4])).toBe("o1");
     }

@@ -48,7 +48,9 @@ describe("PartRegistry", () => {
     // horizontal exits are enumerated for vertical entries
     expect(pairs.has("0,1,0 -> 1,0,0")).toBe(true);
     expect(pairs.has("0,-1,0 -> 0,0,-1")).toBe(true);
-    expect(bend.bendFootprints?.every((f) => f.cells.some((cell) => cell.join(",") === "0,0,0"))).toBe(true);
+    expect(
+      bend.bendFootprints?.every((f) => f.cells.some((cell) => cell.join(",") === "0,0,0"))
+    ).toBe(true);
     expect(bend.bendFootprints?.every((f) => f.cells.length > 1)).toBe(true);
   });
 

@@ -26,9 +26,7 @@ const iconBtn: CSSProperties = {
 };
 
 type UpdateState =
-  | { kind: "idle" }
-  | { kind: "checking" }
-  | { kind: "result"; result: CheckForUpdatesResult };
+  { kind: "idle" } | { kind: "checking" } | { kind: "result"; result: CheckForUpdatesResult };
 
 function updateMessageFor(result: CheckForUpdatesResult): string {
   switch (result.status) {
@@ -116,7 +114,9 @@ export function AboutModal({ onClose }: AboutModalProps) {
         <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.2 }}>PTSBuilder</div>
-            <div style={{ fontSize: 13, color: "var(--text-mut)", marginTop: 4 }}>{DESCRIPTION}</div>
+            <div style={{ fontSize: 13, color: "var(--text-mut)", marginTop: 4 }}>
+              {DESCRIPTION}
+            </div>
           </div>
 
           <div

@@ -93,8 +93,12 @@ export function StatusBar({
                   <Icons.Warn size={11} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500 }}>{w.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-mut)", marginTop: 2 }}>{w.detail}</div>
+                  <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 500 }}>
+                    {w.title}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-mut)", marginTop: 2 }}>
+                    {w.detail}
+                  </div>
                 </div>
                 <button
                   style={{
@@ -170,11 +174,17 @@ export function StatusBar({
               </span>
             </>
           )}
-          {warnings.length > 0 && (expanded ? <Icons.ChevD size={11} /> : <Icons.ChevU size={11} />)}
+          {warnings.length > 0 &&
+            (expanded ? <Icons.ChevD size={11} /> : <Icons.ChevU size={11} />)}
         </button>
 
         <Sep />
-        <Meta label="LENGTH" value={`${len.toFixed(1)}ft`} hint={`/ 300`} pct={Math.min(1, len / 300)} />
+        <Meta
+          label="LENGTH"
+          value={`${len.toFixed(1)}ft`}
+          hint={`/ 300`}
+          pct={Math.min(1, len / 300)}
+        />
         <Sep />
         <Meta label="PARTS" value={`${design.parts.length}`} />
 
@@ -272,7 +282,8 @@ function AutoBuildControl({
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const activeLabel = OPTIMIZATION_OPTIONS.find((opt) => opt.value === mode)?.label ?? "Shortest path";
+  const activeLabel =
+    OPTIMIZATION_OPTIONS.find((opt) => opt.value === mode)?.label ?? "Shortest path";
   // The menu is closed while a build runs. Deriving that beats an effect that
   // calls setOpen, which cost an extra render pass to reach the same state.
   const expanded = open && !autoBuilding;
@@ -347,7 +358,9 @@ function AutoBuildControl({
                   padding: "0 8px",
                   borderRadius: 4,
                   border: `1px solid ${active ? "color-mix(in oklab, var(--accent) 35%, transparent)" : "transparent"}`,
-                  background: active ? "color-mix(in oklab, var(--accent) 14%, var(--panel-2))" : "transparent",
+                  background: active
+                    ? "color-mix(in oklab, var(--accent) 14%, var(--panel-2))"
+                    : "transparent",
                   color: active ? "var(--accent)" : "var(--text-mut)",
                   fontFamily: "var(--font-sans)",
                   fontSize: 11,
@@ -377,7 +390,9 @@ function AutoBuildControl({
           height: 24,
           padding: "0 10px 0 12px",
           borderRadius: "5px 0 0 5px",
-          background: autoBuilding ? "var(--panel-2)" : "color-mix(in oklab, var(--accent) 18%, transparent)",
+          background: autoBuilding
+            ? "var(--panel-2)"
+            : "color-mix(in oklab, var(--accent) 18%, transparent)",
           color: "var(--accent)",
           border: "1px solid color-mix(in oklab, var(--accent) 35%, transparent)",
           borderRight: "none",
@@ -404,10 +419,14 @@ function AutoBuildControl({
           height: 24,
           padding: "0 8px",
           borderRadius: "0 5px 5px 0",
-          background: expanded ? "color-mix(in oklab, var(--accent) 22%, var(--panel-2))" : "var(--panel-2)",
+          background: expanded
+            ? "color-mix(in oklab, var(--accent) 22%, var(--panel-2))"
+            : "var(--panel-2)",
           color: expanded ? "var(--accent)" : "var(--text-mut)",
           border: `1px solid ${
-            expanded ? "color-mix(in oklab, var(--accent) 45%, transparent)" : "color-mix(in oklab, var(--accent) 35%, transparent)"
+            expanded
+              ? "color-mix(in oklab, var(--accent) 45%, transparent)"
+              : "color-mix(in oklab, var(--accent) 35%, transparent)"
           }`,
           borderLeft: "1px solid color-mix(in oklab, var(--accent) 25%, transparent)",
           fontFamily: "var(--font-sans)",
@@ -428,9 +447,27 @@ function Sep() {
   return <div style={{ width: 1, height: 14, background: "var(--line)" }} />;
 }
 
-function Meta({ label, value, hint, pct }: { label: string; value: string; hint?: string; pct?: number }) {
+function Meta({
+  label,
+  value,
+  hint,
+  pct
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  pct?: number;
+}) {
   return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 5, whiteSpace: "nowrap", flexShrink: 0 }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 5,
+        whiteSpace: "nowrap",
+        flexShrink: 0
+      }}
+    >
       <span
         style={{
           fontFamily: "var(--font-sans)",
@@ -442,9 +479,13 @@ function Meta({ label, value, hint, pct }: { label: string; value: string; hint?
       >
         {label}
       </span>
-      <span style={{ fontFamily: "var(--font-sans)", fontSize: 10, color: "var(--text)" }}>{value}</span>
+      <span style={{ fontFamily: "var(--font-sans)", fontSize: 10, color: "var(--text)" }}>
+        {value}
+      </span>
       {hint && (
-        <span style={{ fontFamily: "var(--font-sans)", fontSize: 10, color: "var(--text-dim)" }}>{hint}</span>
+        <span style={{ fontFamily: "var(--font-sans)", fontSize: 10, color: "var(--text-dim)" }}>
+          {hint}
+        </span>
       )}
       {pct !== undefined && (
         <div

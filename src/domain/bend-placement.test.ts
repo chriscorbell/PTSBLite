@@ -29,7 +29,9 @@ function uniqueNonEntryCell(
   others: Array<{ cells: Vec3[] }>
 ): Vec3 {
   const otherCells = new Set(others.flatMap((other) => other.cells.map(cellKey)));
-  const cell = orientation.cells.find((candidate) => cellKey(candidate) !== "1,0,0" && !otherCells.has(cellKey(candidate)));
+  const cell = orientation.cells.find(
+    (candidate) => cellKey(candidate) !== "1,0,0" && !otherCells.has(cellKey(candidate))
+  );
   if (!cell) throw new Error("expected bend orientation to include a unique non-entry cell");
   return cell;
 }
@@ -74,8 +76,7 @@ describe("90 degree bend snap placement", () => {
       const blocker = uniqueNonEntryCell(
         orientation,
         all.filter(
-          (candidate) =>
-            candidate !== orientation && candidate.outDir.join(",") === "0,0,-1"
+          (candidate) => candidate !== orientation && candidate.outDir.join(",") === "0,0,-1"
         )
       );
       if (!design.grid.query(blocker)) {

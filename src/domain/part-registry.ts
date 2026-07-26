@@ -53,9 +53,7 @@ export class PartRegistry {
   }
 }
 
-export function loadPartRegistry(
-  entries: Record<string, PartCatalogEntry>
-): PartRegistry {
+export function loadPartRegistry(entries: Record<string, PartCatalogEntry>): PartRegistry {
   const normalized: Record<string, PartCatalogEntry> = {};
   for (const [key, entry] of Object.entries(entries)) {
     if (!entry.type) throw new Error(`PartRegistry: entry "${key}" missing type`);
@@ -185,6 +183,4 @@ function computeBendFootprints(entry: PartCatalogEntry): BendFootprint[] {
   return footprints;
 }
 
-export const partRegistry: PartRegistry = loadPartRegistry(
-  partsJson
-);
+export const partRegistry: PartRegistry = loadPartRegistry(partsJson);
