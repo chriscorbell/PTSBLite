@@ -1,6 +1,7 @@
 # PTSBuilder pre-requirements hardening plan
 
-- **Status:** In progress — PRs 1–3 of the sequence below are merged or open.
+- **Status:** Complete. Every package in the sequence below is merged; see the PR table for
+  what each became. Deferred items (§8) remain deferred and their issues remain open.
 - **Written:** 2026-07-25
 - **Baseline:** `main` at `2afea1c` (`v0.1.3`)
 - **Supersedes:** `docs/plans/o5/README.md` (Claude Opus 5) and `docs/plans/g5-6/README.md`
@@ -95,8 +96,8 @@ Phases 1–7.
    unsigned executables.
 3. **Repository settings.** `main` is currently unprotected, and GitHub vulnerability alerts and
    automated security fixes are disabled. See §§7.3–7.4.
-4. **Requirements ledger.** Create `docs/requirements/open-questions.md` and seed it with the
-   questions this codebase already knows it has (§9).
+4. ~~**Requirements ledger.**~~ **Done** — `docs/requirements/open-questions.md`, seeded with the
+   six questions from §9.
 
 **Done when:** every commercially sensitive decision is explicit, and no engineer has to infer a
 business rule from prototype behaviour.

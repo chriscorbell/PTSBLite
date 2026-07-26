@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { autoUpdater } from "electron-updater";
 import { windowChromeForPlatform } from "./window-chrome";
+import { IPC, type IpcResults, type SaveDesignRequest } from "../shared/ipc";
 
 // App icons live under <project>/build/ (icon.ico / icon.icns / icon.png).
 // getAppPath() resolves to the project root in dev and the app dir when packaged.
@@ -20,6 +21,28 @@ app.setName("PTSBuilder");
 // Global app settings (pricing, tax, quote defaults) persist machine-wide, not in
 // any single design file. They live alongside Electron's other per-user app data.
 const settingsFilePath = () => join(app.getPath("userData"), "settings.json");
+
+/**
+ * `.ptsb` is the canonical extension — the domain and the UI have always used
+ * it, while these dialogs filtered on `.json`, so the app suggested a name it
+ * did not otherwise recognise. `.json` is still accepted on open, because
+ * prototype builds wrote it.
+ */
+const DESIGN_EXTENSION = "ptsb";
+
+/**
+ * Paths this process has itself offered the user, through its own save or open
+ * dialog.
+ *
+ * Save writes without prompting once a document has a home, which means the
+ * renderer names the destination. Main holds full Node privilege precisely so
+ * the renderer does not, and obeying an arbitrary path hands part of that back:
+ * a compromised renderer could write anywhere the user can. Replaying a path
+ * main chose is safe; naming a new one is not, so anything unrecognised falls
+ * back to prompting (issue #77).
+ */
+const userChosenPaths = new Set<string>();
+const DESIGN_FILE_FILTERS = [{ name: "PTSBuilder Design", extensions: [DESIGN_EXTENSION, "json"] }];
 
 function timestampedFilename(ext: string, date = new Date()): string {
   const p = (n: number) => String(n).padStart(2, "0");
@@ -60,7 +83,7 @@ function initAutoUpdate(): void {
   autoUpdater.on("update-downloaded", (info) => {
     pendingUpdate = { version: info.version };
     for (const win of BrowserWindow.getAllWindows()) {
-      win.webContents.send("update:downloaded", pendingUpdate);
+      win.webContents.send(IPC.updateDownloaded, pendingUpdate);
     }
   });
 
@@ -129,6 +152,13 @@ async function openExternalWebUrl(url: string): Promise<{ ok: boolean; error?: s
   }
 }
 
+/**
+ * Set once the renderer has confirmed the window may close. Module scope
+ * because there is only ever one window, and `app.quit()` closes it the same
+ * way the title-bar button does.
+ */
+let allowClose = false;
+
 function createWindow(): void {
   const {
     titleBarInset: _titleBarInset,
@@ -177,6 +207,16 @@ function createWindow(): void {
   // Keep the OS window title fixed; ignore the renderer document's <title>.
   mainWindow.on("page-title-updated", (event) => event.preventDefault());
 
+  // Closing is vetoed once and handed to the renderer, which knows whether
+  // there is unsaved work and owns the confirmation UI. `allowClose` is the one
+  // path back out: without it the renderer's own close would be vetoed again
+  // and the window could never shut (issue #6).
+  mainWindow.on("close", (event) => {
+    if (allowClose) return;
+    event.preventDefault();
+    mainWindow.webContents.send(IPC.windowCloseRequested);
+  });
+
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
     void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
     mainWindow.webContents.openDevTools({ mode: "detach" });
@@ -187,30 +227,46 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(() => {
-  ipcMain.handle("design:save", async (_event, jsonData: string) => {
-    const result = await dialog.showSaveDialog({
-      title: "Save PTSBuilder Design",
-      defaultPath: timestampedFilename("json"),
-      filters: [{ name: "PTSBuilder Design", extensions: ["json"] }]
-    });
+  ipcMain.handle(
+    IPC.designSave,
+    async (_event, request: SaveDesignRequest): Promise<IpcResults[typeof IPC.designSave]> => {
+      // A known path writes straight through. Only a first save or Save As
+      // prompts — the previous handler always prompted, so every save was a
+      // Save As and the file on disk multiplied (issue #7).
+      let filePath = request.filePath ?? null;
 
-    if (result.canceled || !result.filePath) {
-      return { canceled: true, filePath: null };
+      if (filePath && !userChosenPaths.has(filePath)) {
+        console.warn("[security] ignoring a save path the user never chose:", filePath);
+        filePath = null;
+      }
+
+      if (!filePath) {
+        const result = await dialog.showSaveDialog({
+          title: "Save PTSBuilder Design",
+          defaultPath: timestampedFilename(DESIGN_EXTENSION),
+          filters: DESIGN_FILE_FILTERS
+        });
+        if (result.canceled || !result.filePath) {
+          return { canceled: true, filePath: null };
+        }
+        filePath = result.filePath;
+        userChosenPaths.add(filePath);
+      }
+
+      try {
+        await writeFile(filePath, request.json, "utf-8");
+        return { canceled: false, filePath };
+      } catch (err) {
+        return { canceled: false, filePath: null, error: String(err) };
+      }
     }
+  );
 
-    try {
-      await writeFile(result.filePath, jsonData, "utf-8");
-      return { canceled: false, filePath: result.filePath };
-    } catch (err) {
-      return { canceled: false, filePath: null, error: String(err) };
-    }
-  });
-
-  ipcMain.handle("design:open", async () => {
+  ipcMain.handle(IPC.designOpen, async (): Promise<IpcResults[typeof IPC.designOpen]> => {
     const result = await dialog.showOpenDialog({
       title: "Open PTSBuilder Design",
       properties: ["openFile"],
-      filters: [{ name: "PTSBuilder Design", extensions: ["json"] }]
+      filters: DESIGN_FILE_FILTERS
     });
 
     if (result.canceled || result.filePaths.length === 0) {
@@ -218,6 +274,8 @@ void app.whenReady().then(() => {
     }
 
     const filePath = result.filePaths[0];
+    // Opening a file authorises saving back to it.
+    userChosenPaths.add(filePath);
     try {
       const contents = await readFile(filePath, "utf-8");
       return { canceled: false, filePath, contents };
@@ -226,7 +284,7 @@ void app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle("settings:get", async () => {
+  ipcMain.handle(IPC.settingsGet, async (): Promise<IpcResults[typeof IPC.settingsGet]> => {
     try {
       const contents = await readFile(settingsFilePath(), "utf-8");
       return { data: JSON.parse(contents) as unknown };
@@ -239,33 +297,42 @@ void app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle("settings:set", async (_event, jsonData: string) => {
-    try {
-      await writeFile(settingsFilePath(), jsonData, "utf-8");
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: String(err) };
+  ipcMain.handle(
+    IPC.settingsSet,
+    async (_event, jsonData: string): Promise<IpcResults[typeof IPC.settingsSet]> => {
+      try {
+        await writeFile(settingsFilePath(), jsonData, "utf-8");
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: String(err) };
+      }
     }
-  });
+  );
 
   // Open a URL in the user's default browser. Only http(s) links are honored so
   // a compromised renderer can't ask the OS to launch arbitrary schemes.
-  ipcMain.handle("shell:open-external", (_event, url: string) => openExternalWebUrl(url));
+  ipcMain.handle(IPC.shellOpenExternal, (_event, url: string) => openExternalWebUrl(url));
+
+  // The renderer has decided the window may close: stop vetoing and do it.
+  ipcMain.handle(IPC.windowConfirmClose, (event) => {
+    allowClose = true;
+    BrowserWindow.fromWebContents(event.sender)?.close();
+  });
 
   // Renderer asks on mount whether an update already finished downloading
   // before its `update:downloaded` listener was attached.
-  ipcMain.handle("update:get-pending", () => pendingUpdate);
+  ipcMain.handle(IPC.updateGetPending, () => pendingUpdate);
 
   // Renderer's "Restart now" button: install the downloaded update and relaunch.
   // Args are (isSilent, isForceRunAfter): silent because our NSIS installer is
   // one-click/per-user (no prompts), and force-run so the app reopens after the
   // unattended install.
-  ipcMain.handle("update:quit-and-install", () => {
+  ipcMain.handle(IPC.updateQuitAndInstall, () => {
     autoUpdater.quitAndInstall(true, true);
   });
 
   // Manual "Check for Updates" trigger from the About modal.
-  ipcMain.handle("update:check", async () => {
+  ipcMain.handle(IPC.updateCheck, async (): Promise<IpcResults[typeof IPC.updateCheck]> => {
     // Platforms without self-update (macOS, non-AppImage Linux): ask GitHub
     // directly and, if a newer release exists, point the user at the download
     // page so they can update by hand.
@@ -296,25 +363,28 @@ void app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle("quote:export", async (_event, pdfBase64: string) => {
-    const result = await dialog.showSaveDialog({
-      title: "Export PDF Quote",
-      defaultPath: timestampedFilename("pdf"),
-      filters: [{ name: "PDF Quote", extensions: ["pdf"] }]
-    });
+  ipcMain.handle(
+    IPC.quoteExport,
+    async (_event, pdfBase64: string): Promise<IpcResults[typeof IPC.quoteExport]> => {
+      const result = await dialog.showSaveDialog({
+        title: "Export PDF Quote",
+        defaultPath: timestampedFilename("pdf"),
+        filters: [{ name: "PDF Quote", extensions: ["pdf"] }]
+      });
 
-    if (result.canceled || !result.filePath) {
-      return { canceled: true, filePath: null };
-    }
+      if (result.canceled || !result.filePath) {
+        return { canceled: true, filePath: null };
+      }
 
-    try {
-      const buffer = Buffer.from(pdfBase64, "base64");
-      await writeFile(result.filePath, buffer);
-      return { canceled: false, filePath: result.filePath };
-    } catch (err) {
-      return { canceled: false, filePath: null, error: String(err) };
+      try {
+        const buffer = Buffer.from(pdfBase64, "base64");
+        await writeFile(result.filePath, buffer);
+        return { canceled: false, filePath: result.filePath };
+      } catch (err) {
+        return { canceled: false, filePath: null, error: String(err) };
+      }
     }
-  });
+  );
 
   // macOS ignores BrowserWindow.icon; set the dock icon explicitly (mainly so the
   // unpackaged dev run shows our icon instead of the default Electron one).

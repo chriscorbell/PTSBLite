@@ -8,6 +8,7 @@ import {
   type CSSProperties
 } from "react";
 import { AboutModal } from "@/components/AboutModal";
+import { ActiveToolBar } from "@/components/ActiveToolBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ExportPdfModal } from "@/components/ExportPdfModal";
 import { LeftRail } from "@/components/LeftRail";
@@ -20,12 +21,19 @@ import { ViewportHUD } from "@/components/ViewportHUD";
 import { DEFAULT_SETTINGS, mergeSettings, type AppSettings } from "@/domain/app-settings";
 import { bendLandingCells, bendPlacementGhost, placeBend } from "@/domain/bend-placement";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
-import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
+import { canRedo, canUndo } from "@/domain/design-history";
+import {
+  displayFilename,
+  documentSessionReducer,
+  initDocumentSession,
+  isDirty
+} from "@/domain/document-session";
 import {
   DEFAULT_FILENAME,
   DEFAULT_REVISION,
   designFromScene,
   emptyDesign,
+  obstaclesWithinBuildArea,
   partsWithinBuildArea
 } from "@/domain/design-state";
 import { eraseAtCell } from "@/domain/erase-placement";
@@ -52,12 +60,12 @@ import {
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
 import { totalPathLength } from "@/domain/parts";
-import { partRegistry } from "@/domain/part-registry";
 import {
   autoBuildOpenPortPair,
   type OptimizationMode,
   type UnroutedPair
 } from "@/domain/pathfinder";
+import { clampElevation } from "@/domain/sparse-grid";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
 import {
@@ -67,7 +75,7 @@ import {
 } from "@/domain/terminal-placement";
 import { placeTube, tubeLandingCells, tubePlacementGhost } from "@/domain/tube-placement";
 import { validate } from "@/domain/validation";
-import { Viewport } from "@/renderer/Viewport";
+import { Viewport, type ViewportHandle } from "@/renderer/Viewport";
 import type { AutoBuildSummary, DesignState, Ghost, Hint, Scene, ToolId, Vec3 } from "@/types";
 
 const OPTIMIZATION_MODE_LABELS: Record<OptimizationMode, string> = {
@@ -87,36 +95,6 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
   o: "obstacle",
   x: "erase"
 };
-
-/** "<name> · <part number>", read from the catalog rather than restated here. */
-function catalogLabel(registryKey: string): string {
-  const { name, partNo } = partRegistry.get(registryKey);
-  return `${name} · ${partNo}`;
-}
-
-// Part names and numbers come from the catalog: ADR-0001 requires user-facing
-// copy to interpolate reference data, not duplicate it. Obstacles are not parts
-// (see CONTEXT.md) and the two non-placing tools have no catalog entry, so those
-// three keep literal labels.
-const TOOL_LABELS: Record<ToolId, string> = {
-  cursor: "Select",
-  blower: catalogLabel("blower"),
-  terminal: catalogLabel("terminal"),
-  tube: catalogLabel("tube6"),
-  bend: catalogLabel("bend90"),
-  obstacle: "Obstacle volume",
-  erase: "Erase"
-};
-
-const kbdStyle = {
-  fontFamily: "var(--font-mono)",
-  fontSize: 10.5,
-  padding: "1px 6px",
-  borderRadius: 3,
-  border: "1px solid var(--line-2)",
-  background: "var(--panel-2)",
-  color: "var(--text)"
-} as const;
 
 const DESIGN_METADATA = { filename: DEFAULT_FILENAME, revision: DEFAULT_REVISION };
 
@@ -149,6 +127,15 @@ function unroutedMessage(unrouted: UnroutedPair[]): string | null {
   return `${count} had no route and were skipped.`;
 }
 
+/** "2 parts and 1 obstacle", for the shrink confirmation. */
+function describeLoss(parts: number, obstacles: number): string {
+  const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+  if (parts > 0 && obstacles > 0) {
+    return `${plural(parts, "part")} and ${plural(obstacles, "obstacle")}`;
+  }
+  return parts > 0 ? plural(parts, "part") : plural(obstacles, "obstacle");
+}
+
 function ghostOrientation(ghost: Ghost): Vec3 | null {
   if (ghost.type === "blower") return ghost.dir;
   if (ghost.type === "terminal") return ghost.axis;
@@ -179,12 +166,19 @@ export default function App() {
   // The design and its undo/redo stacks move together, so they are one reducer.
   // `dispatchHistory` is stable, which is what lets the history callbacks below
   // stay stable without mirroring the current design into a ref.
-  const [history, dispatchHistory] = useReducer(designHistoryReducer, DESIGN_METADATA, (metadata) =>
-    initDesignHistory(emptyDesign(metadata))
+  const [session, dispatchDocument] = useReducer(
+    documentSessionReducer,
+    DESIGN_METADATA,
+    (metadata) => initDocumentSession(emptyDesign(metadata))
   );
+  const history = session.history;
   const design = history.present;
+  const dirty = isDirty(session);
+  const buildArea = design.metadata.buildArea;
   const undoAvailable = canUndo(history);
   const redoAvailable = canRedo(history);
+
+  const viewportRef = useRef<ViewportHandle>(null);
 
   const [tool, setToolRaw] = useState<ToolId>("cursor");
   const [hoverCell, setHoverCell] = useState<Vec3 | null>(null);
@@ -216,7 +210,6 @@ export default function App() {
     useState<OptimizationMode>(DEFAULT_AUTO_BUILD_MODE);
   const [activeElevation, setActiveElevation] = useState(0);
   const [showLabels, setShowLabels] = useState(false);
-  const [dirty, setDirty] = useState(false);
   const [errorFlash, setErrorFlashRaw] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -244,24 +237,48 @@ export default function App() {
     setObstacleDraft(null);
     setAutoBuildJustRan(false);
     setAutoBuildSummary(null);
-    setDirty(true);
   }, []);
 
   /** Apply a design change as a single undoable step. A new edit clears redo. */
   const commitDesign = useCallback((next: DesignState) => {
-    dispatchHistory({ type: "commit", design: next });
-    setDirty(true);
+    dispatchDocument({ type: "commit", design: next });
   }, []);
+
+  /**
+   * Apply a placement result, or flash why it failed.
+   *
+   * Every tool branch below ended with the same six lines. The branches
+   * themselves stay explicit: the tools take genuinely different arguments —
+   * a source part, a rotation index, an orientation memory — and a table
+   * mapping tool to handler would have hidden that behind optional fields and
+   * casts. Only the identical tail is shared.
+   *
+   * Returns the successful result so a branch can do its own extra work.
+   */
+  const applyPlacement = useCallback(
+    <T extends { ok: true; design: DesignState } | { ok: false; message: string }>(
+      result: T
+    ): (T & { ok: true }) | null => {
+      if (!result.ok) {
+        setErrorFlash(result.message);
+        return null;
+      }
+      commitDesign(result.design);
+      setAutoBuildJustRan(false);
+      return result as T & { ok: true };
+    },
+    [commitDesign, setErrorFlash]
+  );
 
   const undo = useCallback(() => {
     if (!undoAvailable) return;
-    dispatchHistory({ type: "undo" });
+    dispatchDocument({ type: "undo" });
     clearTransientAfterHistoryMove();
   }, [undoAvailable, clearTransientAfterHistoryMove]);
 
   const redo = useCallback(() => {
     if (!redoAvailable) return;
-    dispatchHistory({ type: "redo" });
+    dispatchDocument({ type: "redo" });
     clearTransientAfterHistoryMove();
   }, [redoAvailable, clearTransientAfterHistoryMove]);
 
@@ -272,13 +289,19 @@ export default function App() {
     void (async () => {
       const loaded = await window.ptsbuilder?.getSettings();
       if (!active) return;
-      const merged = mergeSettings(DEFAULT_SETTINGS, loaded?.data ?? null);
-      setSettings(merged);
+      setSettings(mergeSettings(DEFAULT_SETTINGS, loaded?.data ?? null));
+      // A missing file on first run reports no error and no data. An actual
+      // read failure looks identical from `data` alone, and silently showing
+      // defaults would invite an installer to re-enter prices that are still
+      // on disk, unreadable.
+      if (loaded?.error) {
+        setErrorFlash(`Could not read saved settings: ${loaded.error}`);
+      }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [setErrorFlash]);
 
   // Surface the on-brand "update ready" prompt. Listen for the live push and
   // also query for an update that finished downloading before this listener
@@ -298,10 +321,23 @@ export default function App() {
     };
   }, []);
 
-  const updateSettings = useCallback((next: AppSettings) => {
-    setSettings(next);
-    void window.ptsbuilder?.setSettings(JSON.stringify(next, null, 2));
-  }, []);
+  const updateSettings = useCallback(
+    (next: AppSettings) => {
+      // Applied on screen either way — the installer's typing should not vanish
+      // because the disk refused it — but a failed write has to be said out
+      // loud. Settings hold the only copy of part prices and the tax rate
+      // (ADR-0003), so silently losing them means the next launch blocks quote
+      // export again with no explanation (issue #73).
+      setSettings(next);
+      void (async () => {
+        const result = await window.ptsbuilder?.setSettings(JSON.stringify(next, null, 2));
+        if (result && !result.ok) {
+          setErrorFlash(`Settings not saved: ${result.error ?? "unknown error"}`);
+        }
+      })();
+    },
+    [setErrorFlash]
+  );
 
   const updateMetadata = useCallback(
     (metadata: DesignState["metadata"]) => {
@@ -312,14 +348,36 @@ export default function App() {
         prev.width !== next.width || prev.depth !== next.depth || prev.height !== next.height;
       if (!areaChanged) {
         // Cosmetic metadata (name/revision): swap in place, not an undoable edit.
-        dispatchHistory({ type: "replace-present", design: { ...d, metadata } });
-        setDirty(true);
+        dispatchDocument({ type: "replace-present", design: { ...d, metadata } });
         return;
       }
-      // Build area changed: drop any parts that no longer fit the new bounds and
-      // rebuild the grid. Commit as one undoable step so the deletion is reversible.
+      // Build area changed: parts that no longer fit are removed, and obstacles
+      // are clipped to the new bounds. Both are destructive, so say what will be
+      // lost first — it was previously silent, and only discoverable by noticing
+      // the design had fewer parts in it than before (issue #12).
       const keptParts = partsWithinBuildArea(d.parts, next);
-      commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
+      const droppedParts = d.parts.length - keptParts.length;
+      const droppedObstacles =
+        d.obstacles.length - obstaclesWithinBuildArea(d.obstacles, next).length;
+
+      const apply = () => {
+        commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
+        // The active plane and any half-built obstacle may now sit above the
+        // ceiling; both are re-derived from the area rather than left stale.
+        setActiveElevation((y) => clampElevation(y, next));
+        setObstacleDraft(null);
+      };
+
+      if (droppedParts === 0 && droppedObstacles === 0) {
+        apply();
+        return;
+      }
+      setConfirm({
+        title: "Shrink build area",
+        message: `${describeLoss(droppedParts, droppedObstacles)} will no longer fit and will be removed. This can be undone.`,
+        confirmLabel: "Shrink and remove",
+        onConfirm: apply
+      });
     },
     [commitDesign, design]
   );
@@ -354,15 +412,15 @@ export default function App() {
       }
       if (k === "escape") selectTool("cursor");
       if (k === "[" && !e.metaKey && !e.ctrlKey) {
-        setActiveElevation((y) => Math.max(-20, y - 1));
+        setActiveElevation((y) => clampElevation(y - 1, buildArea));
       }
       if (k === "]" && !e.metaKey && !e.ctrlKey) {
-        setActiveElevation((y) => Math.min(20, y + 1));
+        setActiveElevation((y) => clampElevation(y + 1, buildArea));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tool, undo, redo, selectTool]);
+  }, [tool, undo, redo, selectTool, buildArea]);
 
   /**
    * The ghost is derived, not stored. It was previously computed in an effect
@@ -420,34 +478,33 @@ export default function App() {
       cornerA: bounds.min,
       cornerB: bounds.max
     });
-    if (!result.ok) {
-      setErrorFlash(result.message);
-      return;
-    }
-    commitDesign(result.design);
+    if (!applyPlacement(result)) return;
     setObstacleDraft(null);
-    setAutoBuildJustRan(false);
-  }, [commitDesign, design, obstacleDraft, setErrorFlash]);
+  }, [applyPlacement, design, obstacleDraft]);
 
-  const setObstacleBaseY = useCallback((baseY: number) => {
-    setObstacleDraft((draft) => (draft ? moveObstaclePlacementBase(draft, baseY) : draft));
-  }, []);
+  const setObstacleBaseY = useCallback(
+    (baseY: number) => {
+      setObstacleDraft((draft) =>
+        draft ? moveObstaclePlacementBase(draft, baseY, buildArea) : draft
+      );
+    },
+    [buildArea]
+  );
 
-  const setObstacleHeight = useCallback((height: number) => {
-    setObstacleDraft((draft) => (draft ? resizeObstaclePlacementHeight(draft, height) : draft));
-  }, []);
+  const setObstacleHeight = useCallback(
+    (height: number) => {
+      setObstacleDraft((draft) =>
+        draft ? resizeObstaclePlacementHeight(draft, height, buildArea) : draft
+      );
+    },
+    [buildArea]
+  );
 
   const onPlace = useCallback(
     (cell: Vec3, _e?: MouseEvent, target?: { partId?: string }) => {
       if (tool === "cursor") return;
       if (tool === "erase") {
-        const result = eraseAtCell(design, cell);
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
-        setAutoBuildJustRan(false);
+        applyPlacement(eraseAtCell(design, cell));
         return;
       }
       if (tool === "terminal") {
@@ -458,19 +515,15 @@ export default function App() {
           rotationSteps: freePlacementRotation.horizontalSteps,
           verticalRotationSteps: freePlacementRotation.verticalSteps
         });
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
-        const orientation = result.part.type === "terminal" ? result.part.axis : null;
+        const placed = applyPlacement(result);
+        if (!placed) return;
+        const orientation = placed.part.type === "terminal" ? placed.part.axis : null;
         if (orientation) {
           setFreePlacementMemory((memory) =>
             rememberFreePlacementOrientation(memory, "terminal", orientation)
           );
         }
         setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
-        setAutoBuildJustRan(false);
         return;
       }
       if (tool === "blower") {
@@ -490,16 +543,11 @@ export default function App() {
           cell,
           orientation
         });
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
+        if (!applyPlacement(result)) return;
         setFreePlacementMemory((memory) =>
           rememberFreePlacementOrientation(memory, tool, orientation)
         );
         setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
-        setAutoBuildJustRan(false);
         return;
       }
       if (tool === "tube") {
@@ -508,12 +556,7 @@ export default function App() {
           cell,
           sourcePartId: target?.partId
         });
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
-        setAutoBuildJustRan(false);
+        applyPlacement(result);
         return;
       }
       if (tool === "bend") {
@@ -523,12 +566,7 @@ export default function App() {
           sourcePartId: target?.partId,
           rotationIndex: ghostRotation
         });
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
-        setAutoBuildJustRan(false);
+        applyPlacement(result);
         return;
       }
       if (tool === "obstacle") {
@@ -549,7 +587,7 @@ export default function App() {
       }
     },
     [
-      commitDesign,
+      applyPlacement,
       tool,
       setErrorFlash,
       design,
@@ -560,38 +598,57 @@ export default function App() {
     ]
   );
 
-  const handleSave = useCallback(async () => {
-    const api = window.ptsbuilder;
-    if (!api) {
-      setErrorFlash("Save is unavailable: file bridge not connected.");
-      return;
-    }
-    try {
-      const json = JSON.stringify(serializeDesign(design, __APP_VERSION__), null, 2);
-      const result = await api.saveDesign(json);
-      if (result.canceled) return;
-      if (result.error) {
-        setErrorFlash(`Save failed: ${result.error}`);
-        return;
+  /**
+   * Write the document. `promptForPath` forces the dialog, which is what Save
+   * As does; Save only prompts when the document has no home yet.
+   */
+  const writeDocument = useCallback(
+    async (promptForPath: boolean) => {
+      const api = window.ptsbuilder;
+      if (!api) {
+        setErrorFlash("Save is unavailable: file bridge not connected.");
+        return false;
       }
-      setDirty(false);
-      setErrorFlash(null);
-    } catch (err) {
-      setErrorFlash(`Save failed: ${String(err)}`);
-    }
-  }, [design, setErrorFlash]);
+      try {
+        const json = JSON.stringify(serializeDesign(design, __APP_VERSION__), null, 2);
+        const result = await api.saveDesign({
+          json,
+          filePath: promptForPath ? null : session.path
+        });
+        if (result.canceled) return false;
+        if (result.error || !result.filePath) {
+          setErrorFlash(`Save failed: ${result.error ?? "no path returned"}`);
+          return false;
+        }
+        dispatchDocument({ type: "saved", path: result.filePath });
+        setErrorFlash(null);
+        return true;
+      } catch (err) {
+        setErrorFlash(`Save failed: ${String(err)}`);
+        return false;
+      }
+    },
+    [design, session.path, setErrorFlash]
+  );
 
-  const handleOpen = useCallback(async () => {
+  const handleSave = useCallback(() => writeDocument(false), [writeDocument]);
+  const handleSaveAs = useCallback(() => writeDocument(true), [writeDocument]);
+
+  /** Clear the transient state that belonged to the document being replaced. */
+  const resetForNewDocument = useCallback(() => {
+    selectTool("cursor");
+    setAutoBuildJustRan(false);
+    setAutoBuildSummary(null);
+    setExportOpen(false);
+    setStatusOpen(false);
+    setErrorFlash(null);
+  }, [selectTool, setErrorFlash]);
+
+  const openDocument = useCallback(async () => {
     const api = window.ptsbuilder;
     if (!api) {
       setErrorFlash("Open is unavailable: file bridge not connected.");
       return;
-    }
-    if (dirty) {
-      const proceed = window.confirm(
-        "You have unsaved changes. Open another design and discard them?"
-      );
-      if (!proceed) return;
     }
     try {
       const result = await api.openDesign();
@@ -605,17 +662,68 @@ export default function App() {
         setErrorFlash(`Open failed: ${parsed.message}`);
         return;
       }
-      dispatchHistory({ type: "reset", design: parsed.design });
-      selectTool("cursor");
-      setAutoBuildJustRan(false);
-      setExportOpen(false);
-      setStatusOpen(false);
-      setDirty(false);
-      setErrorFlash(null);
+      dispatchDocument({
+        type: "opened",
+        design: parsed.design,
+        path: result.filePath ?? ""
+      });
+      resetForNewDocument();
     } catch (err) {
       setErrorFlash(`Open failed: ${String(err)}`);
     }
-  }, [dirty, selectTool, setErrorFlash]);
+  }, [resetForNewDocument, setErrorFlash]);
+
+  /**
+   * Run `action`, but if there is unsaved work ask first. Replaces a raw
+   * window.confirm, which is modal to the OS, unstyled, and untestable.
+   */
+  const guardUnsaved = useCallback(
+    (title: string, confirmLabel: string, action: () => void) => {
+      if (!dirty) {
+        action();
+        return;
+      }
+      setConfirm({
+        title,
+        message: "This design has unsaved changes. They will be lost.",
+        confirmLabel,
+        onConfirm: action
+      });
+    },
+    [dirty]
+  );
+
+  const handleOpen = useCallback(() => {
+    guardUnsaved("Open another design", "Discard and open", () => void openDocument());
+  }, [guardUnsaved, openDocument]);
+
+  // Main vetoes the window close and asks here, because only the renderer knows
+  // whether there is unsaved work. Re-subscribing when `dirty` changes rather
+  // than mirroring it into a ref: refs must not be written during render, and
+  // an IPC listener swap per commit is far cheaper than that unsafety.
+  useEffect(() => {
+    const api = window.ptsbuilder;
+    if (!api?.onCloseRequested) return;
+    return api.onCloseRequested(() => {
+      if (!dirty) {
+        void api.confirmClose();
+        return;
+      }
+      setConfirm({
+        title: "Close PTSBuilder",
+        message: "This design has unsaved changes. They will be lost.",
+        confirmLabel: "Discard and close",
+        onConfirm: () => void api.confirmClose()
+      });
+    });
+  }, [dirty]);
+
+  const handleNew = useCallback(() => {
+    guardUnsaved("New design", "Discard and start over", () => {
+      dispatchDocument({ type: "new", design: emptyDesign(DESIGN_METADATA) });
+      resetForNewDocument();
+    });
+  }, [guardUnsaved, resetForNewDocument]);
 
   const runAutoBuild = useCallback(async () => {
     setAutoBuilding(true);
@@ -710,8 +818,11 @@ export default function App() {
   return (
     <div className="app-shell" style={shellStyle}>
       <TopBar
-        onOpen={() => void handleOpen()}
+        onNew={handleNew}
+        onOpen={handleOpen}
         onSave={() => void handleSave()}
+        onSaveAs={() => void handleSaveAs()}
+        documentLabel={`${displayFilename(session)}${dirty ? " •" : ""}`}
         onEdit={setSettingsTab}
         onUndo={undo}
         onRedo={redo}
@@ -734,6 +845,7 @@ export default function App() {
         />
         <div style={{ flex: 1, position: "relative", background: "#0B0E13", overflow: "hidden" }}>
           <Viewport
+            ref={viewportRef}
             scene={viewportScene}
             buildArea={design.metadata.buildArea}
             ghost={ghostState}
@@ -752,6 +864,7 @@ export default function App() {
             autoBuilding={autoBuilding}
             errorFlash={errorFlash}
             obstacleDraft={obstacleDraft}
+            buildArea={buildArea}
             onObstacleBaseYChange={setObstacleBaseY}
             onObstacleHeightChange={setObstacleHeight}
             onObstacleConfirm={commitObstacleDraft}
@@ -765,72 +878,7 @@ export default function App() {
             taxRate={settings.taxRate}
             onExport={() => setExportOpen(true)}
           />
-          {tool !== "cursor" && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 12,
-                left: "50%",
-                transform: "translateX(-50%)",
-                background: "rgba(11,14,19,0.92)",
-                border: "1px solid var(--line-2)",
-                borderRadius: 999,
-                padding: "6px 14px",
-                fontSize: 12,
-                color: "var(--text)",
-                display: "flex",
-                gap: 12,
-                alignItems: "center",
-                pointerEvents: "none",
-                fontFamily: "var(--font-sans)",
-                whiteSpace: "nowrap",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.4)"
-              }}
-            >
-              <span
-                style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }}
-              />
-              <span style={{ color: "var(--text-mut)" }}>Tool</span>
-              <span style={{ fontWeight: 600 }}>{TOOL_LABELS[tool]}</span>
-              {(tool === "blower" ||
-                tool === "terminal" ||
-                tool === "tube" ||
-                tool === "bend" ||
-                tool === "obstacle") && (
-                <>
-                  <span style={{ width: 1, height: 14, background: "var(--line)" }} />
-                  {(tool === "blower" ||
-                    tool === "terminal" ||
-                    tool === "tube" ||
-                    tool === "bend") && (
-                    <span
-                      style={{
-                        color: "var(--text-mut)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4
-                      }}
-                    >
-                      <kbd style={kbdStyle}>R</kbd>
-                      <span>/</span>
-                      <kbd style={kbdStyle}>Shift+R</kbd>
-                      <span>rotate</span>
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      color: "var(--text-mut)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4
-                    }}
-                  >
-                    <kbd style={kbdStyle}>Esc</kbd> cancel
-                  </span>
-                </>
-              )}
-            </div>
-          )}
+          <ActiveToolBar tool={tool} />
         </div>
       </div>
       <StatusBar
@@ -842,6 +890,8 @@ export default function App() {
         autoBuilding={autoBuilding}
         optimizationMode={optimizationMode}
         onOptimizationModeChange={setOptimizationMode}
+        onZoom={(delta) => viewportRef.current?.zoomBy(delta)}
+        onResetView={() => viewportRef.current?.resetView()}
       />
       {exportOpen && (
         <ExportPdfModal

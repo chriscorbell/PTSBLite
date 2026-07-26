@@ -4,16 +4,11 @@ import {
   clampBuildArea,
   DEFAULT_BUILD_AREA
 } from "@/domain/sparse-grid";
-import { bendFootprint } from "@/domain/bend-placement";
-import type { BuildArea, DesignMetadata, DesignState, Obstacle, Part, Scene, Vec3 } from "@/types";
-import { tubeCells } from "@/domain/vec3";
+import { obstacleCells, partCells, reconstructDesign } from "@/domain/design-reconstruction";
+import type { BuildArea, DesignMetadata, DesignState, Obstacle, Part, Scene } from "@/types";
 
 export const DEFAULT_FILENAME = "untitled.ptsb";
 export const DEFAULT_REVISION = "0.1";
-
-function cloneJson<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
 
 function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
   return {
@@ -23,47 +18,6 @@ function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
   };
 }
 
-function buildGrid(parts: Part[], obstacles: Obstacle[], buildArea: BuildArea): SparseGrid {
-  const grid = new SparseGrid(boundsFromBuildArea(buildArea));
-  for (const p of parts) {
-    if (p.type === "blower" || p.type === "terminal") {
-      const cell = p.cell;
-      if (grid.withinBounds(cell)) grid.place(cell, p.id);
-    } else if (p.type === "tube") {
-      for (const cell of tubeCells(p.from, p.to)) {
-        if (grid.withinBounds(cell) && !grid.query(cell)) grid.place(cell, p.id);
-      }
-    } else if (p.type === "bend") {
-      for (const cell of bendFootprint(p)) {
-        if (grid.withinBounds(cell) && !grid.query(cell)) grid.place(cell, p.id);
-      }
-    }
-  }
-  for (const obs of obstacles) {
-    const [x0, y0, z0] = obs.min.map(Math.floor);
-    const [x1, y1, z1] = obs.max.map(Math.floor);
-    for (let x = x0; x <= x1; x++) {
-      for (let y = y0; y <= y1; y++) {
-        for (let z = z0; z <= z1; z++) {
-          const cell: Vec3 = [x, y, z];
-          if (grid.withinBounds(cell) && !grid.query(cell)) {
-            grid.place(cell, obs.id);
-          }
-        }
-      }
-    }
-  }
-  return grid;
-}
-
-/** The grid cells a part occupies (same enumeration `buildGrid` registers). */
-function partCells(part: Part): Vec3[] {
-  if (part.type === "blower" || part.type === "terminal") return [part.cell];
-  if (part.type === "tube") return tubeCells(part.from, part.to);
-  if (part.type === "bend") return bendFootprint(part);
-  return [];
-}
-
 /**
  * Keep only the parts whose entire footprint fits within `buildArea`. Used when
  * the user shrinks the build area: anything now outside the bounds is dropped.
@@ -71,6 +25,16 @@ function partCells(part: Part): Vec3[] {
 export function partsWithinBuildArea(parts: Part[], buildArea: BuildArea): Part[] {
   const grid = new SparseGrid(boundsFromBuildArea(buildArea));
   return parts.filter((part) => partCells(part).every((cell) => grid.withinBounds(cell)));
+}
+
+/**
+ * Obstacles that keep at least one cell inside `buildArea`. One that keeps none
+ * disappears entirely when the area shrinks; one that keeps some is clipped by
+ * `reconstructDesign`. Used to tell the user what a shrink will cost them.
+ */
+export function obstaclesWithinBuildArea(obstacles: Obstacle[], buildArea: BuildArea): Obstacle[] {
+  const grid = new SparseGrid(boundsFromBuildArea(buildArea));
+  return obstacles.filter((obstacle) => obstacleCells(obstacle).some((c) => grid.withinBounds(c)));
 }
 
 export function emptyDesign(meta?: Partial<DesignMetadata>): DesignState {
@@ -83,14 +47,22 @@ export function emptyDesign(meta?: Partial<DesignMetadata>): DesignState {
   };
 }
 
+/**
+ * Rebuild a design from a scene that is *already known to be valid* — clearing
+ * parts, clearing obstacles, applying a build-area change to parts already
+ * filtered to fit.
+ *
+ * Throws if that assumption is wrong, because it would mean a bug here rather
+ * than bad input. Use `reconstructDesign` directly for anything originating
+ * outside the app, such as a file being opened; it reports instead of throwing.
+ * There is deliberately one implementation and no second, permissive path.
+ */
 export function designFromScene(scene: Scene, meta?: Partial<DesignMetadata>): DesignState {
-  const metadata = withMetadata(meta);
-  const parts = cloneJson(scene.parts ?? []);
-  const obstacles = cloneJson(scene.obstacles ?? []);
-  return {
-    parts,
-    obstacles,
-    metadata,
-    grid: buildGrid(parts, obstacles, metadata.buildArea)
-  };
+  const result = reconstructDesign(scene, withMetadata(meta));
+  if (!result.ok) {
+    throw new Error(
+      `designFromScene received an invalid scene: ${result.issues.map((i) => i.message).join(" ")}`
+    );
+  }
+  return result.design;
 }

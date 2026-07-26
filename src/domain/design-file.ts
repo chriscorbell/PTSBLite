@@ -1,4 +1,4 @@
-import { designFromScene } from "@/domain/design-state";
+import { reconstructDesign } from "@/domain/design-reconstruction";
 import { clampBuildArea } from "@/domain/sparse-grid";
 import type {
   BendPart,
@@ -79,8 +79,19 @@ export function deserializeDesign(text: string): DeserializeResult {
     obstacles.push(obstacleResult.obstacle);
   }
 
-  const design = designFromScene({ parts, obstacles }, metadataResult.metadata);
-  return { ok: true, design };
+  // Geometry is checked here rather than assumed. A file whose parts fall
+  // outside the build area or land on top of each other used to load anyway,
+  // with those parts present in `parts` but missing from `grid` — visible and
+  // priced, but impossible to erase or collide with. Reporting beats repairing:
+  // the file says something the app cannot represent, and silently dropping
+  // part of a saved design is worse than declining to open it.
+  const rebuilt = reconstructDesign({ parts, obstacles }, metadataResult.metadata);
+  if (!rebuilt.ok) {
+    const [first, ...rest] = rebuilt.issues;
+    const more = rest.length > 0 ? ` (and ${rest.length} more)` : "";
+    return fail(`${first.message}${more}`);
+  }
+  return { ok: true, design: rebuilt.design };
 }
 
 function fail(message: string): { ok: false; message: string } {

@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyDesign } from "@/domain/design-state";
-import {
-  BUILD_VOLUME_HALF_EXTENT,
-  labelTextForPart,
-  openPortMarkers,
-  partLabels
-} from "@/domain/renderer-affordances";
+import { labelTextForPart, openPortMarkers, partLabels } from "@/domain/renderer-affordances";
 import type { DesignState, Part } from "@/types";
 
 function designWith(parts: Part[]): DesignState {
@@ -84,11 +79,5 @@ describe("labelTextForPart", () => {
     expect(labelTextForPart({ id: "t", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] })).toBe(
       "TM-2020-S"
     );
-  });
-});
-
-describe("build volume constants", () => {
-  it("define a working half-extent around the origin", () => {
-    expect(BUILD_VOLUME_HALF_EXTENT).toBeGreaterThan(0);
   });
 });

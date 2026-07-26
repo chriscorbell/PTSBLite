@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Icons } from "@/components/Icons";
-import { useEscapeKey } from "@/components/useEscapeKey";
+import { Modal } from "@/components/Modal";
 
 export type ConfirmDialogProps = {
   title: string;
@@ -36,35 +36,9 @@ export function ConfirmDialog({
   onConfirm,
   onCancel
 }: ConfirmDialogProps) {
-  useEscapeKey(onCancel);
-
   return (
-    <div
-      className="nosel"
-      style={{
-        position: "absolute",
-        inset: 0,
-        background: "rgba(5,7,10,0.75)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100
-      }}
-      onClick={onCancel}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(420px, 92%)",
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--panel)",
-          borderRadius: 10,
-          border: "1px solid var(--line-2)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.5)"
-        }}
-      >
+    <Modal label={title} onClose={onCancel} width="min(420px, 92%)">
+      <>
         <div
           style={{
             display: "flex",
@@ -79,7 +53,7 @@ export function ConfirmDialog({
           </span>
           <div style={{ fontSize: 13, fontWeight: 600 }}>{title}</div>
           <div style={{ flex: 1 }} />
-          <button onClick={onCancel} style={iconBtn} aria-label="Cancel">
+          <button onClick={onCancel} style={iconBtn} aria-label="Close">
             <Icons.Close size={14} />
           </button>
         </div>
@@ -129,7 +103,7 @@ export function ConfirmDialog({
             {confirmLabel}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </Modal>
   );
 }

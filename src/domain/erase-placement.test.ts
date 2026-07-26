@@ -4,6 +4,7 @@ import { emptyDesign } from "@/domain/design-state";
 import { ERASE_EMPTY_MESSAGE, eraseAtCell } from "@/domain/erase-placement";
 import { computeTopology } from "@/domain/topology";
 import type { BendPart } from "@/types";
+import { expectGridMatchesDesign } from "@/test/design-invariants";
 
 describe("Erase placement", () => {
   it("rejects empty cells with the PRD corrective message", () => {
@@ -38,6 +39,7 @@ describe("Erase placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.design.parts).toEqual([]);
     expect(result.design.grid.query([2, 0, 3])).toBeUndefined();
   });
@@ -51,6 +53,7 @@ describe("Erase placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.design.parts).toEqual([]);
     expect(result.design.grid.query([1, 0, 0])).toBeUndefined();
   });
@@ -70,6 +73,7 @@ describe("Erase placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(computeTopology(result.design).openPortsNear([1, 0, 0])).toMatchObject([
       { partId: "b1", ownerType: "blower" }
     ]);
@@ -88,6 +92,7 @@ describe("Erase placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.design.grid.query([3, 0, 0])).toBeUndefined();
     for (const x of [1, 2, 4, 5, 6]) {
       expect(result.design.grid.query([x, 0, 0])).toBeDefined();
@@ -124,6 +129,7 @@ describe("Erase placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.design.parts).toEqual([]);
     for (const cell of footprint) {
       expect(result.design.grid.query(cell)).toBeUndefined();
@@ -145,6 +151,7 @@ describe("Erase placement", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
     expect(result.design.obstacles).toEqual([]);
     expect(result.design.grid.query([2, 0, 3])).toBeUndefined();
     expect(result.design.grid.query([4, 1, 5])).toBeUndefined();
