@@ -4,8 +4,8 @@ import {
   clampBuildArea,
   DEFAULT_BUILD_AREA
 } from "@/domain/sparse-grid";
-import { partCells, reconstructDesign } from "@/domain/design-reconstruction";
-import type { BuildArea, DesignMetadata, DesignState, Part, Scene } from "@/types";
+import { obstacleCells, partCells, reconstructDesign } from "@/domain/design-reconstruction";
+import type { BuildArea, DesignMetadata, DesignState, Obstacle, Part, Scene } from "@/types";
 
 export const DEFAULT_FILENAME = "untitled.ptsb";
 export const DEFAULT_REVISION = "0.1";
@@ -25,6 +25,16 @@ function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
 export function partsWithinBuildArea(parts: Part[], buildArea: BuildArea): Part[] {
   const grid = new SparseGrid(boundsFromBuildArea(buildArea));
   return parts.filter((part) => partCells(part).every((cell) => grid.withinBounds(cell)));
+}
+
+/**
+ * Obstacles that keep at least one cell inside `buildArea`. One that keeps none
+ * disappears entirely when the area shrinks; one that keeps some is clipped by
+ * `reconstructDesign`. Used to tell the user what a shrink will cost them.
+ */
+export function obstaclesWithinBuildArea(obstacles: Obstacle[], buildArea: BuildArea): Obstacle[] {
+  const grid = new SparseGrid(boundsFromBuildArea(buildArea));
+  return obstacles.filter((obstacle) => obstacleCells(obstacle).some((c) => grid.withinBounds(c)));
 }
 
 export function emptyDesign(meta?: Partial<DesignMetadata>): DesignState {

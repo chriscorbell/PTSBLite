@@ -4,7 +4,8 @@ import {
   obstaclePlacementDraftHasFootprint,
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
-import type { Scene, ToolId } from "@/types";
+import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
+import type { BuildArea, Scene, ToolId } from "@/types";
 
 export type ViewportHUDProps = {
   scene: Scene;
@@ -12,6 +13,8 @@ export type ViewportHUDProps = {
   autoBuilding: boolean;
   errorFlash: string | null;
   obstacleDraft: ObstaclePlacementDraft | null;
+  /** Bounds the base/height steppers, so they cannot offer a rejected value. */
+  buildArea: BuildArea;
   onObstacleBaseYChange: (y: number) => void;
   onObstacleHeightChange: (height: number) => void;
   onObstacleConfirm: () => void;
@@ -34,16 +37,26 @@ const ELEVATION_BUTTON_STYLE: React.CSSProperties = {
   padding: 0
 };
 
+const DISABLED_BUTTON_STYLE: React.CSSProperties = {
+  ...ELEVATION_BUTTON_STYLE,
+  opacity: 0.35,
+  cursor: "default"
+};
+
 export function ViewportHUD({
   scene,
   errorFlash,
   obstacleDraft,
+  buildArea,
   onObstacleBaseYChange,
   onObstacleHeightChange,
   onObstacleConfirm,
   onObstacleCancel
 }: ViewportHUDProps) {
   const obstacleReady = obstaclePlacementDraftHasFootprint(obstacleDraft);
+  // The domain clamps these too; disabling here is what stops the control
+  // advertising a value it would then silently refuse.
+  const atCeiling = obstacleReady && obstacleDraft.baseY + obstacleDraft.height >= buildArea.height;
   return (
     <div className="nosel" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
       {obstacleReady && (
@@ -68,18 +81,18 @@ export function ViewportHUD({
           <ObstacleStepper
             label="Base"
             value={`Y=${obstacleDraft.baseY}ft`}
-            onDecrement={() => onObstacleBaseYChange(Math.max(0, obstacleDraft.baseY - 1))}
-            onIncrement={() =>
-              onObstacleBaseYChange(Math.min(150 - obstacleDraft.height, obstacleDraft.baseY + 1))
-            }
+            onDecrement={() => onObstacleBaseYChange(obstacleDraft.baseY - 1)}
+            onIncrement={() => onObstacleBaseYChange(obstacleDraft.baseY + 1)}
+            disableDecrement={obstacleDraft.baseY <= GROUND_PLANE_Y}
+            disableIncrement={atCeiling}
           />
           <ObstacleStepper
             label="Height"
             value={`${obstacleDraft.height}ft`}
-            onDecrement={() => onObstacleHeightChange(Math.max(1, obstacleDraft.height - 1))}
-            onIncrement={() =>
-              onObstacleHeightChange(Math.min(150 - obstacleDraft.baseY, obstacleDraft.height + 1))
-            }
+            onDecrement={() => onObstacleHeightChange(obstacleDraft.height - 1)}
+            onIncrement={() => onObstacleHeightChange(obstacleDraft.height + 1)}
+            disableDecrement={obstacleDraft.height <= 1}
+            disableIncrement={atCeiling}
           />
           <button
             type="button"
@@ -207,12 +220,16 @@ function ObstacleStepper({
   label,
   value,
   onDecrement,
-  onIncrement
+  onIncrement,
+  disableDecrement = false,
+  disableIncrement = false
 }: {
   label: string;
   value: string;
   onDecrement: () => void;
   onIncrement: () => void;
+  disableDecrement?: boolean;
+  disableIncrement?: boolean;
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -220,7 +237,8 @@ function ObstacleStepper({
       <button
         type="button"
         aria-label={`Decrease obstacle ${label.toLowerCase()}`}
-        style={ELEVATION_BUTTON_STYLE}
+        style={disableDecrement ? DISABLED_BUTTON_STYLE : ELEVATION_BUTTON_STYLE}
+        disabled={disableDecrement}
         onClick={onDecrement}
       >
         −
@@ -238,7 +256,8 @@ function ObstacleStepper({
       <button
         type="button"
         aria-label={`Increase obstacle ${label.toLowerCase()}`}
-        style={ELEVATION_BUTTON_STYLE}
+        style={disableIncrement ? DISABLED_BUTTON_STYLE : ELEVATION_BUTTON_STYLE}
+        disabled={disableIncrement}
         onClick={onIncrement}
       >
         +
