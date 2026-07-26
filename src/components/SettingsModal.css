@@ -1,0 +1,149 @@
+.settings__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 14px 0;
+}
+
+.settings__tab {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-mut);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.settings__tab[aria-selected="true"] {
+  border-color: var(--line-2);
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.settings__panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+}
+
+/* Every tab but Pricing is a stack of fields. */
+.settings__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings__note {
+  font-size: 11px;
+  color: var(--text-mut);
+  margin: 0;
+}
+.settings__note--pricing {
+  margin: 0 0 12px;
+}
+.settings__note--build-area {
+  margin: 8px 0 0;
+}
+
+.settings__price-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings__price-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings__price-part {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings__price-name {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.settings__price-no {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.settings__price-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings__currency {
+  color: var(--text-mut);
+  font-size: 13px;
+}
+
+.field {
+  display: block;
+}
+
+.field__label {
+  font-size: 11px;
+  color: var(--text-mut);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.field__input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+/* A money or percentage entry does not need the full column width. */
+.field__input--narrow {
+  width: 140px;
+}
+.field__input--price {
+  width: 120px;
+  text-align: right;
+}
+
+textarea.field__input {
+  height: auto;
+  padding: 8px;
+  resize: vertical;
+}
+
+.field__action {
+  margin-top: 6px;
+  align-self: flex-start;
+}
+
+.settings__axes {
+  display: flex;
+  gap: 10px;
+}
+
+.settings__axis {
+  flex: 1;
+}
+
+.settings__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
