@@ -84,7 +84,11 @@ const LATEST_RELEASE_API = "https://api.github.com/repos/chriscorbell/PTSBuilder
 // Compare x.y.z versions numerically; pre-release suffixes are ignored. Returns
 // true when `latest` is strictly ahead of `current`.
 function isNewerVersion(latest: string, current: string): boolean {
-  const parse = (v: string) => v.replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
+  const parse = (v: string) =>
+    v
+      .replace(/^v/, "")
+      .split(".")
+      .map((n) => parseInt(n, 10) || 0);
   const a = parse(latest);
   const b = parse(current);
   for (let i = 0; i < 3; i++) {

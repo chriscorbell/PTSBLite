@@ -62,7 +62,6 @@ describe("Pathfinder MVP", () => {
     expect(validate(result.design)).toEqual([]);
   });
 
-
   it("routes across elevation changes when target terminal faces upward", () => {
     const result = autoBuildOpenPortPair(designWith(basicParts([8, 4, 0], [0, 1, 0])));
 

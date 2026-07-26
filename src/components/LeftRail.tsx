@@ -102,7 +102,12 @@ export function LeftRail({
       <BuildButton active={buildActive} open={buildOpen} onClick={() => setBuildOpen((o) => !o)} />
       <Divider />
       {TAIL_ITEMS.map((it) => (
-        <RailButton key={it.id} item={it} active={tool === it.id} onClick={() => selectTool(it.id)} />
+        <RailButton
+          key={it.id}
+          item={it}
+          active={tool === it.id}
+          onClick={() => selectTool(it.id)}
+        />
       ))}
       <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 2 }}>
         <ClearActionButton
@@ -127,11 +132,23 @@ function Divider() {
   return <div style={{ height: 1, background: "var(--line)", margin: "4px 8px" }} />;
 }
 
-function BuildButton({ active, open, onClick }: { active: boolean; open: boolean; onClick: () => void }) {
+function BuildButton({
+  active,
+  open,
+  onClick
+}: {
+  active: boolean;
+  open: boolean;
+  onClick: () => void;
+}) {
   const [hover, setHover] = useState(false);
   const lit = active || open;
   return (
-    <div style={{ position: "relative" }} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+    <div
+      style={{ position: "relative" }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
       <button
         onClick={onClick}
         aria-expanded={open}
@@ -150,7 +167,8 @@ function BuildButton({ active, open, onClick }: { active: boolean; open: boolean
               : "transparent",
           color: lit ? "var(--accent)" : "var(--text-mut)",
           border:
-            "1px solid " + (lit ? "color-mix(in oklab, var(--accent) 35%, transparent)" : "transparent"),
+            "1px solid " +
+            (lit ? "color-mix(in oklab, var(--accent) 35%, transparent)" : "transparent"),
           cursor: "pointer",
           transition: "all .12s"
         }}
@@ -249,7 +267,9 @@ function PartCard({
         gap: 7,
         padding: 8,
         borderRadius: 8,
-        background: active ? "color-mix(in oklab, var(--accent) 12%, var(--panel-2))" : "var(--panel-2)",
+        background: active
+          ? "color-mix(in oklab, var(--accent) 12%, var(--panel-2))"
+          : "var(--panel-2)",
         border:
           "1px solid " +
           (lit ? "color-mix(in oklab, var(--accent) 40%, transparent)" : "var(--line)"),
@@ -341,7 +361,11 @@ function ClearActionButton({
   const active = hover && !disabled;
   const ItemIcon = icon;
   return (
-    <div style={{ position: "relative" }} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+    <div
+      style={{ position: "relative" }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
       <button
         onClick={onClick}
         disabled={disabled}
@@ -353,7 +377,9 @@ function ClearActionButton({
           justifyContent: "center",
           padding: 2,
           borderRadius: 7,
-          background: active ? "color-mix(in oklab, var(--danger) 16%, transparent)" : "transparent",
+          background: active
+            ? "color-mix(in oklab, var(--danger) 16%, transparent)"
+            : "transparent",
           color: disabled
             ? "color-mix(in oklab, var(--text-dim) 60%, transparent)"
             : active
@@ -394,11 +420,23 @@ function ClearActionButton({
   );
 }
 
-function RailButton({ item, active, onClick }: { item: RailItem; active: boolean; onClick: () => void }) {
+function RailButton({
+  item,
+  active,
+  onClick
+}: {
+  item: RailItem;
+  active: boolean;
+  onClick: () => void;
+}) {
   const [hover, setHover] = useState(false);
   const ItemIcon = item.icon;
   return (
-    <div style={{ position: "relative" }} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+    <div
+      style={{ position: "relative" }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
       <button
         onClick={onClick}
         // Don't take focus on mouse click, otherwise the focus ring lingers on
@@ -450,7 +488,9 @@ function RailButton({ item, active, onClick }: { item: RailItem; active: boolean
           <div style={{ fontWeight: 600 }}>
             {item.label}
             {item.short ? (
-              <span style={{ color: "var(--text-dim)", fontWeight: 400, marginLeft: 8 }}>{item.short}</span>
+              <span style={{ color: "var(--text-dim)", fontWeight: 400, marginLeft: 8 }}>
+                {item.short}
+              </span>
             ) : null}
           </div>
           {item.pn && (

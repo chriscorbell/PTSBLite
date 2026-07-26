@@ -48,10 +48,7 @@ describe("BOM derivation", () => {
   });
 
   it("totalPathLength accepts a DesignState", () => {
-    expect(totalPathLength(designWith(sampleParts))).toBeCloseTo(
-      totalPathLength(sampleParts),
-      5
-    );
+    expect(totalPathLength(designWith(sampleParts))).toBeCloseTo(totalPathLength(sampleParts), 5);
   });
 
   it("tubeFeet counts only straight tube length", () => {

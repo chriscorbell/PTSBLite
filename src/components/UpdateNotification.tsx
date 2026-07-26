@@ -63,7 +63,11 @@ export function UpdateNotification({ version, onDismiss }: UpdateNotificationPro
             PTSBuilder {version} has been downloaded.
           </div>
         </div>
-        <button onClick={onDismiss} aria-label="Dismiss update notification" className="topbtn icon">
+        <button
+          onClick={onDismiss}
+          aria-label="Dismiss update notification"
+          className="topbtn icon"
+        >
           <Icons.Close size={14} />
         </button>
       </div>

@@ -8,7 +8,11 @@ describe("vec3 negative-zero normalization", () => {
   it("never emits -0 from the operations that can produce it", () => {
     // -0 arises from negation and from multiplying a negative by zero. These are
     // the cases where the pre-consolidation copies disagreed with each other.
-    const produced = [vNeg(vec(0, 0, 0)), vScale(vec(-1, 0, 0), 0), vAdd(vNeg(vec(0, 0, 0)), vec(0, 0, 0))];
+    const produced = [
+      vNeg(vec(0, 0, 0)),
+      vScale(vec(-1, 0, 0), 0),
+      vAdd(vNeg(vec(0, 0, 0)), vec(0, 0, 0))
+    ];
 
     for (const v of produced) {
       for (const component of v) expect(Object.is(component, -0)).toBe(false);

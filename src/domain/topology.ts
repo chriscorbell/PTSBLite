@@ -206,15 +206,9 @@ function isPart(value: Part | Port): value is Part {
 }
 
 export type SnapResolution =
-  | { kind: "none" }
-  | { kind: "one"; port: Port }
-  | { kind: "multiple"; ports: Port[] };
+  { kind: "none" } | { kind: "one"; port: Port } | { kind: "multiple"; ports: Port[] };
 
-export function resolveSnap(
-  topology: Topology,
-  hoverCell: Vec3,
-  tool: ToolId
-): SnapResolution {
+export function resolveSnap(topology: Topology, hoverCell: Vec3, tool: ToolId): SnapResolution {
   if (tool === "cursor" || tool === "erase" || tool === "blower" || tool === "obstacle") {
     return { kind: "none" };
   }

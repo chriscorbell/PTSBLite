@@ -16,12 +16,30 @@ function portCells(ports: Port[]): Vec3[] {
 describe("Topology port computation", () => {
   it("computes blower outlet ports under horizontal and vertical orientations", () => {
     const cases: Array<[Vec3, Vec3]> = [
-      [[1, 0, 0], [11, 0, 10]],
-      [[0, 0, 1], [10, 0, 11]],
-      [[-1, 0, 0], [9, 0, 10]],
-      [[0, 0, -1], [10, 0, 9]],
-      [[0, 1, 0], [10, 1, 10]],
-      [[0, -1, 0], [10, -1, 10]]
+      [
+        [1, 0, 0],
+        [11, 0, 10]
+      ],
+      [
+        [0, 0, 1],
+        [10, 0, 11]
+      ],
+      [
+        [-1, 0, 0],
+        [9, 0, 10]
+      ],
+      [
+        [0, 0, -1],
+        [10, 0, 9]
+      ],
+      [
+        [0, 1, 0],
+        [10, 1, 10]
+      ],
+      [
+        [0, -1, 0],
+        [10, -1, 10]
+      ]
     ];
 
     for (const [dir, expectedCell] of cases) {
@@ -33,16 +51,57 @@ describe("Topology port computation", () => {
 
   it("computes terminal ports on both sides of its oriented axis", () => {
     const cases: Array<[Vec3, Vec3[]]> = [
-      [[1, 0, 0], [[6, 0, 5], [4, 0, 5]]],
-      [[0, 0, 1], [[5, 0, 6], [5, 0, 4]]],
-      [[-1, 0, 0], [[4, 0, 5], [6, 0, 5]]],
-      [[0, 0, -1], [[5, 0, 4], [5, 0, 6]]],
-      [[0, 1, 0], [[5, 1, 5], [5, -1, 5]]],
-      [[0, -1, 0], [[5, -1, 5], [5, 1, 5]]]
+      [
+        [1, 0, 0],
+        [
+          [6, 0, 5],
+          [4, 0, 5]
+        ]
+      ],
+      [
+        [0, 0, 1],
+        [
+          [5, 0, 6],
+          [5, 0, 4]
+        ]
+      ],
+      [
+        [-1, 0, 0],
+        [
+          [4, 0, 5],
+          [6, 0, 5]
+        ]
+      ],
+      [
+        [0, 0, -1],
+        [
+          [5, 0, 4],
+          [5, 0, 6]
+        ]
+      ],
+      [
+        [0, 1, 0],
+        [
+          [5, 1, 5],
+          [5, -1, 5]
+        ]
+      ],
+      [
+        [0, -1, 0],
+        [
+          [5, -1, 5],
+          [5, 1, 5]
+        ]
+      ]
     ];
 
     for (const [axis, expectedCells] of cases) {
-      const ports = computePartPorts({ id: `t-${axis.join(",")}`, type: "terminal", cell: [5, 0, 5], axis });
+      const ports = computePartPorts({
+        id: `t-${axis.join(",")}`,
+        type: "terminal",
+        cell: [5, 0, 5],
+        axis
+      });
       expect(portCells(ports)).toEqual(expectedCells);
       expect(ports).toHaveLength(2);
     }
@@ -120,18 +179,14 @@ describe("Topology open and connected ports", () => {
 
 describe("Topology snap resolution", () => {
   it("returns no snap candidate for free-placement tools", () => {
-    const topology = new Topology([
-      { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }
-    ]);
+    const topology = new Topology([{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }]);
 
     expect(resolveSnap(topology, [1, 0, 0], "blower")).toEqual({ kind: "none" });
     expect(resolveSnap(topology, [1, 0, 0], "obstacle")).toEqual({ kind: "none" });
   });
 
   it("returns one snap candidate with its backing part instance", () => {
-    const topology = new Topology([
-      { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }
-    ]);
+    const topology = new Topology([{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }]);
 
     expect(resolveSnap(topology, [1, 0, 0], "tube")).toMatchObject({
       kind: "one",

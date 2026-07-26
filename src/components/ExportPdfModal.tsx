@@ -181,11 +181,17 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
               minHeight: 520
             }}
           >
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+            <div
+              style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}
+            >
               <div>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }}>{company.name}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }}>
+                  {company.name}
+                </div>
                 {company.tagline && (
-                  <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>{company.tagline}</div>
+                  <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>
+                    {company.tagline}
+                  </div>
                 )}
                 {(company.address || contactLine) && (
                   <div style={{ fontSize: 11, color: "#5B6473", marginTop: 14 }}>
@@ -196,7 +202,9 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
                 )}
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 6, color: "#1B1E26" }}>QUOTE</div>
+                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 6, color: "#1B1E26" }}>
+                  QUOTE
+                </div>
                 <div
                   style={{
                     fontFamily: "var(--font-sans)",
@@ -236,7 +244,9 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
                 >
                   BILL TO
                 </div>
-                <div style={{ fontSize: 13, marginTop: 4, fontWeight: 600 }}>{options.billTo?.name}</div>
+                <div style={{ fontSize: 13, marginTop: 4, fontWeight: 600 }}>
+                  {options.billTo?.name}
+                </div>
                 <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>
                   {options.billTo?.lines.map((line, i) => (
                     <span key={i}>
@@ -271,7 +281,9 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
               </div>
             </div>
 
-            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 18, fontSize: 12 }}>
+            <table
+              style={{ width: "100%", borderCollapse: "collapse", marginTop: 18, fontSize: 12 }}
+            >
               <thead>
                 <tr
                   style={{
@@ -281,8 +293,12 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
                     letterSpacing: 0.5
                   }}
                 >
-                  <th style={{ textAlign: "left", padding: "8px 0", fontWeight: 500 }}>PART NUMBER</th>
-                  <th style={{ textAlign: "left", padding: "8px 8px", fontWeight: 500 }}>DESCRIPTION</th>
+                  <th style={{ textAlign: "left", padding: "8px 0", fontWeight: 500 }}>
+                    PART NUMBER
+                  </th>
+                  <th style={{ textAlign: "left", padding: "8px 8px", fontWeight: 500 }}>
+                    DESCRIPTION
+                  </th>
                   <th style={{ textAlign: "right", padding: "8px 8px", fontWeight: 500 }}>QTY</th>
                   <th style={{ textAlign: "right", padding: "8px 8px", fontWeight: 500 }}>UNIT</th>
                   <th style={{ textAlign: "right", padding: "8px 0", fontWeight: 500 }}>TOTAL</th>
@@ -291,20 +307,42 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.key} style={{ borderTop: "1px solid #E5E1D5" }}>
-                    <td style={{ padding: "10px 0", fontFamily: "var(--font-sans)", fontSize: 11.5 }}>
+                    <td
+                      style={{ padding: "10px 0", fontFamily: "var(--font-sans)", fontSize: 11.5 }}
+                    >
                       {r.partNo}
                     </td>
                     <td style={{ padding: "10px 8px" }}>
                       {r.name}
-                      {r.note ? <div style={{ fontSize: 10, color: "#7A8090" }}>{r.note}</div> : null}
+                      {r.note ? (
+                        <div style={{ fontSize: 10, color: "#7A8090" }}>{r.note}</div>
+                      ) : null}
                     </td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontFamily: "var(--font-sans)" }}>
+                    <td
+                      style={{
+                        padding: "10px 8px",
+                        textAlign: "right",
+                        fontFamily: "var(--font-sans)"
+                      }}
+                    >
                       {r.qty}
                     </td>
-                    <td style={{ padding: "10px 8px", textAlign: "right", fontFamily: "var(--font-sans)" }}>
+                    <td
+                      style={{
+                        padding: "10px 8px",
+                        textAlign: "right",
+                        fontFamily: "var(--font-sans)"
+                      }}
+                    >
                       ${r.unitPrice.toFixed(2)}
                     </td>
-                    <td style={{ padding: "10px 0", textAlign: "right", fontFamily: "var(--font-sans)" }}>
+                    <td
+                      style={{
+                        padding: "10px 0",
+                        textAlign: "right",
+                        fontFamily: "var(--font-sans)"
+                      }}
+                    >
                       ${(r.qty * r.unitPrice).toFixed(2)}
                     </td>
                   </tr>
@@ -314,7 +352,10 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
               <div style={{ width: 280 }}>
                 <PdfRow l="Subtotal" v={`$${subtotal.toFixed(2)}`} />
-                <PdfRow l={`Tax (${String(+((options.taxRate ?? 0) * 100).toFixed(4))}%)`} v={`$${tax.toFixed(2)}`} />
+                <PdfRow
+                  l={`Tax (${String(+((options.taxRate ?? 0) * 100).toFixed(4))}%)`}
+                  v={`$${tax.toFixed(2)}`}
+                />
                 <div style={{ borderTop: "2px solid #1B1E26", marginTop: 6, paddingTop: 8 }}>
                   <PdfRow l="Quote total" v={`$${total.toFixed(2)}`} bold />
                 </div>

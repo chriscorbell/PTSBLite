@@ -24,9 +24,7 @@ export type DesignFile = {
   obstacles: Obstacle[];
 };
 
-export type DeserializeResult =
-  | { ok: true; design: DesignState }
-  | { ok: false; message: string };
+export type DeserializeResult = { ok: true; design: DesignState } | { ok: false; message: string };
 
 export function serializeDesign(design: DesignState): DesignFile {
   return {

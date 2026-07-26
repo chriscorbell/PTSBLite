@@ -163,7 +163,8 @@ function cellIsOpenForRoute(design: DesignState, cell: Vec3, goalCell: Vec3): bo
 
 function bendFits(design: DesignState, entryCell: Vec3, footprint: BendFootprint): boolean {
   return bendCells(entryCell, footprint).every(
-    (cell) => design.grid.withinBounds(cell) && cell[1] >= GROUND_PLANE_Y && !design.grid.query(cell)
+    (cell) =>
+      design.grid.withinBounds(cell) && cell[1] >= GROUND_PLANE_Y && !design.grid.query(cell)
   );
 }
 
@@ -183,7 +184,8 @@ function neighbors(
     return [];
   }
 
-  const result: Array<{ state: RouteState; edge: RouteEdge; cost: number; searchCost: number }> = [];
+  const result: Array<{ state: RouteState; edge: RouteEdge; cost: number; searchCost: number }> =
+    [];
   const straightCell = vAdd(state.cell, state.dir);
   if (
     design.grid.withinBounds(state.cell) &&
@@ -225,9 +227,7 @@ function neighbors(
 
 /** A search either finds a route, proves there is none, or runs out of budget. */
 type RouteOutcome =
-  | { kind: "route"; route: PlannedRoute }
-  | { kind: "no-route" }
-  | { kind: "search-limit" };
+  { kind: "route"; route: PlannedRoute } | { kind: "no-route" } | { kind: "search-limit" };
 
 function routeBetween(
   design: DesignState,
@@ -369,7 +369,8 @@ function planBestRoute(
         [s, t, routeBetween(design, s, t, mode, maxExpansions)] as const,
         [t, s, routeBetween(design, t, s, mode, maxExpansions)] as const
       ]) {
-        if (outcome.kind === "route") candidates.push({ route: outcome.route, source: from, target: to });
+        if (outcome.kind === "route")
+          candidates.push({ route: outcome.route, source: from, target: to });
         else if (outcome.kind === "search-limit") hitSearchLimit = true;
       }
       for (const candidate of candidates) {
@@ -393,8 +394,7 @@ function nextRouteId(existing: Set<string>): string {
 type PlannedBest = { route: PlannedRoute; source: Port; target: Port };
 
 type CommitRouteResult =
-  | { ok: true; design: DesignState; parts: Part[]; cost: number }
-  | { ok: false };
+  { ok: true; design: DesignState; parts: Part[]; cost: number } | { ok: false };
 
 function commitRoute(design: DesignState, route: PlannedRoute): CommitRouteResult {
   let currentDesign = design;
@@ -436,7 +436,9 @@ function commitRoute(design: DesignState, route: PlannedRoute): CommitRouteResul
     const orientations = validBendOrientations(currentDesign, currentCell, {
       sourcePartId: currentPartId
     });
-    const rotationIndex = orientations.findIndex((orientation) => vEq(orientation.outDir, edge.outDir));
+    const rotationIndex = orientations.findIndex((orientation) =>
+      vEq(orientation.outDir, edge.outDir)
+    );
     if (rotationIndex < 0) {
       return { ok: false };
     }
@@ -476,7 +478,13 @@ export function autoBuildOpenPortPair(
     const closest = pickClosestPair(pool);
     if (!closest) break;
     const oriented = orientPorts(currentDesign, closest.a, closest.b);
-    const { best, hitSearchLimit } = planBestRoute(currentDesign, oriented, pool, mode, maxExpansions);
+    const { best, hitSearchLimit } = planBestRoute(
+      currentDesign,
+      oriented,
+      pool,
+      mode,
+      maxExpansions
+    );
     if (!best) {
       unroutedPairs.push({
         source: oriented.source,

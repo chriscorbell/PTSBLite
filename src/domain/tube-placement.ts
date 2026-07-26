@@ -6,8 +6,7 @@ export const TUBE_PLACEMENT_MESSAGE = "Place tube on a highlighted landing spot.
 export const TUBE_BLOCKED_MESSAGE = "Tube path is blocked.";
 
 export type PlaceTubeResult =
-  | { ok: true; design: DesignState; part: TubePart }
-  | { ok: false; message: string };
+  { ok: true; design: DesignState; part: TubePart } | { ok: false; message: string };
 
 type SourceSelection = { sourcePartId?: string };
 
@@ -24,14 +23,12 @@ export function tubeLandingCells(design: DesignState): Vec3[] {
   return cells;
 }
 
-function selectPort(
-  topology: Topology,
-  cell: Vec3,
-  selection: SourceSelection = {}
-): Port | null {
+function selectPort(topology: Topology, cell: Vec3, selection: SourceSelection = {}): Port | null {
   let candidates = topology.openPortsNear(cell);
   if (selection.sourcePartId) {
-    const matchingLandingPorts = candidates.filter((port) => port.partId === selection.sourcePartId);
+    const matchingLandingPorts = candidates.filter(
+      (port) => port.partId === selection.sourcePartId
+    );
     candidates =
       matchingLandingPorts.length > 0
         ? matchingLandingPorts
@@ -90,7 +87,12 @@ function tubePartFromPort(id: string, port: Port, length = 6): TubePart {
 
 export function placeTube(
   design: DesignState,
-  { id, cell, sourcePartId, length = 6 }: { id: string; cell: Vec3; sourcePartId?: string; length?: number }
+  {
+    id,
+    cell,
+    sourcePartId,
+    length = 6
+  }: { id: string; cell: Vec3; sourcePartId?: string; length?: number }
 ): PlaceTubeResult {
   const port = selectPort(computeTopology(design), cell, { sourcePartId });
   if (!port) return { ok: false, message: TUBE_PLACEMENT_MESSAGE };
