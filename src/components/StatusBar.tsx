@@ -105,18 +105,6 @@ export function StatusBar({
                     {w.detail}
                   </div>
                 </div>
-                <button
-                  style={{
-                    fontSize: 11,
-                    color: "var(--accent)",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0
-                  }}
-                >
-                  Locate ›
-                </button>
               </div>
             ))}
           </div>

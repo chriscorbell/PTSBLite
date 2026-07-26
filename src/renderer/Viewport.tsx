@@ -92,15 +92,6 @@ export type ViewportPlaceTarget = {
  * channel between two components that are already siblings under `App`, which
  * neither TypeScript nor the test suite could see (issue #19).
  */
-
-/**
- * What another component may ask the camera to do.
- *
- * These were previously `window.dispatchEvent(new CustomEvent("ptsb-zoom"))`
- * from the status bar, with a matching listener here — an untyped global side
- * channel between two components that are already siblings under `App`, which
- * neither TypeScript nor the test suite could see (issue #19).
- */
 export type ViewportHandle = {
   /** Multiply the camera distance. Positive pulls back, negative moves in. */
   zoomBy: (delta: number) => void;
@@ -114,7 +105,7 @@ export type ViewportProps = {
   buildArea?: BuildArea;
   ghost: Ghost | null;
   tool: ToolId;
-  onPlace?: (cell: Vec3, e: MouseEvent, target?: ViewportPlaceTarget) => void;
+  onPlace?: (cell: Vec3, target?: ViewportPlaceTarget) => void;
   onHover?: (cell: Vec3) => void;
   landingCells?: Vec3[];
   activeElevation?: number;
@@ -321,7 +312,7 @@ export function Viewport({
         const partId = pickedPart ? partIdForObject(pickedPart.object) : undefined;
         const cell = clickCellForTool(toolRef.current, pickCell(ray), pickedPart?.point);
         if (cell) {
-          callbacksRef.current.onPlace?.(cell, e, partId ? { partId } : undefined);
+          callbacksRef.current.onPlace?.(cell, partId ? { partId } : undefined);
         }
       }
       drag = endViewportDrag(drag);
