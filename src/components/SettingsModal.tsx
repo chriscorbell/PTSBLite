@@ -1,10 +1,11 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
 import { SUGGESTED_QUOTE_NOTES, type AppSettings } from "@/domain/app-settings";
 import { partRegistry } from "@/domain/part-registry";
 import { BUILD_AREA_LIMITS, clampBuildArea } from "@/domain/sparse-grid";
 import type { BuildArea, DesignMetadata } from "@/types";
+import "@/components/SettingsModal.css";
 
 export type SettingsTab = "pricing" | "quote" | "company" | "system";
 
@@ -26,39 +27,6 @@ const BUILD_AREA_AXES: { key: keyof BuildArea; label: string }[] = [
   { key: "depth", label: "Depth (Z)" },
   { key: "height", label: "Height (Y)" }
 ];
-
-const iconBtn: CSSProperties = {
-  width: 32,
-  height: 32,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: 6,
-  color: "var(--text-mut)",
-  background: "transparent",
-  border: "1px solid transparent",
-  cursor: "pointer"
-};
-
-const labelStyle: CSSProperties = {
-  fontSize: 11,
-  color: "var(--text-mut)",
-  marginBottom: 4,
-  display: "block"
-};
-
-const inputStyle: CSSProperties = {
-  width: "100%",
-  height: 32,
-  padding: "0 10px",
-  borderRadius: 6,
-  border: "1px solid var(--line-2)",
-  background: "var(--panel-2)",
-  color: "var(--text)",
-  fontFamily: "var(--font-sans)",
-  fontSize: 12,
-  boxSizing: "border-box"
-};
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "pricing", label: "Parts Pricing" },
@@ -120,73 +88,44 @@ export function SettingsModal({
   return (
     <Modal label="Settings" onClose={onClose} size="lg" dismissOnBackdrop={false}>
       <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 18px",
-            borderBottom: "1px solid var(--line)"
-          }}
-        >
+        <div className="modal__header">
           <Icons.Hammer size={15} />
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Settings</div>
-          <div style={{ flex: 1 }} />
-          <button onClick={onClose} style={iconBtn} aria-label="Close settings">
+          <div className="modal__title">Settings</div>
+          <div className="modal__spacer" />
+          <button onClick={onClose} className="icon-btn" aria-label="Close settings">
             <Icons.Close size={14} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 4, padding: "10px 14px 0" }}>
+        <div className="settings__tabs" role="tablist">
           {TABS.map((t) => (
             <button
               key={t.id}
+              role="tab"
+              aria-selected={activeTab === t.id}
+              className="settings__tab"
               onClick={() => setActiveTab(t.id)}
-              style={{
-                height: 30,
-                padding: "0 12px",
-                borderRadius: 6,
-                border: "1px solid " + (activeTab === t.id ? "var(--line-2)" : "transparent"),
-                background:
-                  activeTab === t.id
-                    ? "color-mix(in oklab, var(--accent) 14%, transparent)"
-                    : "transparent",
-                color: activeTab === t.id ? "var(--accent)" : "var(--text-mut)",
-                fontFamily: "var(--font-sans)",
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer"
-              }}
             >
               {t.label}
             </button>
           ))}
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: 18 }}>
+        <div className="settings__panel">
           {activeTab === "pricing" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <p style={{ fontSize: 11, color: "var(--text-mut)", margin: "0 0 12px" }}>
+            <div className="settings__price-list">
+              <p className="settings__note settings__note--pricing">
                 Unit prices are global and apply to every system. Part names and numbers are fixed.
               </p>
               {pricedParts.map(({ key, entry }) => (
-                <div
-                  key={key}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "8px 0",
-                    borderBottom: "1px solid var(--line)"
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: "var(--text)" }}>{entry.name}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-dim)" }}>{entry.partNo}</div>
+                <div key={key} className="settings__price-row">
+                  <div className="settings__price-part">
+                    <div className="settings__price-name">{entry.name}</div>
+                    <div className="settings__price-no">{entry.partNo}</div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ color: "var(--text-mut)", fontSize: 13 }}>$</span>
+                  <div className="settings__price-input">
+                    <span className="settings__currency">$</span>
                     <input
                       type="number"
                       min={0}
@@ -197,7 +136,7 @@ export function SettingsModal({
                         const v = e.target.value;
                         setPrice(key, v === "" ? undefined : Math.max(0, Number(v)));
                       }}
-                      style={{ ...inputStyle, width: 120, textAlign: "right" }}
+                      className="field__input field__input--price"
                     />
                   </div>
                 </div>
@@ -206,7 +145,7 @@ export function SettingsModal({
           )}
 
           {activeTab === "quote" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="settings__fields">
               <Field label="Sales tax rate (%)">
                 <input
                   type="number"
@@ -221,7 +160,7 @@ export function SettingsModal({
                       taxRate: v === "" ? null : Math.max(0, Number(v) / 100)
                     }));
                   }}
-                  style={{ ...inputStyle, width: 140 }}
+                  className="field__input field__input--narrow"
                 />
               </Field>
               <Field label="Bill-to name">
@@ -230,7 +169,7 @@ export function SettingsModal({
                   onChange={(e) =>
                     setQuote({ billTo: { ...draft.quote.billTo, name: e.target.value } })
                   }
-                  style={inputStyle}
+                  className="field__input"
                 />
               </Field>
               <Field label="Bill-to address (one line each)">
@@ -242,7 +181,7 @@ export function SettingsModal({
                     })
                   }
                   rows={2}
-                  style={{ ...inputStyle, height: "auto", padding: 8, resize: "vertical" }}
+                  className="field__input"
                 />
               </Field>
               <Field label="Project name">
@@ -251,14 +190,14 @@ export function SettingsModal({
                   onChange={(e) =>
                     setQuote({ project: { ...draft.quote.project, name: e.target.value } })
                   }
-                  style={inputStyle}
+                  className="field__input"
                 />
               </Field>
               <Field label="Quote number">
                 <input
                   value={draft.quote.quoteNumber}
                   onChange={(e) => setQuote({ quoteNumber: e.target.value })}
-                  style={inputStyle}
+                  className="field__input"
                 />
               </Field>
               <Field label="Notes / terms">
@@ -267,13 +206,12 @@ export function SettingsModal({
                   onChange={(e) => setQuote({ notes: e.target.value })}
                   rows={4}
                   placeholder="Printed at the foot of the quote."
-                  style={{ ...inputStyle, height: "auto", padding: 8, resize: "vertical" }}
+                  className="field__input"
                 />
                 {draft.quote.notes.trim() === "" && (
                   <button
                     type="button"
-                    className="topbtn"
-                    style={{ marginTop: 6, alignSelf: "flex-start" }}
+                    className="topbtn field__action"
                     onClick={() => setQuote({ notes: SUGGESTED_QUOTE_NOTES })}
                   >
                     Use suggested wording
@@ -284,8 +222,8 @@ export function SettingsModal({
           )}
 
           {activeTab === "company" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <p style={{ fontSize: 11, color: "var(--text-mut)", margin: 0 }}>
+            <div className="settings__fields">
+              <p className="settings__note">
                 Your company appears in the letterhead of every exported quote. These are global and
                 apply to every system.
               </p>
@@ -293,66 +231,66 @@ export function SettingsModal({
                 <input
                   value={draft.company.name}
                   onChange={(e) => setCompany({ name: e.target.value })}
-                  style={inputStyle}
+                  className="field__input"
                 />
               </Field>
               <Field label="Tagline">
                 <input
                   value={draft.company.tagline}
                   onChange={(e) => setCompany({ tagline: e.target.value })}
-                  style={inputStyle}
+                  className="field__input"
                 />
               </Field>
               <Field label="Address">
                 <input
                   value={draft.company.address}
                   onChange={(e) => setCompany({ address: e.target.value })}
-                  style={inputStyle}
+                  className="field__input"
                 />
               </Field>
               <Field label="Phone">
                 <input
                   value={draft.company.phone}
                   onChange={(e) => setCompany({ phone: e.target.value })}
-                  style={inputStyle}
+                  className="field__input"
                 />
               </Field>
               <Field label="Email">
                 <input
                   value={draft.company.email}
                   onChange={(e) => setCompany({ email: e.target.value })}
-                  style={inputStyle}
+                  className="field__input"
                 />
               </Field>
             </div>
           )}
 
           {activeTab === "system" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <p style={{ fontSize: 11, color: "var(--text-mut)", margin: 0 }}>
+            <div className="settings__fields">
+              <p className="settings__note">
                 These belong to the current design and are saved with the file.
               </p>
               <Field label="System name">
                 <input
                   value={meta.filename}
                   onChange={(e) => setMeta((m) => ({ ...m, filename: e.target.value }))}
-                  style={inputStyle}
+                  className="field__input"
                 />
               </Field>
               <Field label="Revision">
                 <input
                   value={meta.revision}
                   onChange={(e) => setMeta((m) => ({ ...m, revision: e.target.value }))}
-                  style={{ ...inputStyle, width: 140 }}
+                  className="field__input field__input--narrow"
                 />
               </Field>
 
               <div>
-                <span style={labelStyle}>Build area (feet)</span>
-                <div style={{ display: "flex", gap: 10 }}>
+                <span className="field__label">Build area (feet)</span>
+                <div className="settings__axes">
                   {BUILD_AREA_AXES.map(({ key, label }) => (
-                    <label key={key} style={{ flex: 1 }}>
-                      <span style={{ ...labelStyle, marginBottom: 4 }}>{label}</span>
+                    <label key={key} className="settings__axis">
+                      <span className="field__label">{label}</span>
                       <input
                         type="number"
                         min={BUILD_AREA_LIMITS[key].min}
@@ -360,12 +298,12 @@ export function SettingsModal({
                         step={1}
                         value={meta.buildArea[key]}
                         onChange={(e) => setBuildArea({ [key]: Number(e.target.value) })}
-                        style={inputStyle}
+                        className="field__input"
                       />
                     </label>
                   ))}
                 </div>
-                <p style={{ fontSize: 11, color: "var(--text-mut)", margin: "8px 0 0" }}>
+                <p className="settings__note settings__note--build-area">
                   The buildable volume and the ground-plane grid (1 ft = 1 cell). The footprint is
                   centered on the origin; height rises from the floor.
                 </p>
@@ -374,15 +312,7 @@ export function SettingsModal({
           )}
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "12px 18px",
-            borderTop: "1px solid var(--line)"
-          }}
-        >
+        <div className="settings__footer">
           <button className="topbtn" onClick={onClose}>
             Cancel
           </button>
@@ -397,8 +327,8 @@ export function SettingsModal({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label style={{ display: "block" }}>
-      <span style={labelStyle}>{label}</span>
+    <label className="field">
+      <span className="field__label">{label}</span>
       {children}
     </label>
   );

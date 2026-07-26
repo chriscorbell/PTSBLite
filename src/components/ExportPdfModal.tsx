@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
 import type { AppSettings } from "@/domain/app-settings";
@@ -13,22 +13,7 @@ import {
 } from "@/domain/quote-readiness";
 import type { SettingsTab } from "@/components/SettingsModal";
 import type { DesignState } from "@/types";
-
-const iconBtn: CSSProperties = {
-  width: 32,
-  height: 32,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: 6,
-  color: "var(--text-mut)",
-  background: "transparent",
-  border: "1px solid transparent",
-  cursor: "pointer",
-  transition: "all .12s"
-};
-
-const monoStyle: CSSProperties = { fontFamily: "var(--font-mono)" };
+import "@/components/ExportPdfModal.css";
 
 export type ExportPdfModalProps = {
   design: DesignState;
@@ -128,31 +113,11 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
   return (
     <Modal label="Quote preview" onClose={onClose} size="xl">
       <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 18px",
-            borderBottom: "1px solid var(--line)",
-            whiteSpace: "nowrap"
-          }}
-        >
+        <div className="modal__header quote__header">
           <Icons.Pdf size={16} />
-          <div style={{ fontSize: 13, fontWeight: 600 }}>Export PDF quote</div>
-          <div
-            style={{
-              ...monoStyle,
-              fontSize: 11,
-              color: "var(--text-dim)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              flex: "0 1 auto"
-            }}
-          >
-            {previewFilename}
-          </div>
-          <div style={{ flex: 1 }} />
+          <div className="modal__title">Export PDF quote</div>
+          <div className="quote__filename">{previewFilename}</div>
+          <div className="modal__spacer" />
           <button
             className="topbtn primary"
             onClick={() => void handleDownload()}
@@ -160,55 +125,28 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
           >
             <Icons.Download size={12} /> {busy === "download" ? "Saving…" : "Download"}
           </button>
-          <button onClick={onClose} style={iconBtn}>
+          <button onClick={onClose} className="icon-btn" aria-label="Close quote preview">
             <Icons.Close size={14} />
           </button>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: 24, background: "#0A0D12" }}>
-          <div
-            style={{
-              background: "#F7F6F1",
-              color: "#1B1E26",
-              borderRadius: 4,
-              padding: "38px 44px",
-              fontFamily: "'Geist Variable', system-ui, sans-serif",
-              boxShadow: "0 10px 32px rgba(0,0,0,0.4)",
-              minHeight: 520
-            }}
-          >
-            <div
-              style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}
-            >
+        <div className="quote__scroll">
+          <div className="quote-paper">
+            <div className="quote-paper__masthead">
               <div>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }}>
-                  {company.name}
-                </div>
-                {company.tagline && (
-                  <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>
-                    {company.tagline}
-                  </div>
-                )}
+                <div className="quote-paper__company">{company.name}</div>
+                {company.tagline && <div className="quote-paper__tagline">{company.tagline}</div>}
                 {(company.address || contactLine) && (
-                  <div style={{ fontSize: 11, color: "#5B6473", marginTop: 14 }}>
+                  <div className="quote-paper__contact">
                     {company.address}
                     {company.address && contactLine && <br />}
                     {contactLine}
                   </div>
                 )}
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 6, color: "#1B1E26" }}>
-                  QUOTE
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-sans)",
-                    fontSize: 11,
-                    color: "#5B6473",
-                    marginTop: 4
-                  }}
-                >
+              <div className="quote-paper__meta">
+                <div className="quote-paper__wordmark">QUOTE</div>
+                <div className="quote-paper__reference">
                   No. {quote.quoteNumber}
                   <br />
                   Date {date}
@@ -218,32 +156,11 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
               </div>
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 20,
-                marginTop: 26,
-                padding: "14px 0",
-                borderTop: "1px solid #D7D2C5",
-                borderBottom: "1px solid #D7D2C5"
-              }}
-            >
+            <div className="quote-paper__parties">
               <div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "#7A8090",
-                    letterSpacing: 0.5,
-                    fontFamily: "var(--font-sans)"
-                  }}
-                >
-                  BILL TO
-                </div>
-                <div style={{ fontSize: 13, marginTop: 4, fontWeight: 600 }}>
-                  {quote.billTo?.name}
-                </div>
-                <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>
+                <div className="quote-paper__caption">BILL TO</div>
+                <div className="quote-paper__party-name">{quote.billTo?.name}</div>
+                <div className="quote-paper__party-lines">
                   {quote.billTo?.lines.map((line, i) => (
                     <span key={i}>
                       {i > 0 && <br />}
@@ -253,18 +170,9 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
                 </div>
               </div>
               <div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "#7A8090",
-                    letterSpacing: 0.5,
-                    fontFamily: "var(--font-sans)"
-                  }}
-                >
-                  PROJECT
-                </div>
-                <div style={{ fontSize: 13, marginTop: 4, fontWeight: 600 }}>{project?.name}</div>
-                <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>
+                <div className="quote-paper__caption">PROJECT</div>
+                <div className="quote-paper__party-name">{project?.name}</div>
+                <div className="quote-paper__party-lines">
                   {project?.lines.map((line, i) => (
                     <span key={i}>
                       {i > 0 && <br />}
@@ -275,108 +183,47 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
               </div>
             </div>
 
-            <table
-              style={{ width: "100%", borderCollapse: "collapse", marginTop: 18, fontSize: 12 }}
-            >
+            <table className="quote-paper__table">
               <thead>
-                <tr
-                  style={{
-                    color: "#7A8090",
-                    fontFamily: "var(--font-sans)",
-                    fontSize: 10,
-                    letterSpacing: 0.5
-                  }}
-                >
-                  <th style={{ textAlign: "left", padding: "8px 0", fontWeight: 500 }}>
-                    PART NUMBER
-                  </th>
-                  <th style={{ textAlign: "left", padding: "8px 8px", fontWeight: 500 }}>
-                    DESCRIPTION
-                  </th>
-                  <th style={{ textAlign: "right", padding: "8px 8px", fontWeight: 500 }}>QTY</th>
-                  <th style={{ textAlign: "right", padding: "8px 8px", fontWeight: 500 }}>UNIT</th>
-                  <th style={{ textAlign: "right", padding: "8px 0", fontWeight: 500 }}>TOTAL</th>
+                <tr>
+                  <th>PART NUMBER</th>
+                  <th>DESCRIPTION</th>
+                  <th className="quote-paper__num">QTY</th>
+                  <th className="quote-paper__num">UNIT</th>
+                  <th className="quote-paper__num">TOTAL</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.key} style={{ borderTop: "1px solid #E5E1D5" }}>
-                    <td
-                      style={{ padding: "10px 0", fontFamily: "var(--font-sans)", fontSize: 11.5 }}
-                    >
-                      {r.partNo}
-                    </td>
-                    <td style={{ padding: "10px 8px" }}>
+                  <tr key={r.key}>
+                    <td className="quote-paper__part-no">{r.partNo}</td>
+                    <td>
                       {r.name}
-                      {r.note ? (
-                        <div style={{ fontSize: 10, color: "#7A8090" }}>{r.note}</div>
-                      ) : null}
+                      {r.note ? <div className="quote-paper__row-note">{r.note}</div> : null}
                     </td>
-                    <td
-                      style={{
-                        padding: "10px 8px",
-                        textAlign: "right",
-                        fontFamily: "var(--font-sans)"
-                      }}
-                    >
-                      {r.qty}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 8px",
-                        textAlign: "right",
-                        fontFamily: "var(--font-sans)"
-                      }}
-                    >
-                      ${r.unitPrice.toFixed(2)}
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 0",
-                        textAlign: "right",
-                        fontFamily: "var(--font-sans)"
-                      }}
-                    >
-                      ${(r.qty * r.unitPrice).toFixed(2)}
-                    </td>
+                    <td className="quote-paper__num">{r.qty}</td>
+                    <td className="quote-paper__num">${r.unitPrice.toFixed(2)}</td>
+                    <td className="quote-paper__num">${(r.qty * r.unitPrice).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-              <div style={{ width: 280 }}>
+            <div className="quote-paper__totals">
+              <div className="quote-paper__totals-inner">
                 <PdfRow l="Subtotal" v={`$${subtotal.toFixed(2)}`} />
                 <PdfRow
                   l={`Tax (${String(+(quote.taxRate * 100).toFixed(4))}%)`}
                   v={`$${tax.toFixed(2)}`}
                 />
-                <div style={{ borderTop: "2px solid #1B1E26", marginTop: 6, paddingTop: 8 }}>
+                <div className="quote-paper__grand">
                   <PdfRow l="Quote total" v={`$${total.toFixed(2)}`} bold />
                 </div>
               </div>
             </div>
 
-            <div
-              style={{
-                marginTop: 28,
-                padding: "14px 16px",
-                background: "#EFECDF",
-                borderRadius: 4
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 10,
-                  color: "#7A8090",
-                  fontFamily: "var(--font-sans)",
-                  letterSpacing: 0.5
-                }}
-              >
-                NOTES
-              </div>
-              <div style={{ fontSize: 11.5, color: "#1B1E26", marginTop: 4, lineHeight: 1.6 }}>
-                {quote.notes}
-              </div>
+            <div className="quote-paper__notes">
+              <div className="quote-paper__caption">NOTES</div>
+              <div className="quote-paper__notes-body">{quote.notes}</div>
             </div>
           </div>
         </div>
@@ -387,17 +234,9 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
 
 function PdfRow({ l, v, bold }: { l: string; v: string; bold?: boolean }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "baseline",
-        padding: "4px 0",
-        fontSize: bold ? 14 : 12
-      }}
-    >
-      <span style={{ color: bold ? "#1B1E26" : "#5B6473", fontWeight: bold ? 600 : 400 }}>{l}</span>
-      <span style={{ fontFamily: "var(--font-sans)", fontWeight: bold ? 700 : 400 }}>{v}</span>
+    <div className={`quote-paper__total-row${bold ? " quote-paper__total-row--bold" : ""}`}>
+      <span className="quote-paper__total-label">{l}</span>
+      <span className="quote-paper__total-value">{v}</span>
     </div>
   );
 }
@@ -427,55 +266,26 @@ function QuoteBlockedDialog({ blockers, onClose, onOpenSettings }: QuoteBlockedD
   return (
     <Modal label="Finish setup before quoting" onClose={onClose} size="md">
       <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "14px 18px",
-            borderBottom: "1px solid var(--line)"
-          }}
-        >
+        <div className="modal__header">
           <Icons.Warn size={14} />
-          <div style={{ fontWeight: 600 }}>Finish setup before quoting</div>
-          <div style={{ flex: 1 }} />
-          <button onClick={onClose} style={iconBtn} aria-label="Close">
+          <div className="modal__title">Finish setup before quoting</div>
+          <div className="modal__spacer" />
+          <button onClick={onClose} className="icon-btn" aria-label="Close">
             <Icons.Close size={14} />
           </button>
         </div>
 
-        <div style={{ padding: "16px 18px", fontSize: 13, color: "var(--text-mut)" }}>
-          <p style={{ margin: "0 0 14px" }}>
+        <div className="quote-blocked__body">
+          <p className="quote-blocked__lede">
             A quote prints prices and company details straight onto a customer-facing document, so
             PTSBuilder ships none of its own. Fill these in and the quote is ready:
           </p>
-          <ul
-            style={{
-              margin: 0,
-              padding: 0,
-              listStyle: "none",
-              display: "flex",
-              flexDirection: "column",
-              gap: 6
-            }}
-          >
+          <ul className="quote-blocked__list">
             {blockers.map((blocker) => (
-              <li
-                key={`${blocker.tab}:${blocker.label}`}
-                style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text)" }}
-              >
-                <span
-                  aria-hidden
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: "50%",
-                    background: "var(--warn)",
-                    flex: "none"
-                  }}
-                />
+              <li key={`${blocker.tab}:${blocker.label}`} className="quote-blocked__item">
+                <span aria-hidden className="quote-blocked__dot" />
                 {blocker.label}
-                <span style={{ color: "var(--text-dim)", fontSize: 11 }}>
+                <span className="quote-blocked__where">
                   Settings › {BLOCKER_TAB_LABELS[blocker.tab]}
                 </span>
               </li>
@@ -483,15 +293,7 @@ function QuoteBlockedDialog({ blockers, onClose, onOpenSettings }: QuoteBlockedD
           </ul>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            justifyContent: "flex-end",
-            padding: "12px 18px",
-            borderTop: "1px solid var(--line)"
-          }}
-        >
+        <div className="quote-blocked__footer">
           <button className="topbtn" onClick={onClose}>
             Close
           </button>
