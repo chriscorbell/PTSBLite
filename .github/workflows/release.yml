@@ -119,6 +119,17 @@ jobs:
         run: pnpm exec electron-builder --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A tag carrying a prerelease suffix (v0.1.4-rc.1) publishes as a GitHub
+          # prerelease rather than a full release. electron-updater sets
+          # allowPrerelease from whether the *installed* version is itself a
+          # prerelease, so a stable install skips these — which is what makes it
+          # safe to test a release candidate without pushing it to every existing
+          # user. EP_PRE_RELEASE takes precedence over publish.releaseType.
+          #
+          # The expression must render "false", not empty: builder-util's
+          # isEnvTrue treats an empty string as true. `contains` returns the
+          # literal strings, so this is correct as written.
+          EP_PRE_RELEASE: ${{ contains(github.ref_name, '-') }}
 
   release-notes:
     # Runs once after all platform builds finish (the release exists by now).
