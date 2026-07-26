@@ -151,6 +151,7 @@ function BuildButton({
     >
       <button
         onClick={onClick}
+        aria-label="Build"
         aria-expanded={open}
         style={{
           width: "100%",
@@ -196,7 +197,7 @@ function BuildDrawer({
   return (
     <div
       role="menu"
-      aria-hidden={!open}
+      inert={!open}
       style={{
         position: "absolute",
         left: "100%",
@@ -259,6 +260,8 @@ function PartCard({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       title={entry.name}
+      aria-label={entry.name}
+      aria-pressed={active}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -368,6 +371,7 @@ function ClearActionButton({
     >
       <button
         onClick={onClick}
+        aria-label={tooltip}
         disabled={disabled}
         style={{
           width: "100%",
@@ -439,6 +443,8 @@ function RailButton({
     >
       <button
         onClick={onClick}
+        aria-label={item.label}
+        aria-pressed={active}
         // Don't take focus on mouse click, otherwise the focus ring lingers on
         // the button after the tool is changed elsewhere (e.g. Esc to cancel).
         // Keyboard focus (Tab) still works and shows the ring via :focus-visible.

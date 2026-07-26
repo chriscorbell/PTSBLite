@@ -356,6 +356,42 @@ describe("auto-build feedback", () => {
   });
 });
 
+describe("left rail accessibility", () => {
+  it("gives every icon-only rail control an accessible name", async () => {
+    await renderApp();
+
+    // These carried their label only in a hover tooltip, which no assistive
+    // technology reads and no keyboard user can summon (issue #33).
+    expect(screen.getByRole("button", { name: "Build" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Clear All Parts" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Clear All Obstacles" })).toBeTruthy();
+  });
+
+  it("reports which tool is active rather than only colouring it", async () => {
+    await renderApp();
+
+    const select = screen.getByRole("button", { name: "Select" });
+    expect(select.getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.keyDown(window, { key: "o" });
+    expect(screen.getByRole("button", { name: "Obstacle" }).getAttribute("aria-pressed")).toBe(
+      "true"
+    );
+    expect(select.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("keeps the closed build drawer out of the tab order", async () => {
+    const { container } = await renderApp();
+
+    // aria-hidden alone left these focusable, which is a violation rather than
+    // a preference: hidden content must not be reachable by Tab (issue #47).
+    const drawer = container.querySelector('[role="menu"]');
+    expect(drawer).toBeTruthy();
+    expect(drawer?.hasAttribute("inert")).toBe(true);
+    expect(drawer?.hasAttribute("aria-hidden")).toBe(false);
+  });
+});
+
 describe("camera controls", () => {
   it("reaches the viewport through its typed handle", async () => {
     await renderApp();
