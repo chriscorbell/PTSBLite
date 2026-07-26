@@ -73,7 +73,25 @@ export function validBendOrientations(
   selection: SourceSelection = {},
   registry: PartRegistry = partRegistry
 ): BendOrientation[] {
-  const port = selectPort(computeTopology(design), cell, selection);
+  return orientationsAtPort(design, computeTopology(design), cell, selection, registry);
+}
+
+/**
+ * The same thing, against a topology the caller already has.
+ *
+ * `bendLandingCells` walks every open port, and calling the public form per
+ * port recomputed the topology each time — quadratic in the number of open
+ * ports, for a value that cannot change during the walk. Passing it through is
+ * enough; nothing here needs a cache or invalidation rules.
+ */
+function orientationsAtPort(
+  design: DesignState,
+  topology: Topology,
+  cell: Vec3,
+  selection: SourceSelection,
+  registry: PartRegistry
+): BendOrientation[] {
+  const port = selectPort(topology, cell, selection);
   if (!port) return [];
   return bendEntry(registry)
     .filter((footprint) => vEq(footprint.inDir, port.dir))
@@ -86,9 +104,14 @@ export function bendLandingCells(design: DesignState): Vec3[] {
   const cells: Vec3[] = [];
   const topology = computeTopology(design);
   for (const port of topology.openPorts()) {
-    if (validBendOrientations(design, port.cell, { sourcePartId: port.partId }).length === 0) {
-      continue;
-    }
+    const orientations = orientationsAtPort(
+      design,
+      topology,
+      port.cell,
+      { sourcePartId: port.partId },
+      partRegistry
+    );
+    if (orientations.length === 0) continue;
     const key = cellKey(port.cell);
     if (seen.has(key)) continue;
     seen.add(key);
