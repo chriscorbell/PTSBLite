@@ -139,6 +139,13 @@ async function openExternalWebUrl(url: string): Promise<{ ok: boolean; error?: s
   }
 }
 
+/**
+ * Set once the renderer has confirmed the window may close. Module scope
+ * because there is only ever one window, and `app.quit()` closes it the same
+ * way the title-bar button does.
+ */
+let allowClose = false;
+
 function createWindow(): void {
   const {
     titleBarInset: _titleBarInset,
@@ -186,6 +193,16 @@ function createWindow(): void {
 
   // Keep the OS window title fixed; ignore the renderer document's <title>.
   mainWindow.on("page-title-updated", (event) => event.preventDefault());
+
+  // Closing is vetoed once and handed to the renderer, which knows whether
+  // there is unsaved work and owns the confirmation UI. `allowClose` is the one
+  // path back out: without it the renderer's own close would be vetoed again
+  // and the window could never shut (issue #6).
+  mainWindow.on("close", (event) => {
+    if (allowClose) return;
+    event.preventDefault();
+    mainWindow.webContents.send(IPC.windowCloseRequested);
+  });
 
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
     void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -274,6 +291,12 @@ void app.whenReady().then(() => {
   // Open a URL in the user's default browser. Only http(s) links are honored so
   // a compromised renderer can't ask the OS to launch arbitrary schemes.
   ipcMain.handle(IPC.shellOpenExternal, (_event, url: string) => openExternalWebUrl(url));
+
+  // The renderer has decided the window may close: stop vetoing and do it.
+  ipcMain.handle(IPC.windowConfirmClose, (event) => {
+    allowClose = true;
+    BrowserWindow.fromWebContents(event.sender)?.close();
+  });
 
   // Renderer asks on mount whether an update already finished downloading
   // before its `update:downloaded` listener was attached.

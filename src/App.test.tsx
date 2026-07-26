@@ -506,3 +506,65 @@ describe("saving a design", () => {
     expect(canUndo()).toBe(false);
   });
 });
+
+describe("closing the window", () => {
+  /** Capture the callback main would invoke when the user hits the close button. */
+  function stubCloseHandshake() {
+    let requestClose: (() => void) | null = null;
+    const confirmClose = vi.fn().mockResolvedValue(undefined);
+    stubBridge({
+      confirmClose,
+      onCloseRequested: (cb: () => void) => {
+        requestClose = cb;
+        return () => {
+          requestClose = null;
+        };
+      }
+    });
+    return { confirmClose, close: () => act(() => requestClose?.()) };
+  }
+
+  it("closes straight away when there is nothing to lose", async () => {
+    const { confirmClose, close } = stubCloseHandshake();
+    await renderApp();
+
+    close();
+
+    expect(confirmClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks first when there is unsaved work, and stays open if declined", async () => {
+    // Main vetoes its own close event and waits for this answer, so declining
+    // simply means never answering — the window stays open (issue #6).
+    const { confirmClose, close } = stubCloseHandshake();
+    await renderApp();
+
+    fireEvent.keyDown(window, { key: "o" });
+    clickCell([0, 0, 0]);
+    clickCell([2, 0, 2]);
+    act(() => placeButton()?.click());
+
+    close();
+    expect(confirmClose).not.toHaveBeenCalled();
+
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+    expect(confirmClose).not.toHaveBeenCalled();
+  });
+
+  it("closes once the user confirms discarding the work", async () => {
+    const { confirmClose, close } = stubCloseHandshake();
+    await renderApp();
+
+    fireEvent.keyDown(window, { key: "o" });
+    clickCell([0, 0, 0]);
+    clickCell([2, 0, 2]);
+    act(() => placeButton()?.click());
+
+    close();
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Discard and close" })
+    );
+
+    expect(confirmClose).toHaveBeenCalledTimes(1);
+  });
+});

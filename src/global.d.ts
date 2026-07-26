@@ -34,6 +34,10 @@ export type PTSBuilderApi = {
   checkForUpdates: () => Promise<CheckForUpdatesResult>;
   getPendingUpdate: () => Promise<PendingUpdate | null>;
   quitAndInstall: () => Promise<void>;
+  /** Subscribe to main's "may I close?" question; returns an unsubscribe fn. */
+  onCloseRequested: (callback: () => void) => () => void;
+  /** Tell main the window may close now. */
+  confirmClose: () => Promise<void>;
   onUpdateDownloaded: (callback: (info: PendingUpdate) => void) => () => void;
 };
 
