@@ -1,10 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
-import {
-  DEFAULT_SETTINGS,
-  mergeSettings,
-  setPriceOverrides,
-  unitPriceFor
-} from "@/domain/app-settings";
+import { describe, expect, it } from "vitest";
+import { DEFAULT_SETTINGS, mergeSettings } from "@/domain/app-settings";
 
 describe("mergeSettings", () => {
   it("returns defaults when the loaded value is not an object", () => {
@@ -37,16 +32,15 @@ describe("mergeSettings", () => {
   });
 });
 
-describe("price overrides", () => {
-  afterEach(() => setPriceOverrides({}));
-
-  it("unitPriceFor returns the fallback when no override is set", () => {
-    expect(unitPriceFor("blower", 4250)).toBe(4250);
-  });
-
-  it("unitPriceFor returns the override when set", () => {
-    setPriceOverrides({ blower: 9000 });
-    expect(unitPriceFor("blower", 4250)).toBe(9000);
-    expect(unitPriceFor("terminal", 1850)).toBe(1850);
+describe("shipped defaults", () => {
+  // ADR-0003: nothing a customer sees may arrive pre-filled with an invented
+  // value. The gate in quote-readiness.ts is only meaningful if this holds.
+  it("ships no prices, no tax rate, and no quote copy", () => {
+    expect(DEFAULT_SETTINGS.pricing).toEqual({});
+    expect(DEFAULT_SETTINGS.taxRate).toBeNull();
+    expect(Object.values(DEFAULT_SETTINGS.company).every((v) => v === "")).toBe(true);
+    expect(DEFAULT_SETTINGS.quote.quoteNumber).toBe("");
+    expect(DEFAULT_SETTINGS.quote.notes).toBe("");
+    expect(DEFAULT_SETTINGS.quote.billTo).toEqual({ name: "", lines: [] });
   });
 });

@@ -1,12 +1,5 @@
-import { unitPriceFor } from "@/domain/app-settings";
-import { partRegistry, type PartCatalogEntry } from "@/domain/part-registry";
+import { partRegistry } from "@/domain/part-registry";
 import type { DesignState, Part } from "@/types";
-
-/** Catalog entry with its unit price replaced by the effective (override-aware) price. */
-function pricedEntry(registryKey: string): PartCatalogEntry {
-  const entry = partRegistry.get(registryKey);
-  return { ...entry, unitPrice: unitPriceFor(registryKey, entry.unitPrice) };
-}
 
 export type { PartCatalogEntry } from "@/domain/part-registry";
 
@@ -35,13 +28,36 @@ export function tubeFeet(input: Part[] | DesignState): number {
     .reduce((a, p) => a + partLength(p), 0);
 }
 
-export type BomRow = PartCatalogEntry & {
+/** Unit prices keyed by part-registry key. A key absent from the map has no price. */
+export type Pricing = Readonly<Record<string, number>>;
+
+export type BomRow = {
+  /** Registry key this row prices, e.g. "tube6". */
   key: string;
+  name: string;
+  partNo: string;
   qty: number;
   note?: string;
+  /** `null` when the installer has not entered a price for this part. */
+  unitPrice: number | null;
 };
 
-export function bomRows(input: Part[] | DesignState): BomRow[] {
+/** A row that has a price, and therefore a line total. */
+export type PricedBomRow = BomRow & { unitPrice: number };
+
+export function isPricedRow(row: BomRow): row is PricedBomRow {
+  return row.unitPrice !== null;
+}
+
+/**
+ * The bill of materials, priced from `pricing`.
+ *
+ * Prices are an argument rather than something this module reaches for. They
+ * used to come from a mutable module-level global that `App` wrote on startup,
+ * which meant the BOM was not a function of its inputs, could not be tested
+ * without global setup, and leaked between tests by execution order.
+ */
+export function bomRows(input: Part[] | DesignState, pricing: Pricing): BomRow[] {
   const parts = Array.isArray(input) ? input : input.parts;
   const blowers = parts.filter((p) => p.type === "blower").length;
   const terminals = parts.filter((p) => p.type === "terminal").length;
@@ -49,15 +65,20 @@ export function bomRows(input: Part[] | DesignState): BomRow[] {
   const ft = tubeFeet(parts);
   const cuts = parts.filter((p) => p.type === "tube" && partLength(p) < 6).length;
   const stock = Math.ceil(ft / 6);
+
+  const row = (key: string, qty: number, note?: string): BomRow => {
+    const { name, partNo } = partRegistry.get(key);
+    return { key, name, partNo, qty, note, unitPrice: pricing[key] ?? null };
+  };
+
   return [
-    { key: "blower", ...pricedEntry("blower"), qty: blowers },
-    { key: "terminal", ...pricedEntry("terminal"), qty: terminals },
-    {
-      key: "tube",
-      ...pricedEntry("tube6"),
-      qty: stock,
-      note: cuts ? `${cuts} cut on-site · ${ft.toFixed(1)}ft total` : `${ft.toFixed(1)}ft total`
-    },
-    { key: "bend", ...pricedEntry("bend90"), qty: bends }
+    row("blower", blowers),
+    row("terminal", terminals),
+    row(
+      "tube6",
+      stock,
+      cuts ? `${cuts} cut on-site · ${ft.toFixed(1)}ft total` : `${ft.toFixed(1)}ft total`
+    ),
+    row("bend90", bends)
   ];
 }
