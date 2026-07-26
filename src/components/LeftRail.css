@@ -1,0 +1,236 @@
+.left-rail {
+  position: relative;
+  width: 48px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px;
+  gap: 3px;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  z-index: 5;
+}
+
+.left-rail__divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 8px;
+}
+
+.left-rail__clear-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+/* Each rail button sits in a wrapper so the tooltip can hang off it. */
+.left-rail__slot {
+  position: relative;
+}
+
+.left-rail__button {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-mut);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.left-rail__button:hover {
+  background: var(--panel-2);
+}
+/* Armed. Driven off the ARIA state the button already publishes rather than a
+   second, parallel class. */
+.left-rail__button[aria-pressed="true"],
+.left-rail__button[aria-expanded="true"] {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+.left-rail__button--danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--danger) 16%, transparent);
+  color: var(--danger);
+  border-color: color-mix(in oklab, var(--danger) 34%, transparent);
+}
+.left-rail__button:disabled {
+  color: color-mix(in oklab, var(--text-dim) 60%, transparent);
+  cursor: default;
+  background: transparent;
+}
+
+/*
+ * The tooltip.
+ *
+ * Rendered always and revealed by CSS, which is what removes the four useState
+ * hover flags and the render they cost per pointer move. It is `aria-hidden`
+ * because it duplicates the button's own accessible name; the shortcut it also
+ * shows is published properly via `aria-keyshortcuts` on the button, so hiding
+ * the bubble from assistive technology drops nothing.
+ *
+ * `:focus-within` matters as much as `:hover` — a keyboard user tabbing the rail
+ * should see the same label a mouse user does (WCAG 1.4.13).
+ *
+ * Deliberately NOT `pointer-events: none`: 1.4.13 also requires that the pointer
+ * can move onto the content without it disappearing, and ignoring hit-testing
+ * makes that impossible. `::before` bridges the 8px gap so the bubble survives
+ * the crossing.
+ */
+.left-rail__tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  background: var(--ink);
+  color: var(--text);
+  border: 1px solid var(--line-2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.12s,
+    visibility 0.12s;
+}
+
+.left-rail__tooltip::before {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+}
+
+.left-rail__slot:hover > .left-rail__tooltip,
+.left-rail__slot:focus-within > .left-rail__tooltip,
+.left-rail__tooltip:hover {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* The drawer's own button owns the open state, so its tooltip would otherwise
+   sit on top of the panel it just opened. */
+.left-rail__slot--open > .left-rail__tooltip {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.left-rail__tooltip-title {
+  font-weight: 600;
+}
+
+.left-rail__tooltip-shortcut {
+  color: var(--text-dim);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.left-rail__drawer {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  bottom: 0;
+  width: 252px;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 12px 14px;
+  z-index: 6;
+  box-shadow: none;
+  transform: translateX(-8px);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.left-rail__drawer--open {
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.45);
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.left-rail__drawer-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.left-rail__parts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.part-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  gap: 7px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.part-card:hover {
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+}
+.part-card[aria-pressed="true"] {
+  background: color-mix(in oklab, var(--accent) 12%, var(--panel-2));
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  color: var(--accent);
+}
+
+.part-card__preview {
+  height: 56px;
+  padding: 4px;
+  border-radius: 6px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.part-card__name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.part-card[aria-pressed="true"] .part-card__name {
+  color: var(--accent);
+}
+
+.part-card__part-no {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
