@@ -1,48 +1,24 @@
-export type SaveDesignResult = {
-  canceled: boolean;
-  filePath: string | null;
-  error?: string;
-};
+export type {
+  CheckForUpdatesResult,
+  ExportQuoteResult,
+  GetSettingsResult,
+  OpenDesignResult,
+  OpenExternalResult,
+  PendingUpdate,
+  SaveDesignResult,
+  SetSettingsResult
+} from "@shared/ipc";
 
-export type OpenDesignResult = {
-  canceled: boolean;
-  filePath: string | null;
-  contents: string | null;
-  error?: string;
-};
-
-export type ExportQuoteResult = {
-  canceled: boolean;
-  filePath: string | null;
-  error?: string;
-};
-
-export type GetSettingsResult = {
-  data: unknown;
-  error?: string;
-};
-
-export type SetSettingsResult = {
-  ok: boolean;
-  error?: string;
-};
-
-export type OpenExternalResult = {
-  ok: boolean;
-  error?: string;
-};
-
-export type CheckForUpdatesResult =
-  // Self-updating platform: a newer build is downloading in the background.
-  | { status: "available"; version: string }
-  // Platform without self-update: a newer build exists; download it by hand.
-  | { status: "manual"; version: string; url: string }
-  | { status: "up-to-date" }
-  | { status: "error" };
-
-export type PendingUpdate = {
-  version: string;
-};
+import type {
+  CheckForUpdatesResult,
+  ExportQuoteResult,
+  GetSettingsResult,
+  OpenDesignResult,
+  OpenExternalResult,
+  PendingUpdate,
+  SaveDesignResult,
+  SetSettingsResult
+} from "@shared/ipc";
 
 export type PTSBuilderApi = {
   platform: NodeJS.Platform;

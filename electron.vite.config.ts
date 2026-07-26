@@ -38,7 +38,8 @@ export default defineConfig({
     root: ".",
     resolve: {
       alias: {
-        "@": resolve(__dirname, "src")
+        "@": resolve(__dirname, "src"),
+        "@shared": resolve(__dirname, "shared")
       }
     },
     define: {

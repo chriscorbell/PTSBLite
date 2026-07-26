@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { windowChromeForPlatform } from "./window-chrome";
+import { IPC, type PendingUpdate } from "../shared/ipc";
 
 const windowChrome = windowChromeForPlatform(process.platform);
 
@@ -7,22 +8,22 @@ const api = {
   platform: process.platform,
   titleBarInset: windowChrome.titleBarInset,
   titleBarRightInset: windowChrome.titleBarRightInset,
-  saveDesign: (jsonData: string) => ipcRenderer.invoke("design:save", jsonData),
-  openDesign: () => ipcRenderer.invoke("design:open"),
-  exportQuote: (pdfBase64: string) => ipcRenderer.invoke("quote:export", pdfBase64),
-  getSettings: () => ipcRenderer.invoke("settings:get"),
-  setSettings: (jsonData: string) => ipcRenderer.invoke("settings:set", jsonData),
-  openExternal: (url: string) => ipcRenderer.invoke("shell:open-external", url),
-  checkForUpdates: () => ipcRenderer.invoke("update:check"),
+  saveDesign: (jsonData: string) => ipcRenderer.invoke(IPC.designSave, jsonData),
+  openDesign: () => ipcRenderer.invoke(IPC.designOpen),
+  exportQuote: (pdfBase64: string) => ipcRenderer.invoke(IPC.quoteExport, pdfBase64),
+  getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
+  setSettings: (jsonData: string) => ipcRenderer.invoke(IPC.settingsSet, jsonData),
+  openExternal: (url: string) => ipcRenderer.invoke(IPC.shellOpenExternal, url),
+  checkForUpdates: () => ipcRenderer.invoke(IPC.updateCheck),
   // Any update already downloaded before the renderer attached its listener.
-  getPendingUpdate: () => ipcRenderer.invoke("update:get-pending"),
+  getPendingUpdate: () => ipcRenderer.invoke(IPC.updateGetPending),
   // Install the downloaded update and relaunch.
-  quitAndInstall: () => ipcRenderer.invoke("update:quit-and-install"),
+  quitAndInstall: () => ipcRenderer.invoke(IPC.updateQuitAndInstall),
   // Subscribe to "update finished downloading" pushes; returns an unsubscribe fn.
-  onUpdateDownloaded: (callback: (info: { version: string }) => void) => {
-    const listener = (_event: unknown, info: { version: string }) => callback(info);
-    ipcRenderer.on("update:downloaded", listener);
-    return () => ipcRenderer.removeListener("update:downloaded", listener);
+  onUpdateDownloaded: (callback: (info: PendingUpdate) => void) => {
+    const listener = (_event: unknown, info: PendingUpdate) => callback(info);
+    ipcRenderer.on(IPC.updateDownloaded, listener);
+    return () => ipcRenderer.removeListener(IPC.updateDownloaded, listener);
   }
 };
 
