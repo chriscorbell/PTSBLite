@@ -69,10 +69,9 @@ are authoritative engineering spec versus placeholder catalog data. The two look
 source. Decisions with lasting consequences are recorded in [`docs/adr/`](docs/adr).
 [`AGENTS.md`](AGENTS.md) is the short version for anyone — human or agent — picking the project up.
 
-Two further documents matter while the product waits on client requirements:
+While the product waits on client requirements,
 [`docs/baked-in-assumptions.md`](docs/baked-in-assumptions.md) says what the current model can and
-cannot express, and [`docs/requirements/open-questions.md`](docs/requirements/open-questions.md)
-holds the questions only the client can answer.
+cannot express. Questions only the client can answer are tracked as issues labelled `question`.
 
 ## Controls
 

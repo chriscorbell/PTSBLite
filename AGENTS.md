@@ -67,6 +67,5 @@ which `validation.ts` flags rather than forbids.
 
 This is a product being sold to a client whose requirements have not arrived yet.
 [`docs/baked-in-assumptions.md`](docs/baked-in-assumptions.md) lists what the current model can and
-cannot express, and [`docs/requirements/open-questions.md`](docs/requirements/open-questions.md)
-holds the questions only the client can answer. If a task appears to need one of those answers,
-record the question — do not guess an implementation.
+cannot express. Questions only the client can answer are tracked as issues labelled `question`. If a
+task appears to need one of those answers, open an issue — do not guess an implementation.
