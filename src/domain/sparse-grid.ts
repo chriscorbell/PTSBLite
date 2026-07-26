@@ -22,6 +22,20 @@ export const BUILD_AREA_LIMITS = {
   height: { min: 2, max: 100 }
 } as const;
 
+/**
+ * Clamp a Y level to the build area's buildable range.
+ *
+ * The range is `[GROUND_PLANE_Y, height - 1]`: `boundsFromBuildArea` makes
+ * `yMax` exclusive, so the topmost occupiable cell is one below it. Used by the
+ * placement elevation and by the obstacle base/height steppers, both of which
+ * previously carried their own hardcoded limits that disagreed with the build
+ * area and with each other.
+ */
+export function clampElevation(y: number, area: BuildArea): number {
+  if (!Number.isFinite(y)) return GROUND_PLANE_Y;
+  return Math.min(area.height - 1, Math.max(GROUND_PLANE_Y, Math.floor(y)));
+}
+
 /** Half-open cell ranges [min, max) per axis. */
 export type GridBounds = {
   xMin: number;

@@ -1,4 +1,5 @@
-import type { DesignState, Ghost, Vec3 } from "@/types";
+import { clampElevation, GROUND_PLANE_Y } from "@/domain/sparse-grid";
+import type { BuildArea, DesignState, Ghost, Vec3 } from "@/types";
 
 export const OBSTACLE_PLACEMENT_MESSAGES = {
   occupied: "Place obstacle on open grid cells.",
@@ -63,25 +64,38 @@ export function setObstaclePlacementFootprint(
   };
 }
 
+/**
+ * Resize a draft, keeping it inside the design's build area.
+ *
+ * The clamp lives here rather than in the HUD because the HUD used a hardcoded
+ * 150 ft ceiling that the domain neither knew about nor agreed with: a design
+ * 30 ft tall would happily offer a 150 ft obstacle, which `placeObstacleVolume`
+ * then refused. A control must not advertise a value its domain will reject.
+ */
 export function resizeObstaclePlacementHeight(
   draft: ObstaclePlacementDraft,
-  height: number
+  height: number,
+  area: BuildArea
 ): ObstaclePlacementDraft {
   if (!obstaclePlacementDraftHasFootprint(draft)) return draft;
+  const maxHeight = Math.max(1, area.height - draft.baseY);
   return {
     ...draft,
-    height: Math.max(1, Math.floor(height))
+    height: Math.min(maxHeight, Math.max(1, Math.floor(height)))
   };
 }
 
+/** Move a draft's floor, keeping the whole volume inside the build area. */
 export function moveObstaclePlacementBase(
   draft: ObstaclePlacementDraft,
-  baseY: number
+  baseY: number,
+  area: BuildArea
 ): ObstaclePlacementDraft {
   if (!obstaclePlacementDraftHasFootprint(draft)) return draft;
+  const maxBase = Math.max(GROUND_PLANE_Y, area.height - draft.height);
   return {
     ...draft,
-    baseY: Math.floor(baseY)
+    baseY: Math.min(maxBase, clampElevation(baseY, area))
   };
 }
 

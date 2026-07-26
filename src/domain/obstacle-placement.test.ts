@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { emptyDesign } from "@/domain/design-state";
+import { DEFAULT_BUILD_AREA, GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import {
   cancelObstaclePlacement,
   moveObstaclePlacementBase,
+  obstaclePlacementDraftBounds,
   obstaclePlacementGhost,
   resizeObstaclePlacementHeight,
   obstacleVolumeCells,
@@ -11,6 +13,7 @@ import {
   startObstaclePlacement
 } from "@/domain/obstacle-placement";
 import { expectGridMatchesDesign } from "@/test/design-invariants";
+import type { BuildArea } from "@/types";
 
 describe("obstacle volume placement", () => {
   it("enumerates every one-cell-high grid cell inside two XZ corners", () => {
@@ -82,8 +85,8 @@ describe("obstacle volume placement", () => {
     expect(started.ok).toBe(true);
     if (!started.ok) return;
     const footprint = setObstaclePlacementFootprint(started.draft, [4, 0, 6]);
-    const raised = moveObstaclePlacementBase(footprint, 3);
-    const tall = resizeObstaclePlacementHeight(raised, 5);
+    const raised = moveObstaclePlacementBase(footprint, 3, DEFAULT_BUILD_AREA);
+    const tall = resizeObstaclePlacementHeight(raised, 5, DEFAULT_BUILD_AREA);
 
     expect(obstaclePlacementGhost(tall, [4, 0, 6])).toEqual({
       type: "obstacle",
@@ -101,5 +104,62 @@ describe("obstacle volume placement", () => {
       ok: false,
       message: "Place obstacle on open grid cells."
     });
+  });
+});
+
+describe("obstacle draft bounds follow the design's build area", () => {
+  const SHORT: BuildArea = { width: 20, depth: 20, height: 6 };
+
+  function footprintDraft() {
+    const started = startObstaclePlacement(emptyDesign({ buildArea: SHORT }), [2, 0, 3]);
+    if (!started.ok) throw new Error("expected a draft");
+    return setObstaclePlacementFootprint(started.draft, [4, 0, 6]);
+  }
+
+  it("caps height at the ceiling rather than a hardcoded limit", () => {
+    // The HUD used to offer up to 150 ft regardless of the design, and
+    // placeObstacleVolume then refused whatever exceeded the build area.
+    const tall = resizeObstaclePlacementHeight(footprintDraft(), 999, SHORT);
+    expect(tall.height).toBe(SHORT.height);
+  });
+
+  it("keeps height at least one cell", () => {
+    expect(resizeObstaclePlacementHeight(footprintDraft(), 0, SHORT).height).toBe(1);
+    expect(resizeObstaclePlacementHeight(footprintDraft(), -5, SHORT).height).toBe(1);
+  });
+
+  it("caps the base so the whole volume stays inside the ceiling", () => {
+    const tall = resizeObstaclePlacementHeight(footprintDraft(), 4, SHORT);
+    const raised = moveObstaclePlacementBase(tall, 99, SHORT);
+    const height = tall.height ?? 0;
+    const baseY = raised.baseY ?? 0;
+    expect(baseY).toBe(SHORT.height - height);
+    expect(baseY + height).toBeLessThanOrEqual(SHORT.height);
+  });
+
+  it("never lets the base go below the ground plane", () => {
+    expect(moveObstaclePlacementBase(footprintDraft(), -10, SHORT).baseY).toBe(GROUND_PLANE_Y);
+  });
+
+  it("produces a draft that placeObstacleVolume actually accepts", () => {
+    // The point of clamping in the domain: a control cannot offer a value the
+    // domain will then reject.
+    const design = emptyDesign({ buildArea: SHORT });
+    const started = startObstaclePlacement(design, [2, 0, 3]);
+    if (!started.ok) throw new Error("expected a draft");
+    const draft = resizeObstaclePlacementHeight(
+      moveObstaclePlacementBase(setObstaclePlacementFootprint(started.draft, [4, 0, 6]), 99, SHORT),
+      999,
+      SHORT
+    );
+    const bounds = obstaclePlacementDraftBounds(draft);
+    const result = placeObstacleVolume(design, {
+      id: "o1",
+      cornerA: bounds.min,
+      cornerB: bounds.max
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expectGridMatchesDesign(result.design);
   });
 });
