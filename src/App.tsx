@@ -17,12 +17,7 @@ import { StatusBar } from "@/components/StatusBar";
 import { TopBar } from "@/components/TopBar";
 import { UpdateNotification } from "@/components/UpdateNotification";
 import { ViewportHUD } from "@/components/ViewportHUD";
-import {
-  DEFAULT_SETTINGS,
-  mergeSettings,
-  setPriceOverrides,
-  type AppSettings
-} from "@/domain/app-settings";
+import { DEFAULT_SETTINGS, mergeSettings, type AppSettings } from "@/domain/app-settings";
 import { bendLandingCells, bendPlacementGhost, placeBend } from "@/domain/bend-placement";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
 import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
@@ -279,7 +274,6 @@ export default function App() {
       if (!active) return;
       const merged = mergeSettings(DEFAULT_SETTINGS, loaded?.data ?? null);
       setSettings(merged);
-      setPriceOverrides(merged.pricing);
     })();
     return () => {
       active = false;
@@ -306,7 +300,6 @@ export default function App() {
 
   const updateSettings = useCallback((next: AppSettings) => {
     setSettings(next);
-    setPriceOverrides(next.pricing);
     void window.ptsbuilder?.setSettings(JSON.stringify(next, null, 2));
   }, []);
 
@@ -768,6 +761,7 @@ export default function App() {
             open={rightOpen}
             onClose={() => setRightOpen(false)}
             design={design}
+            pricing={settings.pricing}
             taxRate={settings.taxRate}
             onExport={() => setExportOpen(true)}
           />
@@ -855,6 +849,10 @@ export default function App() {
           settings={settings}
           onClose={() => setExportOpen(false)}
           onError={setErrorFlash}
+          onOpenSettings={(tab) => {
+            setExportOpen(false);
+            setSettingsTab(tab);
+          }}
         />
       )}
       {settingsTab && (

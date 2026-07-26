@@ -15,7 +15,6 @@ export type PartCatalogEntry = {
   type: string;
   name: string;
   partNo: string;
-  unitPrice: number;
   color: string;
   cells?: number;
   ports?: number;
@@ -58,8 +57,14 @@ export function loadPartRegistry(entries: Record<string, PartCatalogEntry>): Par
   for (const [key, entry] of Object.entries(entries)) {
     if (!entry.type) throw new Error(`PartRegistry: entry "${key}" missing type`);
     if (!entry.partNo) throw new Error(`PartRegistry: entry "${key}" missing partNo`);
-    if (typeof entry.unitPrice !== "number") {
-      throw new Error(`PartRegistry: entry "${key}" missing numeric unitPrice`);
+    if ("unitPrice" in entry) {
+      // ADR-0003: the shipped catalog carries no prices, so a quote cannot be
+      // built from invented ones. This guard used to require a numeric
+      // unitPrice; it now refuses one, so the placeholders cannot come back by
+      // way of a catalog edit.
+      throw new Error(
+        `PartRegistry: entry "${key}" carries a unitPrice. Prices are installer-entered (ADR-0003).`
+      );
     }
     if (entry.type === "bend") {
       const bendFootprints = computeBendFootprints(entry);

@@ -2,13 +2,16 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { Icons } from "@/components/Icons";
 import { useEscapeKey } from "@/components/useEscapeKey";
 import type { AppSettings } from "@/domain/app-settings";
-import { bomRows, totalPathLength } from "@/domain/parts";
+import { totalPathLength } from "@/domain/parts";
+import { formatQuoteDate, generateQuotePdf, pdfBytesToBase64 } from "@/domain/quote-pdf";
 import {
-  formatQuoteDate,
-  generateQuotePdf,
-  pdfBytesToBase64,
-  type QuotePdfOptions
-} from "@/domain/quote-pdf";
+  quoteReadiness,
+  quoteSubtotal,
+  type QuoteBlocker,
+  type QuoteBlockerTab,
+  type ReadyQuote
+} from "@/domain/quote-readiness";
+import type { SettingsTab } from "@/components/SettingsModal";
 import type { DesignState } from "@/types";
 
 const iconBtn: CSSProperties = {
@@ -27,36 +30,89 @@ const iconBtn: CSSProperties = {
 
 const monoStyle: CSSProperties = { fontFamily: "var(--font-mono)" };
 
+const overlayStyle: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  background: "rgba(5,7,10,0.75)",
+  backdropFilter: "blur(6px)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 100
+};
+
+const blockedPanelStyle: CSSProperties = {
+  width: "min(460px, 92%)",
+  display: "flex",
+  flexDirection: "column",
+  background: "var(--panel)",
+  borderRadius: 10,
+  border: "1px solid var(--line-2)",
+  boxShadow: "0 24px 80px rgba(0,0,0,0.5)"
+};
+
 export type ExportPdfModalProps = {
   design: DesignState;
   settings: AppSettings;
   onClose: () => void;
   onError?: (message: string) => void;
+  /** Jump to the Settings screen that resolves a blocker. */
+  onOpenSettings: (tab: SettingsTab) => void;
 };
 
-export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdfModalProps) {
+export function ExportPdfModal({
+  design,
+  settings,
+  onClose,
+  onError,
+  onOpenSettings
+}: ExportPdfModalProps) {
   useEscapeKey(onClose);
-  // One options object drives BOTH the on-screen preview and the generated PDF, so
-  // they can't drift apart. Company, quote/customer info, and tax come from settings.
-  const options: QuotePdfOptions = useMemo(() => {
-    const projectLines = settings.quote.project.lines.length
-      ? settings.quote.project.lines
+
+  const readiness = useMemo(() => quoteReadiness(design, settings), [design, settings]);
+
+  if (!readiness.ready) {
+    return (
+      <QuoteBlockedDialog
+        blockers={readiness.blockers}
+        onClose={onClose}
+        onOpenSettings={onOpenSettings}
+      />
+    );
+  }
+  return (
+    <QuotePreviewDialog
+      design={design}
+      quote={readiness.quote}
+      onClose={onClose}
+      onError={onError}
+    />
+  );
+}
+
+type QuotePreviewDialogProps = {
+  design: DesignState;
+  quote: ReadyQuote;
+  onClose: () => void;
+  onError?: (message: string) => void;
+};
+
+function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDialogProps) {
+  useEscapeKey(onClose);
+  const date = useMemo(() => formatQuoteDate(), []);
+  // Project detail lines fall back to a description of the drawing, matching
+  // what generateQuotePdf does, so preview and PDF cannot drift.
+  const project = {
+    name: quote.project.name,
+    lines: quote.project.lines.length
+      ? quote.project.lines
       : [
           `Single-direction · ${totalPathLength(design).toFixed(1)}ft centerline`,
           `Designed in PTSBuilder · System file ${design.metadata.filename}`
-        ];
-    return {
-      company: settings.company,
-      quoteNumber: settings.quote.quoteNumber,
-      date: formatQuoteDate(),
-      billTo: settings.quote.billTo,
-      project: { name: settings.quote.project.name, lines: projectLines },
-      notes: settings.quote.notes,
-      taxRate: settings.taxRate
-    };
-  }, [settings, design]);
+        ]
+  };
 
-  const company = settings.company;
+  const company = quote.company;
   // Decorative label in the modal header; the real export filename is chosen in
   // the save dialog. Derive it from the system name so it isn't a fixed literal.
   const previewFilename = useMemo(() => {
@@ -66,11 +122,11 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
 
   const contactLine = [company.phone, company.email].filter(Boolean).join(" · ");
 
-  const rows = bomRows(design);
-  const subtotal = rows.reduce((a, r) => a + r.qty * r.unitPrice, 0);
-  const tax = subtotal * (options.taxRate ?? 0);
+  const rows = quote.rows;
+  const subtotal = quoteSubtotal(rows);
+  const tax = subtotal * quote.taxRate;
   const total = subtotal + tax;
-  const [busy, setBusy] = useState<"download" | "print" | null>(null);
+  const [busy, setBusy] = useState<"download" | null>(null);
 
   const handleDownload = async () => {
     if (busy) return;
@@ -81,7 +137,7 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
     }
     setBusy("download");
     try {
-      const bytes = await generateQuotePdf(design, options);
+      const bytes = await generateQuotePdf(design, quote, { date });
       const base64 = pdfBytesToBase64(bytes);
       const result = await api.exportQuote(base64);
       if (result.canceled) return;
@@ -93,14 +149,6 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
     }
   };
 
-  const handlePrint = () => {
-    if (busy) return;
-    // Browser-prints the on-screen preview. A true PDF-to-print pipeline
-    // would require launching the system PDF viewer via Electron shell,
-    // which is more work than its value here — the preview is already an
-    // accurate render of the PDF layout.
-    window.print();
-  };
   return (
     <div
       className="nosel"
@@ -154,9 +202,6 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
             {previewFilename}
           </div>
           <div style={{ flex: 1 }} />
-          <button className="topbtn" onClick={handlePrint} disabled={!!busy}>
-            <Icons.Print size={12} /> Print
-          </button>
           <button
             className="topbtn primary"
             onClick={() => void handleDownload()}
@@ -213,9 +258,9 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
                     marginTop: 4
                   }}
                 >
-                  No. {options.quoteNumber}
+                  No. {quote.quoteNumber}
                   <br />
-                  Date {options.date}
+                  Date {date}
                   <br />
                   Valid 60 days
                 </div>
@@ -245,10 +290,10 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
                   BILL TO
                 </div>
                 <div style={{ fontSize: 13, marginTop: 4, fontWeight: 600 }}>
-                  {options.billTo?.name}
+                  {quote.billTo?.name}
                 </div>
                 <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>
-                  {options.billTo?.lines.map((line, i) => (
+                  {quote.billTo?.lines.map((line, i) => (
                     <span key={i}>
                       {i > 0 && <br />}
                       {line}
@@ -267,11 +312,9 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
                 >
                   PROJECT
                 </div>
-                <div style={{ fontSize: 13, marginTop: 4, fontWeight: 600 }}>
-                  {options.project?.name}
-                </div>
+                <div style={{ fontSize: 13, marginTop: 4, fontWeight: 600 }}>{project?.name}</div>
                 <div style={{ fontSize: 11, color: "#5B6473", marginTop: 2 }}>
-                  {options.project?.lines.map((line, i) => (
+                  {project?.lines.map((line, i) => (
                     <span key={i}>
                       {i > 0 && <br />}
                       {line}
@@ -353,7 +396,7 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
               <div style={{ width: 280 }}>
                 <PdfRow l="Subtotal" v={`$${subtotal.toFixed(2)}`} />
                 <PdfRow
-                  l={`Tax (${String(+((options.taxRate ?? 0) * 100).toFixed(4))}%)`}
+                  l={`Tax (${String(+(quote.taxRate * 100).toFixed(4))}%)`}
                   v={`$${tax.toFixed(2)}`}
                 />
                 <div style={{ borderTop: "2px solid #1B1E26", marginTop: 6, paddingTop: 8 }}>
@@ -381,7 +424,7 @@ export function ExportPdfModal({ design, settings, onClose, onError }: ExportPdf
                 NOTES
               </div>
               <div style={{ fontSize: 11.5, color: "#1B1E26", marginTop: 4, lineHeight: 1.6 }}>
-                {options.notes}
+                {quote.notes}
               </div>
             </div>
           </div>
@@ -404,6 +447,111 @@ function PdfRow({ l, v, bold }: { l: string; v: string; bold?: boolean }) {
     >
       <span style={{ color: bold ? "#1B1E26" : "#5B6473", fontWeight: bold ? 600 : 400 }}>{l}</span>
       <span style={{ fontFamily: "var(--font-sans)", fontWeight: bold ? 700 : 400 }}>{v}</span>
+    </div>
+  );
+}
+
+type QuoteBlockedDialogProps = {
+  blockers: QuoteBlocker[];
+  onClose: () => void;
+  onOpenSettings: (tab: SettingsTab) => void;
+};
+
+const BLOCKER_TAB_LABELS: Record<QuoteBlockerTab, string> = {
+  company: "Company",
+  quote: "Quote",
+  pricing: "Pricing"
+};
+
+/**
+ * Shown instead of the preview when the quote is not ready to export.
+ *
+ * Blocked rather than warned: a dismissible warning would mean the PDF
+ * generator has to accept placeholder data, and then only a careful click
+ * stands between invented numbers and a customer. See ADR-0003.
+ */
+function QuoteBlockedDialog({ blockers, onClose, onOpenSettings }: QuoteBlockedDialogProps) {
+  useEscapeKey(onClose);
+  const tabs = [...new Set(blockers.map((b) => b.tab))];
+
+  return (
+    <div className="nosel" style={overlayStyle} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={blockedPanelStyle}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "14px 18px",
+            borderBottom: "1px solid var(--line)"
+          }}
+        >
+          <Icons.Warn size={14} />
+          <div style={{ fontWeight: 600 }}>Finish setup before quoting</div>
+          <div style={{ flex: 1 }} />
+          <button onClick={onClose} style={iconBtn} aria-label="Close">
+            <Icons.Close size={14} />
+          </button>
+        </div>
+
+        <div style={{ padding: "16px 18px", fontSize: 13, color: "var(--text-mut)" }}>
+          <p style={{ margin: "0 0 14px" }}>
+            A quote prints prices and company details straight onto a customer-facing document, so
+            PTSBuilder ships none of its own. Fill these in and the quote is ready:
+          </p>
+          <ul
+            style={{
+              margin: 0,
+              padding: 0,
+              listStyle: "none",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6
+            }}
+          >
+            {blockers.map((blocker) => (
+              <li
+                key={`${blocker.tab}:${blocker.label}`}
+                style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text)" }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: "50%",
+                    background: "var(--warn)",
+                    flex: "none"
+                  }}
+                />
+                {blocker.label}
+                <span style={{ color: "var(--text-dim)", fontSize: 11 }}>
+                  Settings › {BLOCKER_TAB_LABELS[blocker.tab]}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "flex-end",
+            padding: "12px 18px",
+            borderTop: "1px solid var(--line)"
+          }}
+        >
+          <button className="topbtn" onClick={onClose}>
+            Close
+          </button>
+          {tabs.map((tab) => (
+            <button key={tab} className="topbtn primary" onClick={() => onOpenSettings(tab)}>
+              Open {BLOCKER_TAB_LABELS[tab]} settings
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

@@ -23,38 +23,53 @@ export type QuoteDefaults = {
 };
 
 export type AppSettings = {
-  /** Per-part unit-price overrides, keyed by part-registry key. */
+  /**
+   * Unit prices keyed by part-registry key. The *only* source of prices — the
+   * catalog carries none (ADR-0003). A key absent here has no price.
+   */
   pricing: Record<string, number>;
-  /** Sales tax rate as a fraction, e.g. 0.0825 for 8.25%. */
-  taxRate: number;
+  /** Sales tax rate as a fraction, e.g. 0.0825 for 8.25%. `null` until entered. */
+  taxRate: number | null;
   /** The seller's own company details, shown on the quote letterhead. */
   company: CompanyInfo;
   quote: QuoteDefaults;
 };
 
+/**
+ * Boilerplate offered in Settings behind an explicit "use suggested text"
+ * action. Not a default: nothing about a quote is written for the installer,
+ * because copy that arrives pre-filled is copy nobody reads before sending.
+ */
+export const SUGGESTED_QUOTE_NOTES =
+  "Pricing reflects a single-direction system. Installation, electrical, and " +
+  "site preparation quoted separately. Stock tube count includes 6ft sections that " +
+  "will be cut on-site to required lengths; offcuts are not warranted.";
+
+/**
+ * Everything a quote prints starts empty.
+ *
+ * ADR-0003 required this for prices, on the grounds that a plausible-looking
+ * invented number is worse than an obviously missing one. The same argument
+ * applies to the tax rate — arguably more so, since "Tax (8.25%)" computed to
+ * the cent reads as authoritative in a way "Your Company" never does — and to
+ * every other field the customer sees. Export is blocked until they are filled
+ * in; see `quote-readiness.ts`.
+ */
 export const DEFAULT_SETTINGS: AppSettings = {
-  // Empty by default: prices fall back to the catalog (parts.json) until edited.
   pricing: {},
-  taxRate: 0.0825,
-  // Generic placeholders — the end user fills in their own details via Settings.
+  taxRate: null,
   company: {
-    name: "Your Company",
-    tagline: "Pneumatic Tube Systems",
-    address: "123 Example St, City, ST 00000",
-    phone: "(555) 000-0000",
-    email: "sales@example.com"
+    name: "",
+    tagline: "",
+    address: "",
+    phone: "",
+    email: ""
   },
   quote: {
-    billTo: {
-      name: "Customer Name",
-      lines: ["Attn: Contact Name", "Street Address, City, ST 00000"]
-    },
-    project: { name: "Project Name", lines: [] },
-    quoteNumber: "Q-0001",
-    notes:
-      "Pricing reflects a single-direction system. Installation, electrical, and " +
-      "site preparation quoted separately. Stock tube count includes 6ft sections that " +
-      "will be cut on-site to required lengths; offcuts are not warranted."
+    billTo: { name: "", lines: [] },
+    project: { name: "", lines: [] },
+    quoteNumber: "",
+    notes: ""
   }
 };
 
@@ -117,21 +132,4 @@ export function mergeSettings(defaults: AppSettings, loaded: unknown): AppSettin
       notes: str(loadedQuote.notes, defaults.quote.notes)
     }
   };
-}
-
-// --- Module-level price overrides -------------------------------------------
-// The domain pricing path (bomRows) reads effective unit prices through these,
-// mirroring the existing module-singleton pattern of partRegistry. App syncs the
-// override map from settings on load and whenever the user edits pricing.
-
-let priceOverrides: Record<string, number> = {};
-
-export function setPriceOverrides(overrides: Record<string, number>): void {
-  priceOverrides = { ...overrides };
-}
-
-/** Effective unit price for a part-registry key: an override if set, else the fallback. */
-export function unitPriceFor(partKey: string, fallback: number): number {
-  const override = priceOverrides[partKey];
-  return typeof override === "number" ? override : fallback;
 }

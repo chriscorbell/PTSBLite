@@ -14,7 +14,7 @@ The single most important distinction in this codebase, because the two look ali
 | Kind | Where | Status |
 |---|---|---|
 | Engineering constraints | `src/domain/validation.ts`, bend geometry, tube stock length | **Authoritative.** Derived from the real PTS system spec. Do not loosen, round, or "simplify" without a cited source. See ADR-0001. |
-| Catalog prices | `unitPrice` in `src/data/parts.json` | **Placeholder.** Invented, plausible-looking numbers. Never treat as reference data, never show to an end user as real. See ADR-0003. |
+| Prices and tax rate | `pricing` and `taxRate` in the user's `settings.json` | **Installer-entered.** The catalog ships no prices and the app no default tax rate; a quote cannot be exported until both are set. See ADR-0003. |
 | Part numbers / names | `partNo`, `name` in `src/data/parts.json` | **Placeholder.** Will be replaced as the catalog grows. |
 | Product scope limits | the exactly-2-terminals rule | **Provisional.** A v1 fence, not a physical truth. See ADR-0002. |
 
@@ -87,7 +87,7 @@ Terminal 2). Contrast with tube/bend/Terminal 1, which must land on a port.
 Four layers, deliberately separated:
 
 - `src/domain/` — pure logic: geometry, placement rules, topology, routing, validation, pricing,
-  file format. No React, no Three.js. This is where the tests live (194 of them).
+  file format. No React, no Three.js. This is where most of the tests live.
 - `src/renderer/` — the Three.js viewport. Pure math is extracted into testable helpers; the
   imperative scene-building lives in effects.
 - `src/components/` — React UI.

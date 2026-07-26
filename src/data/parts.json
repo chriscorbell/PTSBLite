@@ -3,7 +3,6 @@
     "type": "blower",
     "name": "Blower Unit",
     "partNo": "BL-2020-A",
-    "unitPrice": 4250.0,
     "color": "#3F4A60",
     "cells": 1,
     "ports": 1
@@ -12,25 +11,22 @@
     "type": "terminal",
     "name": "Terminal Station",
     "partNo": "TM-2020-S",
-    "unitPrice": 1850.0,
     "color": "#5B6477",
     "cells": 1,
     "ports": 2
   },
   "tube6": {
     "type": "tube",
-    "name": "Straight Tube · 6ft",
+    "name": "Straight Tube \u00b7 6ft",
     "partNo": "ST-06-4OD",
-    "unitPrice": 78.0,
     "color": "#9AA4B4",
     "cells": 6,
     "ports": 2
   },
   "bend90": {
     "type": "bend",
-    "name": "90° Bend (3ft radius)",
+    "name": "90\u00b0 Bend (3ft radius)",
     "partNo": "BN-90-3R",
-    "unitPrice": 142.0,
     "color": "#9AA4B4",
     "cells": 7,
     "ports": 2,
@@ -39,8 +35,7 @@
   "obstacle": {
     "type": "obstacle",
     "name": "Obstacle Volume",
-    "partNo": "—",
-    "unitPrice": 0,
+    "partNo": "\u2014",
     "color": "#3A2024"
   }
 }

@@ -1,6 +1,6 @@
 # PTSBuilder pre-requirements hardening plan
 
-- **Status:** Proposed
+- **Status:** In progress — PRs 1–3 of the sequence below are merged or open.
 - **Written:** 2026-07-25
 - **Baseline:** `main` at `2afea1c` (`v0.1.3`)
 - **Supersedes:** `docs/plans/o5/README.md` (Claude Opus 5) and `docs/plans/g5-6/README.md`
@@ -241,10 +241,19 @@ is evaluating the product**.
   installer-entered price, and link the disabled state to the pricing settings screen.
 - Give tests explicit price fixtures so they cannot depend on shipped values.
 
-Make an unpriced quote **hard to express** in the type system: pricing yields a discriminated
-`priced | unpriced` row result, and PDF generation and export accept **only** the priced variant. A
+**Scope decided during implementation, wider than "prices":** the tax rate had the identical defect
+and is worse — `DEFAULT_SETTINGS.taxRate` was an invented `0.0825` that `generateQuotePdf` silently
+fell back to, printing a computed `Tax (8.25%)` line into the customer's total. A blank company name
+is visibly unfinished; a plausible tax rate is invisibly wrong. Every customer-visible field
+therefore ships empty and gates export: company block, bill-to, project name, quote number, notes,
+tax rate, and all four prices. The notes paragraph is offered in Settings behind an explicit "use
+suggested wording" action rather than pre-filled. ADR-0003 is amended to record this.
+
+Make an unpriced quote **hard to express** in the type system: `quoteReadiness()` returns either a
+`ReadyQuote` or a list of blockers, and `generateQuotePdf` accepts only the former. A
 `pricesAreValid` boolean would be an aspiration that can drift from the rows it claims to describe;
-a discriminated union is checked by the compiler.
+this is checked by the compiler. Export is **blocked**, not warned — a dismissible warning would
+require the generator to accept placeholder data, which is the thing being prevented.
 
 ### 3.2 Correct quote text handling — issue #8
 

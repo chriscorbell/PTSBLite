@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Icons } from "@/components/Icons";
-import { bomRows, totalPathLength } from "@/domain/parts";
+import { bomRows, isPricedRow, totalPathLength, type Pricing } from "@/domain/parts";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { DesignState } from "@/types";
 
@@ -20,16 +20,21 @@ export type RightPanelProps = {
   open: boolean;
   onClose: () => void;
   design: DesignState;
-  taxRate: number;
+  pricing: Pricing;
+  taxRate: number | null;
   onExport: () => void;
 };
 
-export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPanelProps) {
+export function RightPanel({ open, onClose, design, pricing, taxRate, onExport }: RightPanelProps) {
   if (!open) return null;
-  const rows = bomRows(design);
-  const subtotal = rows.reduce((a, r) => a + r.qty * r.unitPrice, 0);
-  const tax = subtotal * taxRate;
-  const total = subtotal + tax;
+  const rows = bomRows(design, pricing);
+  // Totals cover the rows that have a price. Anything unpriced is shown as such
+  // rather than counted as zero, so the subtotal never quietly understates the
+  // job — the "prices missing" note below says how many are excluded.
+  const unpriced = rows.filter((r) => !isPricedRow(r)).length;
+  const subtotal = rows.reduce((a, r) => a + (isPricedRow(r) ? r.qty * r.unitPrice : 0), 0);
+  const tax = taxRate === null ? null : subtotal * taxRate;
+  const total = tax === null ? null : subtotal + tax;
   return (
     <div
       className="nosel"
@@ -171,7 +176,7 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
                     color: "var(--text-mut)"
                   }}
                 >
-                  ${r.unitPrice.toFixed(2)}
+                  {isPricedRow(r) ? `$${r.unitPrice.toFixed(2)}` : "—"}
                 </td>
                 <td
                   style={{
@@ -181,7 +186,7 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
                     color: "var(--text)"
                   }}
                 >
-                  ${(r.qty * r.unitPrice).toFixed(2)}
+                  {isPricedRow(r) ? `$${(r.qty * r.unitPrice).toFixed(2)}` : "—"}
                 </td>
               </tr>
             ))}
@@ -197,9 +202,20 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
         }}
       >
         <Row label="Subtotal" value={`$${subtotal.toFixed(2)}`} />
-        <Row label={`Tax (${formatPct(taxRate)}%)`} value={`$${tax.toFixed(2)}`} dim />
+        <Row
+          label={taxRate === null ? "Tax (not set)" : `Tax (${formatPct(taxRate)}%)`}
+          value={tax === null ? "—" : `$${tax.toFixed(2)}`}
+          dim
+        />
         <div style={{ height: 8 }} />
-        <Row label="Quote total" value={`$${total.toFixed(2)}`} bold />
+        <Row label="Quote total" value={total === null ? "—" : `$${total.toFixed(2)}`} bold />
+        {(unpriced > 0 || taxRate === null) && (
+          <div style={{ marginTop: 10, fontSize: 11, color: "var(--warn)", lineHeight: 1.5 }}>
+            {unpriced > 0 && `${unpriced} part${unpriced === 1 ? "" : "s"} have no price. `}
+            {taxRate === null && "Tax rate is not set. "}
+            Totals are incomplete until these are entered in Settings.
+          </div>
+        )}
         <button
           onClick={onExport}
           style={{
