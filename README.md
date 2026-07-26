@@ -66,6 +66,12 @@ Four deliberately separated layers:
 part, terminal, bend, cell, centerline, open port) and — critically — which numbers in this codebase
 are authoritative engineering spec versus placeholder catalog data. The two look identical in
 source. Decisions with lasting consequences are recorded in [`docs/adr/`](docs/adr).
+[`AGENTS.md`](AGENTS.md) is the short version for anyone — human or agent — picking the project up.
+
+Two further documents matter while the product waits on client requirements:
+[`docs/baked-in-assumptions.md`](docs/baked-in-assumptions.md) says what the current model can and
+cannot express, and [`docs/requirements/open-questions.md`](docs/requirements/open-questions.md)
+holds the questions only the client can answer.
 
 ## Controls
 
