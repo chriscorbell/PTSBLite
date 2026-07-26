@@ -1,5 +1,5 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
-import type { DesignState, Part, ToolId, Vec3 } from "@/types";
+import type { DesignState, Part, Vec3 } from "@/types";
 import { cellAt, cellKey, dirOf, vAdd, vEq, vNeg, vSub } from "@/domain/vec3";
 
 export type PortOwnerType = "blower" | "terminal" | "tube" | "bend";
@@ -203,17 +203,4 @@ export function computeTopology(design: DesignState): Topology {
 
 function isPart(value: Part | Port): value is Part {
   return "type" in value;
-}
-
-export type SnapResolution =
-  { kind: "none" } | { kind: "one"; port: Port } | { kind: "multiple"; ports: Port[] };
-
-export function resolveSnap(topology: Topology, hoverCell: Vec3, tool: ToolId): SnapResolution {
-  if (tool === "cursor" || tool === "erase" || tool === "blower" || tool === "obstacle") {
-    return { kind: "none" };
-  }
-  const candidates = topology.openPortsNear(hoverCell);
-  if (candidates.length === 0) return { kind: "none" };
-  if (candidates.length === 1) return { kind: "one", port: candidates[0] };
-  return { kind: "multiple", ports: candidates };
 }
