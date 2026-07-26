@@ -69,3 +69,7 @@ This is a product being sold to a client whose requirements have not arrived yet
 [`docs/baked-in-assumptions.md`](docs/baked-in-assumptions.md) lists what the current model can and
 cannot express. Questions only the client can answer are tracked as issues labelled `question`. If a
 task appears to need one of those answers, open an issue — do not guess an implementation.
+
+[`docs/client-questions.md`](docs/client-questions.md) is the same set written to be sent to the
+client, who does not read code. Change one and change the other; the mapping is a comment at the top
+of that file. Keep it free of jargon, issue numbers, and file paths.
