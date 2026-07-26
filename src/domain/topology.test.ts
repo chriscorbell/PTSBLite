@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyDesign } from "@/domain/design-state";
-import { Topology, computePartPorts, computeTopology, type Port } from "@/domain/topology";
+import { computePartPorts, computeTopology, type Port } from "@/domain/topology";
 import type { Vec3 } from "@/types";
 
 function portCells(ports: Port[]): Vec3[] {
