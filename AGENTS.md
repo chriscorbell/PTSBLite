@@ -42,9 +42,10 @@ which `validation.ts` flags rather than forbids.
 | Path | Contains |
 |---|---|
 | `src/domain/` | Pure logic. No React, no Three.js. Most tests live here |
-| `src/renderer/` | The Three.js viewport |
+| `src/renderer/` | The Three.js viewport, split into meshes, scene affordances, pure interaction helpers, and the React lifecycle |
 | `src/components/` | React UI |
 | `electron/` | Main process and preload bridge |
+| `shared/` | Types and channel names shared by the Electron main process and the renderer |
 | `docs/adr/` | Decisions with lasting consequences |
 
 ## Conventions

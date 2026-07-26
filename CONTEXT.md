@@ -85,15 +85,22 @@ Terminal 2). Contrast with tube/bend/Terminal 1, which must land on a port.
 
 ## Architecture
 
-Four layers, deliberately separated:
+Five layers, deliberately separated:
 
 - `src/domain/` — pure logic: geometry, placement rules, topology, routing, validation, pricing,
   file format. No React, no Three.js. This is where most of the tests live.
-- `src/renderer/` — the Three.js viewport. Pure math is extracted into testable helpers; the
-  imperative scene-building lives in effects.
+- `src/renderer/` — the Three.js viewport, split by responsibility: `design-meshes` for the parts,
+  `scene-affordances` for ground, highlights, ports and labels, `interaction` for pure pointer maths,
+  `three-utils` for the palette and GPU disposal, and `Viewport.tsx` for the React lifecycle.
 - `src/components/` — React UI.
 - `electron/` — main process and preload bridge.
+- `shared/` — the IPC contract: channel names and payload types both processes import.
 
-`DesignState` carries a `SparseGrid` of cell occupancy alongside the parts list. **These two must
-agree.** Code that adds or removes parts must keep the grid in lockstep; a mismatch produces parts
-that render and get priced but cannot be erased or collided with (issue #11).
+`DesignState` carries a `SparseGrid` of cell occupancy alongside its parts and obstacles. **These
+must agree.** A part present in one but not the other renders and gets priced yet cannot be erased or
+collided with.
+
+This is enforced rather than remembered. `reconstructDesign` is the single checked path that rebuilds
+all three together, and `expectGridMatchesDesign` asserts the invariant across the placement and
+erase suites. The two kinds of occupant are deliberately treated differently — parts are strict,
+obstacles are lenient — for the reasons in ADR-0007.
