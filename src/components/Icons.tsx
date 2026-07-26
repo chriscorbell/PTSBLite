@@ -25,12 +25,12 @@ import {
   ZoomOut,
   type LucideIcon
 } from "lucide-react";
-import type { CSSProperties, ReactNode, SVGProps } from "react";
+import type { ReactNode, SVGProps } from "react";
 
 export type IconProps = {
   size?: number;
   stroke?: number;
-  style?: CSSProperties;
+  /** Colour and spacing come from a class, never an inline style (ADR-0009). */
   className?: string;
 };
 
@@ -50,10 +50,9 @@ function fromLucide(Glyph: LucideIcon) {
   return function LucideIconAdapter({
     size = DEFAULT_SIZE,
     stroke = DEFAULT_STROKE,
-    style,
     className
   }: IconProps) {
-    return <Glyph size={size} strokeWidth={stroke} style={style} className={className} />;
+    return <Glyph size={size} strokeWidth={stroke} className={className} />;
   };
 }
 
@@ -75,7 +74,6 @@ function Icon({
   stroke = DEFAULT_STROKE,
   children,
   viewBox = "0 0 24 24",
-  style,
   className
 }: InternalIconProps) {
   return (
@@ -88,7 +86,6 @@ function Icon({
       strokeWidth={stroke}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={style}
       className={className}
     >
       {d ? <path d={d} /> : children}
