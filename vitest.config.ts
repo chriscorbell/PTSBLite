@@ -19,7 +19,8 @@ const pkg = JSON.parse(readFileSync(resolve(__dirname, "package.json"), "utf-8")
 export default defineConfig({
   resolve: {
     alias: {
-      "@": resolve(__dirname, "src")
+      "@": resolve(__dirname, "src"),
+      "@shared": resolve(__dirname, "shared")
     }
   },
   define: {

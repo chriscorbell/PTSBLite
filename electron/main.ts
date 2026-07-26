@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { autoUpdater } from "electron-updater";
 import { windowChromeForPlatform } from "./window-chrome";
+import { IPC, type IpcResults } from "../shared/ipc";
 
 // App icons live under <project>/build/ (icon.ico / icon.icns / icon.png).
 // getAppPath() resolves to the project root in dev and the app dir when packaged.
@@ -60,7 +61,7 @@ function initAutoUpdate(): void {
   autoUpdater.on("update-downloaded", (info) => {
     pendingUpdate = { version: info.version };
     for (const win of BrowserWindow.getAllWindows()) {
-      win.webContents.send("update:downloaded", pendingUpdate);
+      win.webContents.send(IPC.updateDownloaded, pendingUpdate);
     }
   });
 
@@ -187,26 +188,29 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(() => {
-  ipcMain.handle("design:save", async (_event, jsonData: string) => {
-    const result = await dialog.showSaveDialog({
-      title: "Save PTSBuilder Design",
-      defaultPath: timestampedFilename("json"),
-      filters: [{ name: "PTSBuilder Design", extensions: ["json"] }]
-    });
+  ipcMain.handle(
+    IPC.designSave,
+    async (_event, jsonData: string): Promise<IpcResults[typeof IPC.designSave]> => {
+      const result = await dialog.showSaveDialog({
+        title: "Save PTSBuilder Design",
+        defaultPath: timestampedFilename("json"),
+        filters: [{ name: "PTSBuilder Design", extensions: ["json"] }]
+      });
 
-    if (result.canceled || !result.filePath) {
-      return { canceled: true, filePath: null };
+      if (result.canceled || !result.filePath) {
+        return { canceled: true, filePath: null };
+      }
+
+      try {
+        await writeFile(result.filePath, jsonData, "utf-8");
+        return { canceled: false, filePath: result.filePath };
+      } catch (err) {
+        return { canceled: false, filePath: null, error: String(err) };
+      }
     }
+  );
 
-    try {
-      await writeFile(result.filePath, jsonData, "utf-8");
-      return { canceled: false, filePath: result.filePath };
-    } catch (err) {
-      return { canceled: false, filePath: null, error: String(err) };
-    }
-  });
-
-  ipcMain.handle("design:open", async () => {
+  ipcMain.handle(IPC.designOpen, async (): Promise<IpcResults[typeof IPC.designOpen]> => {
     const result = await dialog.showOpenDialog({
       title: "Open PTSBuilder Design",
       properties: ["openFile"],
@@ -226,7 +230,7 @@ void app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle("settings:get", async () => {
+  ipcMain.handle(IPC.settingsGet, async (): Promise<IpcResults[typeof IPC.settingsGet]> => {
     try {
       const contents = await readFile(settingsFilePath(), "utf-8");
       return { data: JSON.parse(contents) as unknown };
@@ -239,33 +243,36 @@ void app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle("settings:set", async (_event, jsonData: string) => {
-    try {
-      await writeFile(settingsFilePath(), jsonData, "utf-8");
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: String(err) };
+  ipcMain.handle(
+    IPC.settingsSet,
+    async (_event, jsonData: string): Promise<IpcResults[typeof IPC.settingsSet]> => {
+      try {
+        await writeFile(settingsFilePath(), jsonData, "utf-8");
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: String(err) };
+      }
     }
-  });
+  );
 
   // Open a URL in the user's default browser. Only http(s) links are honored so
   // a compromised renderer can't ask the OS to launch arbitrary schemes.
-  ipcMain.handle("shell:open-external", (_event, url: string) => openExternalWebUrl(url));
+  ipcMain.handle(IPC.shellOpenExternal, (_event, url: string) => openExternalWebUrl(url));
 
   // Renderer asks on mount whether an update already finished downloading
   // before its `update:downloaded` listener was attached.
-  ipcMain.handle("update:get-pending", () => pendingUpdate);
+  ipcMain.handle(IPC.updateGetPending, () => pendingUpdate);
 
   // Renderer's "Restart now" button: install the downloaded update and relaunch.
   // Args are (isSilent, isForceRunAfter): silent because our NSIS installer is
   // one-click/per-user (no prompts), and force-run so the app reopens after the
   // unattended install.
-  ipcMain.handle("update:quit-and-install", () => {
+  ipcMain.handle(IPC.updateQuitAndInstall, () => {
     autoUpdater.quitAndInstall(true, true);
   });
 
   // Manual "Check for Updates" trigger from the About modal.
-  ipcMain.handle("update:check", async () => {
+  ipcMain.handle(IPC.updateCheck, async (): Promise<IpcResults[typeof IPC.updateCheck]> => {
     // Platforms without self-update (macOS, non-AppImage Linux): ask GitHub
     // directly and, if a newer release exists, point the user at the download
     // page so they can update by hand.
@@ -296,25 +303,28 @@ void app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle("quote:export", async (_event, pdfBase64: string) => {
-    const result = await dialog.showSaveDialog({
-      title: "Export PDF Quote",
-      defaultPath: timestampedFilename("pdf"),
-      filters: [{ name: "PDF Quote", extensions: ["pdf"] }]
-    });
+  ipcMain.handle(
+    IPC.quoteExport,
+    async (_event, pdfBase64: string): Promise<IpcResults[typeof IPC.quoteExport]> => {
+      const result = await dialog.showSaveDialog({
+        title: "Export PDF Quote",
+        defaultPath: timestampedFilename("pdf"),
+        filters: [{ name: "PDF Quote", extensions: ["pdf"] }]
+      });
 
-    if (result.canceled || !result.filePath) {
-      return { canceled: true, filePath: null };
-    }
+      if (result.canceled || !result.filePath) {
+        return { canceled: true, filePath: null };
+      }
 
-    try {
-      const buffer = Buffer.from(pdfBase64, "base64");
-      await writeFile(result.filePath, buffer);
-      return { canceled: false, filePath: result.filePath };
-    } catch (err) {
-      return { canceled: false, filePath: null, error: String(err) };
+      try {
+        const buffer = Buffer.from(pdfBase64, "base64");
+        await writeFile(result.filePath, buffer);
+        return { canceled: false, filePath: result.filePath };
+      } catch (err) {
+        return { canceled: false, filePath: null, error: String(err) };
+      }
     }
-  });
+  );
 
   // macOS ignores BrowserWindow.icon; set the dock icon explicitly (mainly so the
   // unpackaged dev run shows our icon instead of the default Electron one).
