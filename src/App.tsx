@@ -20,7 +20,13 @@ import { ViewportHUD } from "@/components/ViewportHUD";
 import { DEFAULT_SETTINGS, mergeSettings, type AppSettings } from "@/domain/app-settings";
 import { bendLandingCells, bendPlacementGhost, placeBend } from "@/domain/bend-placement";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
-import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
+import { canRedo, canUndo } from "@/domain/design-history";
+import {
+  displayFilename,
+  documentSessionReducer,
+  initDocumentSession,
+  isDirty
+} from "@/domain/document-session";
 import {
   DEFAULT_FILENAME,
   DEFAULT_REVISION,
@@ -190,10 +196,14 @@ export default function App() {
   // The design and its undo/redo stacks move together, so they are one reducer.
   // `dispatchHistory` is stable, which is what lets the history callbacks below
   // stay stable without mirroring the current design into a ref.
-  const [history, dispatchHistory] = useReducer(designHistoryReducer, DESIGN_METADATA, (metadata) =>
-    initDesignHistory(emptyDesign(metadata))
+  const [session, dispatchDocument] = useReducer(
+    documentSessionReducer,
+    DESIGN_METADATA,
+    (metadata) => initDocumentSession(emptyDesign(metadata))
   );
+  const history = session.history;
   const design = history.present;
+  const dirty = isDirty(session);
   const buildArea = design.metadata.buildArea;
   const undoAvailable = canUndo(history);
   const redoAvailable = canRedo(history);
@@ -230,7 +240,6 @@ export default function App() {
     useState<OptimizationMode>(DEFAULT_AUTO_BUILD_MODE);
   const [activeElevation, setActiveElevation] = useState(0);
   const [showLabels, setShowLabels] = useState(false);
-  const [dirty, setDirty] = useState(false);
   const [errorFlash, setErrorFlashRaw] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -258,24 +267,22 @@ export default function App() {
     setObstacleDraft(null);
     setAutoBuildJustRan(false);
     setAutoBuildSummary(null);
-    setDirty(true);
   }, []);
 
   /** Apply a design change as a single undoable step. A new edit clears redo. */
   const commitDesign = useCallback((next: DesignState) => {
-    dispatchHistory({ type: "commit", design: next });
-    setDirty(true);
+    dispatchDocument({ type: "commit", design: next });
   }, []);
 
   const undo = useCallback(() => {
     if (!undoAvailable) return;
-    dispatchHistory({ type: "undo" });
+    dispatchDocument({ type: "undo" });
     clearTransientAfterHistoryMove();
   }, [undoAvailable, clearTransientAfterHistoryMove]);
 
   const redo = useCallback(() => {
     if (!redoAvailable) return;
-    dispatchHistory({ type: "redo" });
+    dispatchDocument({ type: "redo" });
     clearTransientAfterHistoryMove();
   }, [redoAvailable, clearTransientAfterHistoryMove]);
 
@@ -326,8 +333,7 @@ export default function App() {
         prev.width !== next.width || prev.depth !== next.depth || prev.height !== next.height;
       if (!areaChanged) {
         // Cosmetic metadata (name/revision): swap in place, not an undoable edit.
-        dispatchHistory({ type: "replace-present", design: { ...d, metadata } });
-        setDirty(true);
+        dispatchDocument({ type: "replace-present", design: { ...d, metadata } });
         return;
       }
       // Build area changed: parts that no longer fit are removed, and obstacles
@@ -607,38 +613,57 @@ export default function App() {
     ]
   );
 
-  const handleSave = useCallback(async () => {
-    const api = window.ptsbuilder;
-    if (!api) {
-      setErrorFlash("Save is unavailable: file bridge not connected.");
-      return;
-    }
-    try {
-      const json = JSON.stringify(serializeDesign(design, __APP_VERSION__), null, 2);
-      const result = await api.saveDesign(json);
-      if (result.canceled) return;
-      if (result.error) {
-        setErrorFlash(`Save failed: ${result.error}`);
-        return;
+  /**
+   * Write the document. `promptForPath` forces the dialog, which is what Save
+   * As does; Save only prompts when the document has no home yet.
+   */
+  const writeDocument = useCallback(
+    async (promptForPath: boolean) => {
+      const api = window.ptsbuilder;
+      if (!api) {
+        setErrorFlash("Save is unavailable: file bridge not connected.");
+        return false;
       }
-      setDirty(false);
-      setErrorFlash(null);
-    } catch (err) {
-      setErrorFlash(`Save failed: ${String(err)}`);
-    }
-  }, [design, setErrorFlash]);
+      try {
+        const json = JSON.stringify(serializeDesign(design, __APP_VERSION__), null, 2);
+        const result = await api.saveDesign({
+          json,
+          filePath: promptForPath ? null : session.path
+        });
+        if (result.canceled) return false;
+        if (result.error || !result.filePath) {
+          setErrorFlash(`Save failed: ${result.error ?? "no path returned"}`);
+          return false;
+        }
+        dispatchDocument({ type: "saved", path: result.filePath });
+        setErrorFlash(null);
+        return true;
+      } catch (err) {
+        setErrorFlash(`Save failed: ${String(err)}`);
+        return false;
+      }
+    },
+    [design, session.path, setErrorFlash]
+  );
 
-  const handleOpen = useCallback(async () => {
+  const handleSave = useCallback(() => writeDocument(false), [writeDocument]);
+  const handleSaveAs = useCallback(() => writeDocument(true), [writeDocument]);
+
+  /** Clear the transient state that belonged to the document being replaced. */
+  const resetForNewDocument = useCallback(() => {
+    selectTool("cursor");
+    setAutoBuildJustRan(false);
+    setAutoBuildSummary(null);
+    setExportOpen(false);
+    setStatusOpen(false);
+    setErrorFlash(null);
+  }, [selectTool, setErrorFlash]);
+
+  const openDocument = useCallback(async () => {
     const api = window.ptsbuilder;
     if (!api) {
       setErrorFlash("Open is unavailable: file bridge not connected.");
       return;
-    }
-    if (dirty) {
-      const proceed = window.confirm(
-        "You have unsaved changes. Open another design and discard them?"
-      );
-      if (!proceed) return;
     }
     try {
       const result = await api.openDesign();
@@ -652,17 +677,47 @@ export default function App() {
         setErrorFlash(`Open failed: ${parsed.message}`);
         return;
       }
-      dispatchHistory({ type: "reset", design: parsed.design });
-      selectTool("cursor");
-      setAutoBuildJustRan(false);
-      setExportOpen(false);
-      setStatusOpen(false);
-      setDirty(false);
-      setErrorFlash(null);
+      dispatchDocument({
+        type: "opened",
+        design: parsed.design,
+        path: result.filePath ?? ""
+      });
+      resetForNewDocument();
     } catch (err) {
       setErrorFlash(`Open failed: ${String(err)}`);
     }
-  }, [dirty, selectTool, setErrorFlash]);
+  }, [resetForNewDocument, setErrorFlash]);
+
+  /**
+   * Run `action`, but if there is unsaved work ask first. Replaces a raw
+   * window.confirm, which is modal to the OS, unstyled, and untestable.
+   */
+  const guardUnsaved = useCallback(
+    (title: string, confirmLabel: string, action: () => void) => {
+      if (!dirty) {
+        action();
+        return;
+      }
+      setConfirm({
+        title,
+        message: "This design has unsaved changes. They will be lost.",
+        confirmLabel,
+        onConfirm: action
+      });
+    },
+    [dirty]
+  );
+
+  const handleOpen = useCallback(() => {
+    guardUnsaved("Open another design", "Discard and open", () => void openDocument());
+  }, [guardUnsaved, openDocument]);
+
+  const handleNew = useCallback(() => {
+    guardUnsaved("New design", "Discard and start over", () => {
+      dispatchDocument({ type: "new", design: emptyDesign(DESIGN_METADATA) });
+      resetForNewDocument();
+    });
+  }, [guardUnsaved, resetForNewDocument]);
 
   const runAutoBuild = useCallback(async () => {
     setAutoBuilding(true);
@@ -757,8 +812,11 @@ export default function App() {
   return (
     <div className="app-shell" style={shellStyle}>
       <TopBar
-        onOpen={() => void handleOpen()}
+        onNew={handleNew}
+        onOpen={handleOpen}
         onSave={() => void handleSave()}
+        onSaveAs={() => void handleSaveAs()}
+        documentLabel={`${displayFilename(session)}${dirty ? " •" : ""}`}
         onEdit={setSettingsTab}
         onUndo={undo}
         onRedo={redo}

@@ -5,6 +5,7 @@ export type {
   OpenDesignResult,
   OpenExternalResult,
   PendingUpdate,
+  SaveDesignRequest,
   SaveDesignResult,
   SetSettingsResult
 } from "@shared/ipc";
@@ -24,7 +25,7 @@ export type PTSBuilderApi = {
   platform: NodeJS.Platform;
   titleBarInset: number;
   titleBarRightInset: number;
-  saveDesign: (jsonData: string) => Promise<SaveDesignResult>;
+  saveDesign: (request: SaveDesignRequest) => Promise<SaveDesignResult>;
   openDesign: () => Promise<OpenDesignResult>;
   exportQuote: (pdfBase64: string) => Promise<ExportQuoteResult>;
   getSettings: () => Promise<GetSettingsResult>;

@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { autoUpdater } from "electron-updater";
 import { windowChromeForPlatform } from "./window-chrome";
-import { IPC, type IpcResults } from "../shared/ipc";
+import { IPC, type IpcResults, type SaveDesignRequest } from "../shared/ipc";
 
 // App icons live under <project>/build/ (icon.ico / icon.icns / icon.png).
 // getAppPath() resolves to the project root in dev and the app dir when packaged.
@@ -21,6 +21,15 @@ app.setName("PTSBuilder");
 // Global app settings (pricing, tax, quote defaults) persist machine-wide, not in
 // any single design file. They live alongside Electron's other per-user app data.
 const settingsFilePath = () => join(app.getPath("userData"), "settings.json");
+
+/**
+ * `.ptsb` is the canonical extension — the domain and the UI have always used
+ * it, while these dialogs filtered on `.json`, so the app suggested a name it
+ * did not otherwise recognise. `.json` is still accepted on open, because
+ * prototype builds wrote it.
+ */
+const DESIGN_EXTENSION = "ptsb";
+const DESIGN_FILE_FILTERS = [{ name: "PTSBuilder Design", extensions: [DESIGN_EXTENSION, "json"] }];
 
 function timestampedFilename(ext: string, date = new Date()): string {
   const p = (n: number) => String(n).padStart(2, "0");
@@ -190,20 +199,27 @@ function createWindow(): void {
 void app.whenReady().then(() => {
   ipcMain.handle(
     IPC.designSave,
-    async (_event, jsonData: string): Promise<IpcResults[typeof IPC.designSave]> => {
-      const result = await dialog.showSaveDialog({
-        title: "Save PTSBuilder Design",
-        defaultPath: timestampedFilename("json"),
-        filters: [{ name: "PTSBuilder Design", extensions: ["json"] }]
-      });
+    async (_event, request: SaveDesignRequest): Promise<IpcResults[typeof IPC.designSave]> => {
+      // A known path writes straight through. Only a first save or Save As
+      // prompts — the previous handler always prompted, so every save was a
+      // Save As and the file on disk multiplied (issue #7).
+      let filePath = request.filePath ?? null;
 
-      if (result.canceled || !result.filePath) {
-        return { canceled: true, filePath: null };
+      if (!filePath) {
+        const result = await dialog.showSaveDialog({
+          title: "Save PTSBuilder Design",
+          defaultPath: timestampedFilename(DESIGN_EXTENSION),
+          filters: DESIGN_FILE_FILTERS
+        });
+        if (result.canceled || !result.filePath) {
+          return { canceled: true, filePath: null };
+        }
+        filePath = result.filePath;
       }
 
       try {
-        await writeFile(result.filePath, jsonData, "utf-8");
-        return { canceled: false, filePath: result.filePath };
+        await writeFile(filePath, request.json, "utf-8");
+        return { canceled: false, filePath };
       } catch (err) {
         return { canceled: false, filePath: null, error: String(err) };
       }
@@ -214,7 +230,7 @@ void app.whenReady().then(() => {
     const result = await dialog.showOpenDialog({
       title: "Open PTSBuilder Design",
       properties: ["openFile"],
-      filters: [{ name: "PTSBuilder Design", extensions: ["json"] }]
+      filters: DESIGN_FILE_FILTERS
     });
 
     if (result.canceled || result.filePaths.length === 0) {
