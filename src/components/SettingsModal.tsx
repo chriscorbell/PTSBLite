@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Icons } from "@/components/Icons";
-import { useEscapeKey } from "@/components/useEscapeKey";
+import { Modal } from "@/components/Modal";
 import { SUGGESTED_QUOTE_NOTES, type AppSettings } from "@/domain/app-settings";
 import { partRegistry } from "@/domain/part-registry";
 import { BUILD_AREA_LIMITS, clampBuildArea } from "@/domain/sparse-grid";
@@ -80,8 +80,6 @@ export function SettingsModal({
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [meta, setMeta] = useState<DesignMetadata>(metadata);
 
-  useEscapeKey(onClose);
-
   const pricedParts = useMemo(
     () => PRICED_KEYS.map((key) => ({ key, entry: partRegistry.get(key) })),
     []
@@ -120,33 +118,14 @@ export function SettingsModal({
   };
 
   return (
-    <div
-      className="nosel"
-      style={{
-        position: "absolute",
-        inset: 0,
-        background: "rgba(5,7,10,0.75)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100
-      }}
-      onClick={onClose}
+    <Modal
+      label="Settings"
+      onClose={onClose}
+      width="min(620px, 92%)"
+      dismissOnBackdrop={false}
+      panelStyle={{ maxHeight: "88%" }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(620px, 92%)",
-          maxHeight: "88%",
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--panel)",
-          borderRadius: 10,
-          border: "1px solid var(--line-2)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.5)"
-        }}
-      >
+      <>
         <div
           style={{
             display: "flex",
@@ -417,8 +396,8 @@ export function SettingsModal({
             <Icons.Check size={12} /> Save
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </Modal>
   );
 }
 
