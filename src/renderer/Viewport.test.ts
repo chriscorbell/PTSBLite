@@ -3,17 +3,19 @@ import * as THREE from "three";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import {
+  bendConnectorSpans,
   bendRenderCurve,
   bendRenderPath,
-  bendConnectorSpans,
-  cellFromWorldPoint,
-  clearGroup,
-  clickCellForTool,
-  createViewportDragState,
-  moveViewportDrag,
   tubeRenderSpan,
   tubeSectionJointPoints
-} from "@/renderer/Viewport";
+} from "@/renderer/design-meshes";
+import {
+  cellFromWorldPoint,
+  clickCellForTool,
+  createViewportDragState,
+  moveViewportDrag
+} from "@/renderer/interaction";
+import { clearGroup } from "@/renderer/three-utils";
 
 const vec = (x: number, y: number, z: number): [number, number, number] => [x, y, z];
 
