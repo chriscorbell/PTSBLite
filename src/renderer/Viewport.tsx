@@ -5,7 +5,7 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { type PartLabel, type PortMarker } from "@/domain/renderer-affordances";
 import { boundsFromBuildArea, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
-import type { BuildArea, Camera, Ghost, Scene, ToolId, Vec3 } from "@/types";
+import type { BuildArea, Ghost, Scene, ToolId, Vec3 } from "@/types";
 
 const VP = {
   bg: 0x0b0e13,
@@ -28,6 +28,20 @@ const VP = {
 };
 
 const TUBE_R = 0.22;
+
+/**
+ * How the camera is framed on open, and what "Reset view" returns to.
+ *
+ * One constant because these used to be two: the app opened at distance 38 and
+ * reset to 32, so resetting the view moved the camera somewhere it had never
+ * been and could not be returned to (issue #10).
+ */
+export const DEFAULT_CAMERA_FRAMING = {
+  yaw: 0.55,
+  pitch: 0.55,
+  distance: 38,
+  target: [0, 0.5, 1] as const
+};
 
 const v3 = (a: Vec3) => new THREE.Vector3(a[0], a[1], a[2]);
 
@@ -226,13 +240,6 @@ type BendShape = {
   outDir: Vec3;
   radius?: number;
 };
-
-export function bendRenderSpan(bend: BendShape): { from: Vec3; to: Vec3 } {
-  return {
-    from: bend.entry,
-    to: bend.exit
-  };
-}
 
 export function bendConnectorSpans(bend: BendShape): Array<{ from: Vec3; to: Vec3 }> {
   const entry = v3(bend.entry);
@@ -800,10 +807,8 @@ export type ViewportProps = {
   buildArea?: BuildArea;
   ghost: Ghost | null;
   tool: ToolId;
-  camera?: Camera;
   onPlace?: (cell: Vec3, e: MouseEvent, target?: ViewportPlaceTarget) => void;
   onHover?: (cell: Vec3) => void;
-  autoBuildPulse?: boolean;
   landingCells?: Vec3[];
   activeElevation?: number;
   portMarkers?: PortMarker[];
@@ -848,7 +853,6 @@ export function Viewport({
   buildArea = DEFAULT_BUILD_AREA,
   ghost,
   tool,
-  camera: camCfg,
   onPlace,
   onHover,
   landingCells = [],
@@ -885,7 +889,12 @@ export function Viewport({
     const scene3 = new THREE.Scene();
 
     const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 200);
-    const cam = { yaw: 0.55, pitch: 0.55, distance: 38, target: new THREE.Vector3(0, 0.5, 1) };
+    const cam = {
+      yaw: DEFAULT_CAMERA_FRAMING.yaw,
+      pitch: DEFAULT_CAMERA_FRAMING.pitch,
+      distance: DEFAULT_CAMERA_FRAMING.distance,
+      target: new THREE.Vector3(...DEFAULT_CAMERA_FRAMING.target)
+    };
     function applyCamera() {
       const r = cam.distance;
       camera.position.set(
@@ -1068,10 +1077,10 @@ export function Viewport({
       applyCamera();
     };
     const onResetView = () => {
-      cam.yaw = 0.55;
-      cam.pitch = 0.55;
-      cam.distance = 32;
-      cam.target.set(0, 0.5, 1);
+      cam.yaw = DEFAULT_CAMERA_FRAMING.yaw;
+      cam.pitch = DEFAULT_CAMERA_FRAMING.pitch;
+      cam.distance = DEFAULT_CAMERA_FRAMING.distance;
+      cam.target.set(...DEFAULT_CAMERA_FRAMING.target);
       applyCamera();
     };
     window.addEventListener("ptsb-zoom", onExternalZoom);
@@ -1116,23 +1125,6 @@ export function Viewport({
     };
     return () => stateRef.current.cleanup?.();
   }, []);
-
-  // Depend on the three numbers rather than the camera object, so the dependency
-  // list says what the effect actually reads. Reading `camCfg` while listing its
-  // fields is the same thing, but only the linter could tell you so.
-  const camYaw = camCfg?.yaw;
-  const camPitch = camCfg?.pitch;
-  const camDistance = camCfg?.distance;
-
-  useEffect(() => {
-    const s = stateRef.current;
-    if (!s.cam || !s.applyCamera) return;
-    if (camYaw === undefined && camPitch === undefined && camDistance === undefined) return;
-    s.cam.yaw = camYaw ?? s.cam.yaw;
-    s.cam.pitch = camPitch ?? s.cam.pitch;
-    s.cam.distance = camDistance ?? s.cam.distance;
-    s.applyCamera();
-  }, [camYaw, camPitch, camDistance]);
 
   useEffect(() => {
     const s = stateRef.current;

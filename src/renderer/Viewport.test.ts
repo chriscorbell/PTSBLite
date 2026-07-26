@@ -5,7 +5,6 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import {
   bendRenderCurve,
   bendRenderPath,
-  bendRenderSpan,
   bendConnectorSpans,
   cellFromWorldPoint,
   clearGroup,
@@ -72,16 +71,8 @@ describe("Viewport tube and bend render alignment", () => {
   });
 
   it("keeps straight tube render spans grid-bound at bend connections", () => {
-    const bend = {
-      entry: vec(1.5, 0.5, 0.5),
-      exit: vec(4.5, 0.5, 3.5),
-      center: vec(1.5, 0.5, 3.5),
-      inDir: vec(1, 0, 0),
-      outDir: vec(0, 0, 1),
-      radius: 3
-    };
-
-    expect(bendRenderSpan(bend)).toEqual({ from: bend.entry, to: bend.exit });
+    // Spans feeding and leaving a +X -> +Z bend that enters at [1.5, 0.5, 0.5]
+    // and exits at [4.5, 0.5, 3.5]: both must still land on whole cells.
     expect(tubeRenderSpan([-4.5, 0.5, 0.5], [1.5, 0.5, 0.5])).toEqual({
       from: [-5, 0.5, 0.5],
       to: [1, 0.5, 0.5],

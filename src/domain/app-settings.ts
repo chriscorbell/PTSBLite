@@ -130,10 +130,6 @@ export function setPriceOverrides(overrides: Record<string, number>): void {
   priceOverrides = { ...overrides };
 }
 
-export function getPriceOverrides(): Record<string, number> {
-  return { ...priceOverrides };
-}
-
 /** Effective unit price for a part-registry key: an override if set, else the fallback. */
 export function unitPriceFor(partKey: string, fallback: number): number {
   const override = priceOverrides[partKey];

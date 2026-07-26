@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { Icons } from "@/components/Icons";
 import { totalPathLength } from "@/domain/parts";
 import type { OptimizationMode } from "@/domain/pathfinder";
+import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { DesignState, Warning } from "@/types";
 
 const monoStyle: CSSProperties = { fontFamily: "var(--font-mono)" };
@@ -182,8 +183,8 @@ export function StatusBar({
         <Meta
           label="LENGTH"
           value={`${len.toFixed(1)}ft`}
-          hint={`/ 300`}
-          pct={Math.min(1, len / 300)}
+          hint={`/ ${MAX_CENTERLINE_FEET}`}
+          pct={Math.min(1, len / MAX_CENTERLINE_FEET)}
         />
         <Sep />
         <Meta label="PARTS" value={`${design.parts.length}`} />

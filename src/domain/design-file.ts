@@ -14,7 +14,6 @@ import type {
 } from "@/types";
 
 export const CURRENT_SCHEMA_VERSION = "1";
-export const APP_VERSION = "0.1.0";
 
 export type DesignFile = {
   schemaVersion: string;
@@ -26,10 +25,17 @@ export type DesignFile = {
 
 export type DeserializeResult = { ok: true; design: DesignState } | { ok: false; message: string };
 
-export function serializeDesign(design: DesignState): DesignFile {
+/**
+ * `appVersion` is stamped on the file for provenance — which build wrote it,
+ * for interpreting a file that arrives later. It is a required argument rather
+ * than a module constant because the domain layer has no business reading the
+ * bundler's build defines, and because the constant it replaced had drifted to
+ * three releases stale without anything noticing.
+ */
+export function serializeDesign(design: DesignState, appVersion: string): DesignFile {
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
-    appVersion: APP_VERSION,
+    appVersion,
     metadata: { ...design.metadata },
     parts: design.parts.map(clonePart),
     obstacles: design.obstacles.map(cloneObstacle)

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { Icons } from "@/components/Icons";
 import { bomRows, totalPathLength } from "@/domain/parts";
+import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { DesignState } from "@/types";
 
 /** 0.0825 -> "8.25" (trailing-zero trimmed) for tax-rate labels. */
@@ -108,7 +109,7 @@ export function RightPanel({ open, onClose, design, taxRate, onExport }: RightPa
         >
           <span>Path length:</span>
           <span style={{ fontFamily: "var(--font-sans)", color: "var(--text)" }}>
-            {totalPathLength(design).toFixed(1)}ft / 300ft
+            {totalPathLength(design).toFixed(1)}ft / {MAX_CENTERLINE_FEET}ft
           </span>
         </div>
       </div>
