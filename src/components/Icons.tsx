@@ -1,5 +1,6 @@
 import {
   Check,
+  FilePlus2,
   ChevronDown,
   ChevronUp,
   ClipboardList,
@@ -100,6 +101,7 @@ export const Icons = {
   Cursor: fromLucide(MousePointer2),
   Erase: fromLucide(Eraser),
   Save: fromLucide(Save),
+  New: fromLucide(FilePlus2),
   Open: fromLucide(FolderOpen),
   Pdf: fromLucide(FileText),
   Auto: fromLucide(RefreshCw),

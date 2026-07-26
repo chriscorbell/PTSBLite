@@ -32,6 +32,16 @@ export type SaveDesignResult = {
   error?: string;
 };
 
+/**
+ * Where a save should go. Omitting `filePath` prompts, which is what Save As
+ * and a first save do; supplying one writes straight there, which is what Save
+ * does once the document has a home.
+ */
+export type SaveDesignRequest = {
+  json: string;
+  filePath?: string | null;
+};
+
 export type OpenDesignResult = {
   canceled: boolean;
   filePath: string | null;

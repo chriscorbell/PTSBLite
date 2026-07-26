@@ -3,8 +3,12 @@ import { Icons } from "@/components/Icons";
 import type { SettingsTab } from "@/components/SettingsModal";
 
 export type TopBarProps = {
+  onNew?: () => void;
   onOpen?: () => void;
   onSave?: () => void;
+  onSaveAs?: () => void;
+  /** Shown beside the File menu; carries an asterisk when unsaved. */
+  documentLabel?: string;
   onEdit?: (tab: SettingsTab) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -18,8 +22,11 @@ export type TopBarProps = {
 };
 
 export function TopBar({
+  onNew,
   onOpen,
   onSave,
+  onSaveAs,
+  documentLabel,
   onEdit,
   onUndo,
   onRedo,
@@ -51,7 +58,23 @@ export function TopBar({
       <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
         <div style={{ fontSize: 16, fontWeight: 600 }}>PTSBuilder</div>
       </div>
-      <FileMenu onOpen={onOpen} onSave={onSave} />
+      <FileMenu onNew={onNew} onOpen={onOpen} onSave={onSave} onSaveAs={onSaveAs} />
+      {documentLabel && (
+        <span
+          className="nosel"
+          title={documentLabel}
+          style={{
+            fontSize: 11.5,
+            color: "var(--text-dim)",
+            maxWidth: 220,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap"
+          }}
+        >
+          {documentLabel}
+        </span>
+      )}
       <EditMenu onEdit={onEdit} />
       <button
         className="topbtn icon topbar-no-drag"
@@ -130,7 +153,17 @@ export function TopBar({
   );
 }
 
-function FileMenu({ onOpen, onSave }: { onOpen?: () => void; onSave?: () => void }) {
+function FileMenu({
+  onNew,
+  onOpen,
+  onSave,
+  onSaveAs
+}: {
+  onNew?: () => void;
+  onOpen?: () => void;
+  onSave?: () => void;
+  onSaveAs?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -189,6 +222,13 @@ function FileMenu({ onOpen, onSave }: { onOpen?: () => void; onSave?: () => void
           <button
             className="filemenu-item topbar-no-drag"
             role="menuitem"
+            onClick={() => choose(onNew)}
+          >
+            <Icons.New size={14} /> New
+          </button>
+          <button
+            className="filemenu-item topbar-no-drag"
+            role="menuitem"
             onClick={() => choose(onOpen)}
           >
             <Icons.Open size={14} /> Open…
@@ -199,6 +239,13 @@ function FileMenu({ onOpen, onSave }: { onOpen?: () => void; onSave?: () => void
             onClick={() => choose(onSave)}
           >
             <Icons.Save size={14} /> Save
+          </button>
+          <button
+            className="filemenu-item topbar-no-drag"
+            role="menuitem"
+            onClick={() => choose(onSaveAs)}
+          >
+            <Icons.Save size={14} /> Save As…
           </button>
         </div>
       )}

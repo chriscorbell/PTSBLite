@@ -53,7 +53,7 @@ export function ConfirmDialog({
           </span>
           <div style={{ fontSize: 13, fontWeight: 600 }}>{title}</div>
           <div style={{ flex: 1 }} />
-          <button onClick={onCancel} style={iconBtn} aria-label="Cancel">
+          <button onClick={onCancel} style={iconBtn} aria-label="Close">
             <Icons.Close size={14} />
           </button>
         </div>

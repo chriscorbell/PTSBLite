@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { serializeDesign } from "@/domain/design-file";
@@ -45,6 +45,23 @@ async function renderApp() {
     await Promise.resolve();
   });
   return utils;
+}
+
+/**
+ * Install a fake preload bridge. App queries settings and pending updates on
+ * mount, so every stub needs those present or the component fails to render
+ * for reasons unrelated to the test.
+ */
+function stubBridge(overrides: Record<string, unknown> = {}) {
+  const bridge = {
+    getSettings: vi.fn().mockResolvedValue({ data: null }),
+    setSettings: vi.fn().mockResolvedValue({ ok: true }),
+    onUpdateDownloaded: vi.fn().mockReturnValue(() => undefined),
+    getPendingUpdate: vi.fn().mockResolvedValue(null),
+    ...overrides
+  };
+  (window as { ptsbuilder?: unknown }).ptsbuilder = bridge;
+  return bridge;
 }
 
 /** Click the grid at `cell`, as the 3D viewport would on a left click. */
@@ -201,17 +218,11 @@ describe("in-flight interactions", () => {
 });
 
 describe("opening a design", () => {
-  // handleOpen still guards unsaved changes with window.confirm, which happy-dom
-  // does not implement (#6 tracks replacing it with the in-app ConfirmDialog that
-  // every other destructive action already uses). Stub it until then.
-  function stubConfirm(answer: boolean) {
-    const confirm = vi.fn().mockReturnValue(answer);
-    Object.defineProperty(window, "confirm", {
-      value: confirm,
-      configurable: true,
-      writable: true
-    });
-    return confirm;
+  /** Answer the app's own unsaved-changes dialog. */
+  function answerUnsavedPrompt(discard: boolean) {
+    const dialog = screen.getByRole("dialog");
+    const name = discard ? "Discard and open" : "Cancel";
+    fireEvent.click(within(dialog).getByRole("button", { name }));
   }
 
   function stubOpenDesign(contents: string) {
@@ -220,12 +231,7 @@ describe("opening a design", () => {
       filePath: "/tmp/incoming.ptsb",
       contents
     });
-    (window as { ptsbuilder?: unknown }).ptsbuilder = {
-      getSettings: vi.fn().mockResolvedValue({ data: null }),
-      openDesign,
-      onUpdateDownloaded: vi.fn().mockReturnValue(() => undefined),
-      getPendingUpdate: vi.fn().mockResolvedValue(null)
-    };
+    stubBridge({ openDesign });
     return openDesign;
   }
 
@@ -236,7 +242,6 @@ describe("opening a design", () => {
 
   it("leaves the current design alone when the unsaved-changes prompt is declined", async () => {
     const openDesign = stubOpenDesign("{}");
-    const confirm = stubConfirm(false);
     await renderApp();
 
     fireEvent.keyDown(window, { key: "o" });
@@ -246,8 +251,8 @@ describe("opening a design", () => {
     expect(canUndo()).toBe(true);
 
     chooseFileOpen();
+    answerUnsavedPrompt(false);
 
-    expect(confirm).toHaveBeenCalled();
     expect(openDesign).not.toHaveBeenCalled();
     expect(canUndo()).toBe(true);
   });
@@ -261,7 +266,6 @@ describe("opening a design", () => {
       "9.9.9"
     );
     stubOpenDesign(JSON.stringify(incoming));
-    stubConfirm(true);
 
     await renderApp();
 
@@ -274,6 +278,9 @@ describe("opening a design", () => {
     expect(canUndo()).toBe(false);
     expect(canRedo()).toBe(true);
 
+    // No unsaved-changes prompt here, and that is the point: undoing back to
+    // where the document was last saved makes it genuinely clean again, which a
+    // dirty *counter* would have got wrong.
     chooseFileOpen();
 
     // Both stacks belong to the previous document and must not survive it.
@@ -416,5 +423,86 @@ describe("camera controls", () => {
 
     const custom = dispatch.mock.calls.filter(([event]) => event.type.startsWith("ptsb-"));
     expect(custom).toEqual([]);
+  });
+});
+
+describe("saving a design", () => {
+  function stubSaveDesign(filePath = "/designs/site.ptsb") {
+    const saveDesign = vi.fn().mockResolvedValue({ canceled: false, filePath });
+    stubBridge({ saveDesign });
+    return saveDesign;
+  }
+
+  function chooseFileMenu(item: RegExp) {
+    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: item }));
+  }
+
+  function placeSomething() {
+    fireEvent.keyDown(window, { key: "o" });
+    clickCell([0, 0, 0]);
+    clickCell([2, 0, 2]);
+    act(() => placeButton()?.click());
+  }
+
+  it("prompts on the first save, then writes straight to the same file", async () => {
+    // Save used to call showSaveDialog every time, so every save was a Save As
+    // and the file on disk multiplied (issue #7).
+    const saveDesign = stubSaveDesign();
+    await renderApp();
+    placeSomething();
+
+    chooseFileMenu(/^Save$/);
+    await waitFor(() => expect(saveDesign).toHaveBeenCalledTimes(1));
+    expect(saveDesign.mock.calls[0][0]).toMatchObject({ filePath: null });
+
+    placeSomething();
+    chooseFileMenu(/^Save$/);
+    await waitFor(() => expect(saveDesign).toHaveBeenCalledTimes(2));
+    expect(saveDesign.mock.calls[1][0]).toMatchObject({ filePath: "/designs/site.ptsb" });
+  });
+
+  it("always prompts for Save As, even once the document has a home", async () => {
+    const saveDesign = stubSaveDesign();
+    await renderApp();
+    placeSomething();
+
+    chooseFileMenu(/^Save$/);
+    await waitFor(() => expect(saveDesign).toHaveBeenCalledTimes(1));
+
+    chooseFileMenu(/Save As/);
+    await waitFor(() => expect(saveDesign).toHaveBeenCalledTimes(2));
+    expect(saveDesign.mock.calls[1][0]).toMatchObject({ filePath: null });
+  });
+
+  it("shows the saved filename and marks unsaved work", async () => {
+    stubSaveDesign();
+    await renderApp();
+
+    expect(screen.getByTitle("untitled.ptsb")).toBeTruthy();
+
+    placeSomething();
+    expect(screen.getByTitle("untitled.ptsb •")).toBeTruthy();
+
+    chooseFileMenu(/^Save$/);
+    await waitFor(() => expect(screen.getByTitle("site.ptsb")).toBeTruthy());
+  });
+
+  it("guards New behind a confirmation when there is unsaved work", async () => {
+    stubBridge();
+    await renderApp();
+    placeSomething();
+    expect(canUndo()).toBe(true);
+
+    chooseFileMenu(/^New$/);
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(canUndo()).toBe(true);
+
+    chooseFileMenu(/^New$/);
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Discard and start over" })
+    );
+    expect(canUndo()).toBe(false);
   });
 });
