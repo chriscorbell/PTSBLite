@@ -19,6 +19,11 @@ files:
   # the license and the NOTICE file. Shipping the installers is a distribution.
   - LICENSE
   - NOTICE
+  # Vite writes CJS-interop shims into node_modules while building and does not
+  # always clean them up. They are inert, but they made the packaged output
+  # depend on whether a build happened to leave one behind — an installer should
+  # contain what we intend and nothing else, especially a signed one.
+  - "!**/*_vite_proxy.tmp.*"
 
 asar: true
 # No native modules — skip the rebuild step (faster, no node-gyp toolchain needed).
