@@ -87,3 +87,16 @@ during the build rather than bumped by hand.
 Self-update works on Windows and Linux AppImage. macOS and non-AppImage Linux check GitHub and point
 the user at the download page instead, because Squirrel.Mac requires a Developer ID signature that
 this project does not currently have.
+
+## License
+
+Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE). You may use, modify, and
+distribute this software, including commercially, subject to the attribution and notice terms in the
+license. It carries an express patent grant and no warranty.
+
+The name "PTSBuilder" is not licensed with the code (Apache-2.0 §6); derivative works should use a
+different name.
+
+Note that this repository ships no commercial data. Part prices, the tax rate, and company and
+customer details are entered by the installer and stored in local application settings — a quote
+cannot be exported until they are. See [ADR-0003](docs/adr/0003-quotes-require-installer-entered-pricing.md).
