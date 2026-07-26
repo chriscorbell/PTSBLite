@@ -92,7 +92,8 @@ Five layers, deliberately separated:
 - `src/renderer/` — the Three.js viewport, split by responsibility: `design-meshes` for the parts,
   `scene-affordances` for ground, highlights, ports and labels, `interaction` for pure pointer maths,
   `three-utils` for the palette and GPU disposal, and `Viewport.tsx` for the React lifecycle.
-- `src/components/` — React UI.
+- `src/components/` — React UI. Each component's styling sits in a colocated `.css` file beside it;
+  see ADR-0009 for the rule and the few runtime-value exceptions.
 - `electron/` — main process and preload bridge.
 - `shared/` — the IPC contract: channel names and payload types both processes import.
 

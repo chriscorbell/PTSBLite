@@ -81,6 +81,101 @@ body {
   -webkit-user-select: none;
 }
 
+/* The main row: left rail, viewport, and whatever is docked beside them. */
+.app-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* The viewport's positioning context. Its own background shows through before
+   the first frame is drawn. */
+.viewport-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--ink);
+}
+
+/* Shared controls. These live here rather than beside a component because more
+   than one component uses them — `.topbtn` was previously defined inside
+   TopBar's injected <style> block and used by UpdateNotification, so the toast
+   was silently styled by whether the top bar happened to be mounted. */
+.topbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-mut);
+  border: 1px solid var(--line);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.topbtn.icon {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+.topbtn:hover {
+  color: var(--text);
+  border-color: var(--line-2);
+  background: var(--panel-2);
+}
+.topbtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  color: var(--text-mut);
+  border-color: var(--line);
+  background: transparent;
+}
+.topbtn.active {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.topbtn.active:hover {
+  background: color-mix(in oklab, var(--accent) 26%, transparent);
+  color: #fff;
+}
+.topbtn.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #06121a;
+  font-weight: 600;
+}
+
+.filemenu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-mut);
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.filemenu-item:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

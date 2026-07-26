@@ -118,13 +118,7 @@ export function SettingsModal({
   };
 
   return (
-    <Modal
-      label="Settings"
-      onClose={onClose}
-      width="min(620px, 92%)"
-      dismissOnBackdrop={false}
-      panelStyle={{ maxHeight: "88%" }}
-    >
+    <Modal label="Settings" onClose={onClose} size="lg" dismissOnBackdrop={false}>
       <>
         <div
           style={{

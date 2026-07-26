@@ -651,7 +651,7 @@ export default function App() {
         onShowLabelsChange={setShowLabels}
         onAbout={() => setAboutOpen(true)}
       />
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+      <div className="app-main">
         <LeftRail
           tool={tool}
           onTool={selectTool}
@@ -660,7 +660,7 @@ export default function App() {
           onClearParts={clearAllParts}
           onClearObstacles={clearAllObstacles}
         />
-        <div style={{ flex: 1, position: "relative", background: "#0B0E13", overflow: "hidden" }}>
+        <div className="viewport-area">
           <Viewport
             ref={viewportRef}
             scene={viewportScene}
