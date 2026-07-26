@@ -84,9 +84,14 @@ Pushing a `v*` tag builds and publishes installers for macOS, Windows, and Linux
 release notes from the commit log. The tag drives the version — `package.json` is synced to it
 during the build rather than bumped by hand.
 
-Self-update works on Windows and Linux AppImage. macOS and non-AppImage Linux check GitHub and point
-the user at the download page instead, because Squirrel.Mac requires a Developer ID signature that
-this project does not currently have.
+Builds are **not code-signed**, by deliberate decision — see
+[ADR-0006](docs/adr/0006-ship-unsigned-builds.md). Every platform therefore warns on first run;
+[`docs/installing.md`](docs/installing.md) covers what users see and what to do, and is inlined into
+every release's notes so it appears on the download page itself.
+
+Self-update works on Windows and Linux AppImage: those apply in place and never re-warn. macOS and
+non-AppImage Linux check GitHub and point the user at the download page instead, because Squirrel.Mac
+will not apply an update that is not signed with a Developer ID.
 
 ## License
 
