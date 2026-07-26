@@ -10,7 +10,14 @@ pnpm dev            # run the app
 pnpm run check      # format:check + lint + typecheck + test, in CI's order
 pnpm run format     # fix formatting
 pnpm run package    # build installers into release/
+
+pnpm run build && scripts/run-headless.sh   # screenshot the real renderer
 ```
+
+`scripts/run-headless.sh` is for machines with no desktop session to put a window on. Four flags
+have to be right or the app starts and never shows anything — the reasons are at the top of the
+script, and the one that wastes the most time is that Electron prefers Wayland and silently ignores
+`DISPLAY`.
 
 Every PR must leave `pnpm run check` green. CI runs the same four gates.
 
