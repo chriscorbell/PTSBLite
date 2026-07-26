@@ -26,6 +26,7 @@ import {
   DEFAULT_REVISION,
   designFromScene,
   emptyDesign,
+  obstaclesWithinBuildArea,
   partsWithinBuildArea
 } from "@/domain/design-state";
 import { eraseAtCell } from "@/domain/erase-placement";
@@ -58,6 +59,7 @@ import {
   type OptimizationMode,
   type UnroutedPair
 } from "@/domain/pathfinder";
+import { clampElevation } from "@/domain/sparse-grid";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
 import {
@@ -149,6 +151,15 @@ function unroutedMessage(unrouted: UnroutedPair[]): string | null {
   return `${count} had no route and were skipped.`;
 }
 
+/** "2 parts and 1 obstacle", for the shrink confirmation. */
+function describeLoss(parts: number, obstacles: number): string {
+  const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+  if (parts > 0 && obstacles > 0) {
+    return `${plural(parts, "part")} and ${plural(obstacles, "obstacle")}`;
+  }
+  return parts > 0 ? plural(parts, "part") : plural(obstacles, "obstacle");
+}
+
 function ghostOrientation(ghost: Ghost): Vec3 | null {
   if (ghost.type === "blower") return ghost.dir;
   if (ghost.type === "terminal") return ghost.axis;
@@ -183,6 +194,7 @@ export default function App() {
     initDesignHistory(emptyDesign(metadata))
   );
   const design = history.present;
+  const buildArea = design.metadata.buildArea;
   const undoAvailable = canUndo(history);
   const redoAvailable = canRedo(history);
 
@@ -316,10 +328,33 @@ export default function App() {
         setDirty(true);
         return;
       }
-      // Build area changed: drop any parts that no longer fit the new bounds and
-      // rebuild the grid. Commit as one undoable step so the deletion is reversible.
+      // Build area changed: parts that no longer fit are removed, and obstacles
+      // are clipped to the new bounds. Both are destructive, so say what will be
+      // lost first — it was previously silent, and only discoverable by noticing
+      // the design had fewer parts in it than before (issue #12).
       const keptParts = partsWithinBuildArea(d.parts, next);
-      commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
+      const droppedParts = d.parts.length - keptParts.length;
+      const droppedObstacles =
+        d.obstacles.length - obstaclesWithinBuildArea(d.obstacles, next).length;
+
+      const apply = () => {
+        commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
+        // The active plane and any half-built obstacle may now sit above the
+        // ceiling; both are re-derived from the area rather than left stale.
+        setActiveElevation((y) => clampElevation(y, next));
+        setObstacleDraft(null);
+      };
+
+      if (droppedParts === 0 && droppedObstacles === 0) {
+        apply();
+        return;
+      }
+      setConfirm({
+        title: "Shrink build area",
+        message: `${describeLoss(droppedParts, droppedObstacles)} will no longer fit and will be removed. This can be undone.`,
+        confirmLabel: "Shrink and remove",
+        onConfirm: apply
+      });
     },
     [commitDesign, design]
   );
@@ -354,15 +389,15 @@ export default function App() {
       }
       if (k === "escape") selectTool("cursor");
       if (k === "[" && !e.metaKey && !e.ctrlKey) {
-        setActiveElevation((y) => Math.max(-20, y - 1));
+        setActiveElevation((y) => clampElevation(y - 1, buildArea));
       }
       if (k === "]" && !e.metaKey && !e.ctrlKey) {
-        setActiveElevation((y) => Math.min(20, y + 1));
+        setActiveElevation((y) => clampElevation(y + 1, buildArea));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [tool, undo, redo, selectTool]);
+  }, [tool, undo, redo, selectTool, buildArea]);
 
   /**
    * The ghost is derived, not stored. It was previously computed in an effect
@@ -429,13 +464,23 @@ export default function App() {
     setAutoBuildJustRan(false);
   }, [commitDesign, design, obstacleDraft, setErrorFlash]);
 
-  const setObstacleBaseY = useCallback((baseY: number) => {
-    setObstacleDraft((draft) => (draft ? moveObstaclePlacementBase(draft, baseY) : draft));
-  }, []);
+  const setObstacleBaseY = useCallback(
+    (baseY: number) => {
+      setObstacleDraft((draft) =>
+        draft ? moveObstaclePlacementBase(draft, baseY, buildArea) : draft
+      );
+    },
+    [buildArea]
+  );
 
-  const setObstacleHeight = useCallback((height: number) => {
-    setObstacleDraft((draft) => (draft ? resizeObstaclePlacementHeight(draft, height) : draft));
-  }, []);
+  const setObstacleHeight = useCallback(
+    (height: number) => {
+      setObstacleDraft((draft) =>
+        draft ? resizeObstaclePlacementHeight(draft, height, buildArea) : draft
+      );
+    },
+    [buildArea]
+  );
 
   const onPlace = useCallback(
     (cell: Vec3, _e?: MouseEvent, target?: { partId?: string }) => {
@@ -752,6 +797,7 @@ export default function App() {
             autoBuilding={autoBuilding}
             errorFlash={errorFlash}
             obstacleDraft={obstacleDraft}
+            buildArea={buildArea}
             onObstacleBaseYChange={setObstacleBaseY}
             onObstacleHeightChange={setObstacleHeight}
             onObstacleConfirm={commitObstacleDraft}
