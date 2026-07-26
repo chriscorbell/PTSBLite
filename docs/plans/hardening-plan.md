@@ -1,6 +1,7 @@
 # PTSBuilder pre-requirements hardening plan
 
-- **Status:** In progress — PRs 1–3 of the sequence below are merged or open.
+- **Status:** Complete. Every package in the sequence below is merged; see the PR table for
+  what each became. Deferred items (§8) remain deferred and their issues remain open.
 - **Written:** 2026-07-25
 - **Baseline:** `main` at `2afea1c` (`v0.1.3`)
 - **Supersedes:** `docs/plans/o5/README.md` (Claude Opus 5) and `docs/plans/g5-6/README.md`
