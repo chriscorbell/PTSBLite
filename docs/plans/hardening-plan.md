@@ -87,10 +87,11 @@ Phases 1–7.
    intended. If proprietary delivery, dual licensing, or transfer of ownership is intended, get
    legal advice and confirm ownership of all contributions **before** changing anything — do not
    rewrite public history or flip visibility as a casual cleanup step.
-2. ~~**Code signing.**~~ **Decided 2026-07-26: ship unsigned, buy no certificates** — see
-   ADR-0006. The buyer is a single small business on Windows, where the cost is one SmartScreen
-   prompt at first install and in-app updates never re-warn. macOS builds continue but have no
-   self-update. Revisit if the software is sold beyond one customer or a customer's IT policy blocks
+2. ~~**Code signing.**~~ **Decided 2026-07-26** — see ADR-0006. Windows stays unsigned: a real
+   annual cost whose only benefit is removing one SmartScreen prompt from an auto-update path that
+   already works. macOS is signed and notarized, because the Apple membership was already held, so
+   the marginal cost was zero and it is the only platform where signing enables self-update at all.
+   Revisit Windows if the software is sold beyond one customer or a customer's IT policy blocks
    unsigned executables.
 3. **Repository settings.** `main` is currently unprotected, and GitHub vulnerability alerts and
    automated security fixes are disabled. See §§7.3–7.4.
