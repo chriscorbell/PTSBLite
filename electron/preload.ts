@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { windowChromeForPlatform } from "./window-chrome";
-import { IPC, type PendingUpdate } from "../shared/ipc";
+import { IPC, type PendingUpdate, type SaveDesignRequest } from "../shared/ipc";
 
 const windowChrome = windowChromeForPlatform(process.platform);
 
@@ -8,7 +8,7 @@ const api = {
   platform: process.platform,
   titleBarInset: windowChrome.titleBarInset,
   titleBarRightInset: windowChrome.titleBarRightInset,
-  saveDesign: (jsonData: string) => ipcRenderer.invoke(IPC.designSave, jsonData),
+  saveDesign: (request: SaveDesignRequest) => ipcRenderer.invoke(IPC.designSave, request),
   openDesign: () => ipcRenderer.invoke(IPC.designOpen),
   exportQuote: (pdfBase64: string) => ipcRenderer.invoke(IPC.quoteExport, pdfBase64),
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
