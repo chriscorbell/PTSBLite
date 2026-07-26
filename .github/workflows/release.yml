@@ -76,6 +76,44 @@ jobs:
           sudo apt-get install -y flatpak flatpak-builder
           flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
+      # Signing credentials are exported here rather than on the publish step so
+      # they exist only on the macOS runner. CSC_LINK is read by electron-builder
+      # for Windows signing too, and handing a Developer ID certificate to the
+      # Windows build would fail it.
+      - name: Configure macOS signing and notarization
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+
+          for name in CERTIFICATE_BASE64 CERTIFICATE_PASSWORD API_KEY_BASE64 API_KEY_ID API_ISSUER; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret for ${name}. See ADR-0006." >&2
+              exit 1
+            fi
+          done
+
+          # @electron/notarize wants a path to the .p8, not its contents.
+          key_dir="${RUNNER_TEMP}/apple-api-key"
+          mkdir -p "${key_dir}"
+          printf '%s' "${API_KEY_BASE64}" | base64 --decode > "${key_dir}/AuthKey.p8"
+
+          # CSC_LINK accepts base64 content directly, so the certificate never
+          # touches the filesystem.
+          {
+            echo "CSC_LINK=${CERTIFICATE_BASE64}"
+            echo "CSC_KEY_PASSWORD=${CERTIFICATE_PASSWORD}"
+            echo "APPLE_API_KEY=${key_dir}/AuthKey.p8"
+            echo "APPLE_API_KEY_ID=${API_KEY_ID}"
+            echo "APPLE_API_ISSUER=${API_ISSUER}"
+          } >> "${GITHUB_ENV}"
+
       - name: Package & publish
         shell: bash
         run: pnpm exec electron-builder --publish always
