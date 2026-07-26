@@ -4,23 +4,34 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { serializeDesign } from "@/domain/design-file";
 import { designFromScene } from "@/domain/design-state";
 import type { Vec3 } from "@/types";
-import type { ViewportProps } from "@/renderer/Viewport";
+import type { ViewportHandle, ViewportProps } from "@/renderer/Viewport";
 
 // The real Viewport builds a WebGLRenderer, which happy-dom cannot provide. It
 // is also the only part of the tree that needs a GPU, so mocking just this
 // component leaves every other piece of the app under test for real. The mock
 // captures its props so tests can drive placement the way the 3D canvas would.
-const viewport = vi.hoisted(() => ({ props: null as ViewportProps | null }));
+const viewport = vi.hoisted(() => ({
+  props: null as ViewportProps | null,
+  handle: { zoomBy: vi.fn(), resetView: vi.fn() } satisfies ViewportHandle
+}));
 
 vi.mock("@/renderer/Viewport", () => ({
   Viewport: (props: ViewportProps) => {
     viewport.props = props;
+    // React 19 passes `ref` as an ordinary prop. Fulfilling it is what lets a
+    // test observe the camera commands at all: they used to travel over an
+    // untyped window CustomEvent that nothing could see (issue #19).
+    if (props.ref && typeof props.ref === "object") {
+      (props.ref as { current: ViewportHandle | null }).current = viewport.handle;
+    }
     return null;
   }
 }));
 
 afterEach(() => {
   viewport.props = null;
+  viewport.handle.zoomBy.mockClear();
+  viewport.handle.resetView.mockClear();
   delete (window as { ptsbuilder?: unknown }).ptsbuilder;
   vi.restoreAllMocks();
 });
@@ -378,5 +389,32 @@ describe("left rail accessibility", () => {
     expect(drawer).toBeTruthy();
     expect(drawer?.hasAttribute("inert")).toBe(true);
     expect(drawer?.hasAttribute("aria-hidden")).toBe(false);
+  });
+});
+
+describe("camera controls", () => {
+  it("reaches the viewport through its typed handle", async () => {
+    await renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(viewport.handle.zoomBy).toHaveBeenCalledWith(-0.2);
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom out" }));
+    expect(viewport.handle.zoomBy).toHaveBeenCalledWith(0.25);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset view" }));
+    expect(viewport.handle.resetView).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches nothing on window", async () => {
+    // The regression: these commands were global CustomEvents, invisible to
+    // TypeScript and to this suite, between two components that are siblings.
+    const dispatch = vi.spyOn(window, "dispatchEvent");
+    await renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset view" }));
+
+    const custom = dispatch.mock.calls.filter(([event]) => event.type.startsWith("ptsb-"));
+    expect(custom).toEqual([]);
   });
 });

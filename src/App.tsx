@@ -69,7 +69,7 @@ import {
 } from "@/domain/terminal-placement";
 import { placeTube, tubeLandingCells, tubePlacementGhost } from "@/domain/tube-placement";
 import { validate } from "@/domain/validation";
-import { Viewport } from "@/renderer/Viewport";
+import { Viewport, type ViewportHandle } from "@/renderer/Viewport";
 import type { AutoBuildSummary, DesignState, Ghost, Hint, Scene, ToolId, Vec3 } from "@/types";
 
 const OPTIMIZATION_MODE_LABELS: Record<OptimizationMode, string> = {
@@ -197,6 +197,8 @@ export default function App() {
   const buildArea = design.metadata.buildArea;
   const undoAvailable = canUndo(history);
   const redoAvailable = canRedo(history);
+
+  const viewportRef = useRef<ViewportHandle>(null);
 
   const [tool, setToolRaw] = useState<ToolId>("cursor");
   const [hoverCell, setHoverCell] = useState<Vec3 | null>(null);
@@ -779,6 +781,7 @@ export default function App() {
         />
         <div style={{ flex: 1, position: "relative", background: "#0B0E13", overflow: "hidden" }}>
           <Viewport
+            ref={viewportRef}
             scene={viewportScene}
             buildArea={design.metadata.buildArea}
             ghost={ghostState}
@@ -888,6 +891,8 @@ export default function App() {
         autoBuilding={autoBuilding}
         optimizationMode={optimizationMode}
         onOptimizationModeChange={setOptimizationMode}
+        onZoom={(delta) => viewportRef.current?.zoomBy(delta)}
+        onResetView={() => viewportRef.current?.resetView()}
       />
       {exportOpen && (
         <ExportPdfModal
