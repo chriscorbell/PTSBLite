@@ -8,6 +8,7 @@ import {
   type CSSProperties
 } from "react";
 import { AboutModal } from "@/components/AboutModal";
+import { ActiveToolBar } from "@/components/ActiveToolBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ExportPdfModal } from "@/components/ExportPdfModal";
 import { LeftRail } from "@/components/LeftRail";
@@ -59,7 +60,6 @@ import {
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
 import { totalPathLength } from "@/domain/parts";
-import { partRegistry } from "@/domain/part-registry";
 import {
   autoBuildOpenPortPair,
   type OptimizationMode,
@@ -95,36 +95,6 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
   o: "obstacle",
   x: "erase"
 };
-
-/** "<name> · <part number>", read from the catalog rather than restated here. */
-function catalogLabel(registryKey: string): string {
-  const { name, partNo } = partRegistry.get(registryKey);
-  return `${name} · ${partNo}`;
-}
-
-// Part names and numbers come from the catalog: ADR-0001 requires user-facing
-// copy to interpolate reference data, not duplicate it. Obstacles are not parts
-// (see CONTEXT.md) and the two non-placing tools have no catalog entry, so those
-// three keep literal labels.
-const TOOL_LABELS: Record<ToolId, string> = {
-  cursor: "Select",
-  blower: catalogLabel("blower"),
-  terminal: catalogLabel("terminal"),
-  tube: catalogLabel("tube6"),
-  bend: catalogLabel("bend90"),
-  obstacle: "Obstacle volume",
-  erase: "Erase"
-};
-
-const kbdStyle = {
-  fontFamily: "var(--font-mono)",
-  fontSize: 10.5,
-  padding: "1px 6px",
-  borderRadius: 3,
-  border: "1px solid var(--line-2)",
-  background: "var(--panel-2)",
-  color: "var(--text)"
-} as const;
 
 const DESIGN_METADATA = { filename: DEFAULT_FILENAME, revision: DEFAULT_REVISION };
 
@@ -273,6 +243,32 @@ export default function App() {
   const commitDesign = useCallback((next: DesignState) => {
     dispatchDocument({ type: "commit", design: next });
   }, []);
+
+  /**
+   * Apply a placement result, or flash why it failed.
+   *
+   * Every tool branch below ended with the same six lines. The branches
+   * themselves stay explicit: the tools take genuinely different arguments —
+   * a source part, a rotation index, an orientation memory — and a table
+   * mapping tool to handler would have hidden that behind optional fields and
+   * casts. Only the identical tail is shared.
+   *
+   * Returns the successful result so a branch can do its own extra work.
+   */
+  const applyPlacement = useCallback(
+    <T extends { ok: true; design: DesignState } | { ok: false; message: string }>(
+      result: T
+    ): (T & { ok: true }) | null => {
+      if (!result.ok) {
+        setErrorFlash(result.message);
+        return null;
+      }
+      commitDesign(result.design);
+      setAutoBuildJustRan(false);
+      return result as T & { ok: true };
+    },
+    [commitDesign, setErrorFlash]
+  );
 
   const undo = useCallback(() => {
     if (!undoAvailable) return;
@@ -463,14 +459,9 @@ export default function App() {
       cornerA: bounds.min,
       cornerB: bounds.max
     });
-    if (!result.ok) {
-      setErrorFlash(result.message);
-      return;
-    }
-    commitDesign(result.design);
+    if (!applyPlacement(result)) return;
     setObstacleDraft(null);
-    setAutoBuildJustRan(false);
-  }, [commitDesign, design, obstacleDraft, setErrorFlash]);
+  }, [applyPlacement, design, obstacleDraft]);
 
   const setObstacleBaseY = useCallback(
     (baseY: number) => {
@@ -494,13 +485,7 @@ export default function App() {
     (cell: Vec3, _e?: MouseEvent, target?: { partId?: string }) => {
       if (tool === "cursor") return;
       if (tool === "erase") {
-        const result = eraseAtCell(design, cell);
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
-        setAutoBuildJustRan(false);
+        applyPlacement(eraseAtCell(design, cell));
         return;
       }
       if (tool === "terminal") {
@@ -511,19 +496,15 @@ export default function App() {
           rotationSteps: freePlacementRotation.horizontalSteps,
           verticalRotationSteps: freePlacementRotation.verticalSteps
         });
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
-        const orientation = result.part.type === "terminal" ? result.part.axis : null;
+        const placed = applyPlacement(result);
+        if (!placed) return;
+        const orientation = placed.part.type === "terminal" ? placed.part.axis : null;
         if (orientation) {
           setFreePlacementMemory((memory) =>
             rememberFreePlacementOrientation(memory, "terminal", orientation)
           );
         }
         setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
-        setAutoBuildJustRan(false);
         return;
       }
       if (tool === "blower") {
@@ -543,16 +524,11 @@ export default function App() {
           cell,
           orientation
         });
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
+        if (!applyPlacement(result)) return;
         setFreePlacementMemory((memory) =>
           rememberFreePlacementOrientation(memory, tool, orientation)
         );
         setFreePlacementRotation(DEFAULT_FREE_PLACEMENT_ROTATION);
-        setAutoBuildJustRan(false);
         return;
       }
       if (tool === "tube") {
@@ -561,12 +537,7 @@ export default function App() {
           cell,
           sourcePartId: target?.partId
         });
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
-        setAutoBuildJustRan(false);
+        applyPlacement(result);
         return;
       }
       if (tool === "bend") {
@@ -576,12 +547,7 @@ export default function App() {
           sourcePartId: target?.partId,
           rotationIndex: ghostRotation
         });
-        if (!result.ok) {
-          setErrorFlash(result.message);
-          return;
-        }
-        commitDesign(result.design);
-        setAutoBuildJustRan(false);
+        applyPlacement(result);
         return;
       }
       if (tool === "obstacle") {
@@ -602,7 +568,7 @@ export default function App() {
       }
     },
     [
-      commitDesign,
+      applyPlacement,
       tool,
       setErrorFlash,
       design,
@@ -893,72 +859,7 @@ export default function App() {
             taxRate={settings.taxRate}
             onExport={() => setExportOpen(true)}
           />
-          {tool !== "cursor" && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 12,
-                left: "50%",
-                transform: "translateX(-50%)",
-                background: "rgba(11,14,19,0.92)",
-                border: "1px solid var(--line-2)",
-                borderRadius: 999,
-                padding: "6px 14px",
-                fontSize: 12,
-                color: "var(--text)",
-                display: "flex",
-                gap: 12,
-                alignItems: "center",
-                pointerEvents: "none",
-                fontFamily: "var(--font-sans)",
-                whiteSpace: "nowrap",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.4)"
-              }}
-            >
-              <span
-                style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }}
-              />
-              <span style={{ color: "var(--text-mut)" }}>Tool</span>
-              <span style={{ fontWeight: 600 }}>{TOOL_LABELS[tool]}</span>
-              {(tool === "blower" ||
-                tool === "terminal" ||
-                tool === "tube" ||
-                tool === "bend" ||
-                tool === "obstacle") && (
-                <>
-                  <span style={{ width: 1, height: 14, background: "var(--line)" }} />
-                  {(tool === "blower" ||
-                    tool === "terminal" ||
-                    tool === "tube" ||
-                    tool === "bend") && (
-                    <span
-                      style={{
-                        color: "var(--text-mut)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4
-                      }}
-                    >
-                      <kbd style={kbdStyle}>R</kbd>
-                      <span>/</span>
-                      <kbd style={kbdStyle}>Shift+R</kbd>
-                      <span>rotate</span>
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      color: "var(--text-mut)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4
-                    }}
-                  >
-                    <kbd style={kbdStyle}>Esc</kbd> cancel
-                  </span>
-                </>
-              )}
-            </div>
-          )}
+          <ActiveToolBar tool={tool} />
         </div>
       </div>
       <StatusBar
