@@ -3,6 +3,7 @@ import { Icons, type IconProps } from "@/components/Icons";
 import { PartThumbnail } from "@/components/PartThumbnail";
 import { partRegistry } from "@/domain/part-registry";
 import type { ToolId } from "@/types";
+import "@/components/LeftRail.css";
 
 type RailItem = {
   id: ToolId;
@@ -15,8 +16,6 @@ type BuildPart = {
   id: ToolId;
   regKey: string;
 };
-
-const monoStyle = { fontFamily: "var(--font-mono)" } as const;
 
 const BUILD_PARTS: BuildPart[] = [
   { id: "blower", regKey: "blower" },
@@ -76,22 +75,7 @@ export function LeftRail({
   };
 
   return (
-    <div
-      ref={railRef}
-      className="nosel"
-      style={{
-        position: "relative",
-        width: 48,
-        flexShrink: 0,
-        display: "flex",
-        flexDirection: "column",
-        padding: "8px 6px",
-        gap: 3,
-        background: "var(--panel)",
-        borderRight: "1px solid var(--line)",
-        zIndex: 5
-      }}
-    >
+    <div ref={railRef} className="left-rail nosel">
       <RailButton
         item={{ id: "cursor", icon: Icons.Cursor, label: "Select", short: "V" }}
         active={tool === "cursor"}
@@ -108,7 +92,7 @@ export function LeftRail({
           onClick={() => selectTool(it.id)}
         />
       ))}
-      <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 2 }}>
+      <div className="left-rail__clear-group">
         <ClearActionButton
           icon={Icons.Trash}
           tooltip="Clear All Parts"
@@ -128,7 +112,36 @@ export function LeftRail({
 }
 
 function Divider() {
-  return <div style={{ height: 1, background: "var(--line)", margin: "4px 8px" }} />;
+  return <div className="left-rail__divider" />;
+}
+
+/**
+ * A rail button and the tooltip that hangs off it.
+ *
+ * The tooltip is always in the DOM and revealed by CSS, which is what removed
+ * the four `useState` hover flags and the render each cost per pointer move. It
+ * is `aria-hidden` because it repeats the button's own accessible name; the
+ * shortcut it also shows reaches assistive technology through
+ * `aria-keyshortcuts` on the button, which is the attribute that actually means
+ * "this control has a shortcut".
+ */
+function RailSlot({
+  tooltip,
+  open = false,
+  children
+}: {
+  tooltip: ReactNode;
+  open?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`left-rail__slot${open ? " left-rail__slot--open" : ""}`}>
+      {children}
+      <div className="left-rail__tooltip" aria-hidden="true">
+        {tooltip}
+      </div>
+    </div>
+  );
 }
 
 function BuildButton({
@@ -140,47 +153,18 @@ function BuildButton({
   open: boolean;
   onClick: () => void;
 }) {
-  const [hover, setHover] = useState(false);
-  const lit = active || open;
   return (
-    <div
-      style={{ position: "relative" }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
+    <RailSlot open={open} tooltip={<div className="left-rail__tooltip-title">Build</div>}>
       <button
+        className="left-rail__button"
         onClick={onClick}
         aria-label="Build"
         aria-expanded={open}
-        style={{
-          width: "100%",
-          height: 34,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 2,
-          borderRadius: 7,
-          background: lit
-            ? "color-mix(in oklab, var(--accent) 18%, transparent)"
-            : hover
-              ? "var(--panel-2)"
-              : "transparent",
-          color: lit ? "var(--accent)" : "var(--text-mut)",
-          border:
-            "1px solid " +
-            (lit ? "color-mix(in oklab, var(--accent) 35%, transparent)" : "transparent"),
-          cursor: "pointer",
-          transition: "all .12s"
-        }}
+        aria-pressed={active}
       >
         <Icons.Hammer size={18} />
       </button>
-      {hover && !open && (
-        <RailTooltip>
-          <div style={{ fontWeight: 600 }}>Build</div>
-        </RailTooltip>
-      )}
-    </div>
+    </RailSlot>
   );
 }
 
@@ -197,37 +181,10 @@ function BuildDrawer({
     <div
       role="menu"
       inert={!open}
-      style={{
-        position: "absolute",
-        left: "100%",
-        top: 0,
-        bottom: 0,
-        width: 252,
-        background: "var(--panel)",
-        borderRight: "1px solid var(--line)",
-        boxShadow: open ? "8px 0 28px rgba(0,0,0,0.45)" : "none",
-        display: "flex",
-        flexDirection: "column",
-        padding: "12px 12px 14px",
-        zIndex: 6,
-        transform: open ? "translateX(0)" : "translateX(-8px)",
-        opacity: open ? 1 : 0,
-        pointerEvents: open ? "auto" : "none",
-        transition: "transform .16s ease, opacity .16s ease"
-      }}
+      className={`left-rail__drawer${open ? " left-rail__drawer--open" : ""}`}
     >
-      <div
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontWeight: 600,
-          fontSize: 12,
-          color: "var(--text)",
-          marginBottom: 10
-        }}
-      >
-        Parts
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <div className="left-rail__drawer-title">Parts</div>
+      <div className="left-rail__parts">
         {BUILD_PARTS.map((part) => (
           <PartCard
             key={part.id}
@@ -250,101 +207,23 @@ function PartCard({
   active: boolean;
   onClick: () => void;
 }) {
-  const [hover, setHover] = useState(false);
   const entry = partRegistry.get(part.regKey);
-  const lit = active || hover;
   return (
     <button
+      className="part-card"
       onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       title={entry.name}
       aria-label={entry.name}
       aria-pressed={active}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "stretch",
-        minWidth: 0,
-        gap: 7,
-        padding: 8,
-        borderRadius: 8,
-        background: active
-          ? "color-mix(in oklab, var(--accent) 12%, var(--panel-2))"
-          : "var(--panel-2)",
-        border:
-          "1px solid " +
-          (lit ? "color-mix(in oklab, var(--accent) 40%, transparent)" : "var(--line)"),
-        color: active ? "var(--accent)" : "var(--text)",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "background .12s, border-color .12s"
-      }}
     >
-      <div
-        style={{
-          height: 56,
-          padding: 4,
-          borderRadius: 6,
-          background: "var(--ink)",
-          border: "1px solid var(--line)"
-        }}
-      >
+      <div className="part-card__preview">
         <PartThumbnail type={entry.type} color={entry.color} />
       </div>
       <div>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: active ? "var(--accent)" : "var(--text)",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
-          }}
-        >
-          {entry.name}
-        </div>
-        <div
-          style={{
-            ...monoStyle,
-            fontSize: 9.5,
-            color: "var(--text-dim)",
-            marginTop: 2,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
-          }}
-        >
-          {entry.partNo}
-        </div>
+        <div className="part-card__name">{entry.name}</div>
+        <div className="part-card__part-no">{entry.partNo}</div>
       </div>
     </button>
-  );
-}
-
-function RailTooltip({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: "calc(100% + 8px)",
-        top: "50%",
-        transform: "translateY(-50%)",
-        zIndex: 50,
-        background: "var(--ink)",
-        color: "var(--text)",
-        border: "1px solid var(--line-2)",
-        padding: "6px 10px",
-        borderRadius: 6,
-        fontSize: 12,
-        whiteSpace: "nowrap",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-        pointerEvents: "none"
-      }}
-    >
-      {children}
-    </div>
   );
 }
 
@@ -359,50 +238,18 @@ function ClearActionButton({
   disabled: boolean;
   onClick: () => void;
 }) {
-  const [hover, setHover] = useState(false);
-  const active = hover && !disabled;
   const ItemIcon = icon;
   return (
-    <div
-      style={{ position: "relative" }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
+    <RailSlot tooltip={<div className="left-rail__tooltip-title">{tooltip}</div>}>
       <button
+        className="left-rail__button left-rail__button--danger"
         onClick={onClick}
         aria-label={tooltip}
         disabled={disabled}
-        style={{
-          width: "100%",
-          height: 34,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 2,
-          borderRadius: 7,
-          background: active
-            ? "color-mix(in oklab, var(--danger) 16%, transparent)"
-            : "transparent",
-          color: disabled
-            ? "color-mix(in oklab, var(--text-dim) 60%, transparent)"
-            : active
-              ? "var(--danger)"
-              : "var(--text-mut)",
-          border:
-            "1px solid " +
-            (active ? "color-mix(in oklab, var(--danger) 34%, transparent)" : "transparent"),
-          cursor: disabled ? "default" : "pointer",
-          transition: "all .12s"
-        }}
       >
         <ItemIcon size={17} />
       </button>
-      {hover && (
-        <RailTooltip>
-          <div style={{ fontWeight: 600 }}>{tooltip}</div>
-        </RailTooltip>
-      )}
-    </div>
+    </RailSlot>
   );
 }
 
@@ -415,57 +262,29 @@ function RailButton({
   active: boolean;
   onClick: () => void;
 }) {
-  const [hover, setHover] = useState(false);
   const ItemIcon = item.icon;
   return (
-    <div
-      style={{ position: "relative" }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+    <RailSlot
+      tooltip={
+        <div className="left-rail__tooltip-title">
+          {item.label}
+          {item.short ? <span className="left-rail__tooltip-shortcut">{item.short}</span> : null}
+        </div>
+      }
     >
       <button
+        className="left-rail__button"
         onClick={onClick}
         aria-label={item.label}
         aria-pressed={active}
+        aria-keyshortcuts={item.short}
         // Don't take focus on mouse click, otherwise the focus ring lingers on
         // the button after the tool is changed elsewhere (e.g. Esc to cancel).
         // Keyboard focus (Tab) still works and shows the ring via :focus-visible.
         onMouseDown={(e) => e.preventDefault()}
-        style={{
-          width: "100%",
-          height: 34,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 2,
-          borderRadius: 7,
-          background: active
-            ? "color-mix(in oklab, var(--accent) 18%, transparent)"
-            : hover
-              ? "var(--panel-2)"
-              : "transparent",
-          color: active ? "var(--accent)" : "var(--text-mut)",
-          border:
-            "1px solid " +
-            (active ? "color-mix(in oklab, var(--accent) 35%, transparent)" : "transparent"),
-          cursor: "pointer",
-          transition: "all .12s"
-        }}
       >
         <ItemIcon size={17} />
       </button>
-      {hover && (
-        <RailTooltip>
-          <div style={{ fontWeight: 600 }}>
-            {item.label}
-            {item.short ? (
-              <span style={{ color: "var(--text-dim)", fontWeight: 400, marginLeft: 8 }}>
-                {item.short}
-              </span>
-            ) : null}
-          </div>
-        </RailTooltip>
-      )}
-    </div>
+    </RailSlot>
   );
 }
