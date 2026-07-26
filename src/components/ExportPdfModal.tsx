@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { Icons } from "@/components/Icons";
-import { useEscapeKey } from "@/components/useEscapeKey";
+import { Modal } from "@/components/Modal";
 import type { AppSettings } from "@/domain/app-settings";
 import { totalPathLength } from "@/domain/parts";
 import { formatQuoteDate, generateQuotePdf, pdfBytesToBase64 } from "@/domain/quote-pdf";
@@ -30,27 +30,6 @@ const iconBtn: CSSProperties = {
 
 const monoStyle: CSSProperties = { fontFamily: "var(--font-mono)" };
 
-const overlayStyle: CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  background: "rgba(5,7,10,0.75)",
-  backdropFilter: "blur(6px)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 100
-};
-
-const blockedPanelStyle: CSSProperties = {
-  width: "min(460px, 92%)",
-  display: "flex",
-  flexDirection: "column",
-  background: "var(--panel)",
-  borderRadius: 10,
-  border: "1px solid var(--line-2)",
-  boxShadow: "0 24px 80px rgba(0,0,0,0.5)"
-};
-
 export type ExportPdfModalProps = {
   design: DesignState;
   settings: AppSettings;
@@ -67,8 +46,6 @@ export function ExportPdfModal({
   onError,
   onOpenSettings
 }: ExportPdfModalProps) {
-  useEscapeKey(onClose);
-
   const readiness = useMemo(() => quoteReadiness(design, settings), [design, settings]);
 
   if (!readiness.ready) {
@@ -98,7 +75,6 @@ type QuotePreviewDialogProps = {
 };
 
 function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDialogProps) {
-  useEscapeKey(onClose);
   const date = useMemo(() => formatQuoteDate(), []);
   // Project detail lines fall back to a description of the drawing, matching
   // what generateQuotePdf does, so preview and PDF cannot drift.
@@ -150,33 +126,13 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
   };
 
   return (
-    <div
-      className="nosel"
-      style={{
-        position: "absolute",
-        inset: 0,
-        background: "rgba(5,7,10,0.75)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100
-      }}
-      onClick={onClose}
+    <Modal
+      label="Quote preview"
+      onClose={onClose}
+      width="min(820px, 92%)"
+      panelStyle={{ maxHeight: "88%" }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(820px, 92%)",
-          maxHeight: "88%",
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--panel)",
-          borderRadius: 10,
-          border: "1px solid var(--line-2)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.5)"
-        }}
-      >
+      <>
         <div
           style={{
             display: "flex",
@@ -429,8 +385,8 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </>
+    </Modal>
   );
 }
 
@@ -471,12 +427,11 @@ const BLOCKER_TAB_LABELS: Record<QuoteBlockerTab, string> = {
  * stands between invented numbers and a customer. See ADR-0003.
  */
 function QuoteBlockedDialog({ blockers, onClose, onOpenSettings }: QuoteBlockedDialogProps) {
-  useEscapeKey(onClose);
   const tabs = [...new Set(blockers.map((b) => b.tab))];
 
   return (
-    <div className="nosel" style={overlayStyle} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={blockedPanelStyle}>
+    <Modal label="Finish setup before quoting" onClose={onClose} width="min(460px, 92%)">
+      <>
         <div
           style={{
             display: "flex",
@@ -551,7 +506,7 @@ function QuoteBlockedDialog({ blockers, onClose, onOpenSettings }: QuoteBlockedD
             </button>
           ))}
         </div>
-      </div>
-    </div>
+      </>
+    </Modal>
   );
 }
