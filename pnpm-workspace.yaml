@@ -14,3 +14,15 @@ overrides:
   # It matters because js-yaml ships: electron-updater parses the latest*.yml
   # update feed fetched from GitHub, which is remote input. See #84.
   js-yaml: ^4.3.0
+  #
+  # Deliberately NOT overridden: brace-expansion. `pnpm audit` reports one high
+  # advisory against it, and it is expected to stay. Only the 5.x line was
+  # patched; the 1.x and 2.x copies reach us through minimatch 3/5/9, deep
+  # inside electron-builder, and forcing 5.x on them is a major-version jump
+  # their ranges never allowed — into the code that packs the asar and builds
+  # the signed installers.
+  #
+  # It is also not reachable here. The advisory is a DoS on a crafted glob
+  # pattern, and every glob this project expands is one we wrote ourselves in
+  # electron-builder.yml. Nothing an attacker controls reaches it. Revisit when
+  # electron-builder moves to minimatch 10, not before.
