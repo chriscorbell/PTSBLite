@@ -19,6 +19,13 @@ const api = {
   getPendingUpdate: () => ipcRenderer.invoke(IPC.updateGetPending),
   // Install the downloaded update and relaunch.
   quitAndInstall: () => ipcRenderer.invoke(IPC.updateQuitAndInstall),
+  // Main asks before closing; the renderer answers with confirmClose().
+  onCloseRequested: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on(IPC.windowCloseRequested, listener);
+    return () => ipcRenderer.removeListener(IPC.windowCloseRequested, listener);
+  },
+  confirmClose: () => ipcRenderer.invoke(IPC.windowConfirmClose),
   // Subscribe to "update finished downloading" pushes; returns an unsubscribe fn.
   onUpdateDownloaded: (callback: (info: PendingUpdate) => void) => {
     const listener = (_event: unknown, info: PendingUpdate) => callback(info);

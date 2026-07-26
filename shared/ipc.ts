@@ -23,7 +23,14 @@ export const IPC = {
   updateGetPending: "update:get-pending",
   updateQuitAndInstall: "update:quit-and-install",
   /** Main → renderer push, not an invoke. */
-  updateDownloaded: "update:downloaded"
+  updateDownloaded: "update:downloaded",
+  /**
+   * Main → renderer: the window is trying to close. Main has already vetoed the
+   * close and is asking whether it is safe.
+   */
+  windowCloseRequested: "window:close-requested",
+  /** Renderer → main: it is safe now; close for real. */
+  windowConfirmClose: "window:confirm-close"
 } as const;
 
 export type SaveDesignResult = {
@@ -97,4 +104,5 @@ export type IpcResults = {
   [IPC.updateCheck]: CheckForUpdatesResult;
   [IPC.updateGetPending]: PendingUpdate | null;
   [IPC.updateQuitAndInstall]: void;
+  [IPC.windowConfirmClose]: void;
 };
