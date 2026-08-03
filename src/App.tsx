@@ -16,6 +16,11 @@ import { StatusBar } from "@/components/StatusBar";
 import { TopBar } from "@/components/TopBar";
 import { ViewportHUD } from "@/components/ViewportHUD";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
+import {
+  isWorthKeeping,
+  readStoredSession,
+  UNREADABLE_SESSION_MESSAGE
+} from "@/domain/session-autosave";
 import { canRedo, canUndo } from "@/domain/design-history";
 import {
   displayFilename,
@@ -76,6 +81,15 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
 const DESIGN_METADATA = { filename: DEFAULT_FILENAME, revision: DEFAULT_REVISION };
 
 /**
+ * How long to wait after a change before autosaving.
+ *
+ * Long enough that dragging a build-area field writes once rather than per
+ * keystroke, short enough that a visitor closing the tab shortly after a
+ * placement has already been covered by it rather than by the lifecycle flush.
+ */
+const AUTOSAVE_DEBOUNCE_MS = 800;
+
+/**
  * Resolve after the browser has had a chance to paint. requestAnimationFrame
  * alone runs *before* paint, so the timeout hands control back afterwards.
  */
@@ -121,6 +135,14 @@ export default function App({ platform, product }: AppProps) {
   // A host that autosaves a session has no Open, Save or Save As, and no
   // unsaved state to mark — the design is never not saved.
   const usesFiles = platform.documents.kind === "files";
+  const sessionStore = platform.documents.kind === "session" ? platform.documents : null;
+
+  // Read at first render rather than in an effect. This is the design the app
+  // starts from, not a reaction to something — an effect would render the empty
+  // design first, then replace it, and `localStorage` is synchronous anyway.
+  const [storedSession] = useState(() =>
+    readStoredSession(sessionStore ? sessionStore.load() : null)
+  );
   const shellStyle = useMemo(
     () =>
       // The assertion is required: this @types/react has no index signature for
@@ -165,6 +187,15 @@ export default function App({ platform, product }: AppProps) {
   const obstacleDraft = placement.obstacleDraft;
   const activeElevation = placement.activeElevation;
 
+  // The design found in storage, until the visitor answers. Null once they have.
+  const [restoreOffer, setRestoreOffer] = useState<DesignState | null>(
+    storedSession.status === "restorable" ? storedSession.design : null
+  );
+  // Set when a write fails, cleared when one succeeds. While it holds a message
+  // there is genuinely unsaved work, which is the only time Lite warns on exit.
+  const [autosaveError, setAutosaveError] = useState<string | null>(
+    storedSession.status === "unreadable" ? UNREADABLE_SESSION_MESSAGE : null
+  );
   const [rightOpen, setRightOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -200,6 +231,66 @@ export default function App({ platform, product }: AppProps) {
       }, 2400);
     }
   }, []);
+
+  // A payload this build cannot read is set aside rather than dropped: an
+  // unsupported schema usually means a rollback or a missed migration, and a
+  // later deployment may manage what this one could not. The reason goes to the
+  // console, not to the visitor, who can do nothing with it.
+  useEffect(() => {
+    if (storedSession.status !== "unreadable") return;
+    console.warn(`PTSBuilder: stored design could not be read - ${storedSession.reason}`);
+    sessionStore?.preserveUnreadable();
+  }, [storedSession, sessionStore]);
+
+  // Autosave, debounced so a drag does not write on every frame. Nothing is
+  // written until the visitor answers the restore offer, or the blank design
+  // they are looking at would overwrite the one being offered.
+  useEffect(() => {
+    if (!sessionStore || restoreOffer) return;
+    if (!isWorthKeeping(design)) {
+      // Starting over empties the design. Leaving the previous one in storage
+      // would offer it back on the next visit, after the visitor discarded it.
+      sessionStore.clear();
+      return;
+    }
+    const timer = setTimeout(() => {
+      const result = sessionStore.store(JSON.stringify(serializeDesign(design, __APP_VERSION__)));
+      setAutosaveError(result.ok ? null : result.error);
+    }, AUTOSAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [design, restoreOffer, sessionStore]);
+
+  // Write immediately when the tab is being hidden or torn down, which is the
+  // last chance the browser gives. `visibilitychange` is the reliable one and
+  // covers a tab switch; `pagehide` covers navigation and the back/forward
+  // cache. Both are idempotent, and neither survives a crash — the debounce
+  // above is what covers that.
+  useEffect(() => {
+    if (!sessionStore || restoreOffer) return;
+    const flush = () => {
+      if (!isWorthKeeping(design)) return;
+      sessionStore.store(JSON.stringify(serializeDesign(design, __APP_VERSION__)));
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [design, restoreOffer, sessionStore]);
+
+  // The only time a browser build warns on the way out. Normally autosave means
+  // there is nothing to lose and the prompt would be pure friction — but once a
+  // write has failed there is, and the browser's own dialog is all there is.
+  useEffect(() => {
+    if (!sessionStore || !autosaveError) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [autosaveError, sessionStore]);
 
   // A flash pending at unmount would otherwise fire into a component that is no
   // longer mounted.
@@ -632,7 +723,7 @@ export default function App({ platform, product }: AppProps) {
             scene={viewportScene}
             tool={tool}
             autoBuilding={autoBuilding}
-            errorFlash={errorFlash ?? product.error}
+            errorFlash={errorFlash ?? autosaveError ?? product.error}
             obstacleDraft={obstacleDraft}
             buildArea={buildArea}
             onObstacleBaseYChange={setObstacleBaseY}
@@ -674,6 +765,26 @@ export default function App({ platform, product }: AppProps) {
           openExternal={platform.openExternal}
           updates={platform.updates}
           onClose={() => setAboutOpen(false)}
+        />
+      )}
+      {restoreOffer && (
+        <ConfirmDialog
+          title="Pick up where you left off?"
+          message="This browser has a design you were working on. Restoring it replaces the empty one you are looking at."
+          confirmLabel="Restore it"
+          cancelLabel="Start fresh"
+          onConfirm={() => {
+            dispatchDocument({ type: "opened", design: restoreOffer, path: "" });
+            setRestoreOffer(null);
+            resetForNewDocument();
+          }}
+          onCancel={() => {
+            // Declining discards it. Saying yes to "start fresh" and then
+            // finding the old design offered again on the next visit would make
+            // the answer meaningless.
+            sessionStore?.clear();
+            setRestoreOffer(null);
+          }}
         />
       )}
       {confirm && (
