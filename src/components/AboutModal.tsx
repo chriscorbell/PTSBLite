@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
+import type { UpdateChannel, UpdateCheckResult } from "@/platform/types";
 import "@/components/AboutModal.css";
-import type { CheckForUpdatesResult } from "@/global";
 
 export type AboutModalProps = {
+  openExternal: (url: string) => void;
+  /** `null` where the host cannot update itself, which hides the check. */
+  updates: UpdateChannel | null;
   onClose: () => void;
 };
 
@@ -14,9 +17,9 @@ const VERSION = __APP_VERSION__;
 const DESCRIPTION = __APP_DESCRIPTION__;
 
 type UpdateState =
-  { kind: "idle" } | { kind: "checking" } | { kind: "result"; result: CheckForUpdatesResult };
+  { kind: "idle" } | { kind: "checking" } | { kind: "result"; result: UpdateCheckResult };
 
-function updateMessageFor(result: CheckForUpdatesResult): string {
+function updateMessageFor(result: UpdateCheckResult): string {
   switch (result.status) {
     case "available":
       return `Version ${result.version} is available and is downloading in the background.`;
@@ -29,19 +32,13 @@ function updateMessageFor(result: CheckForUpdatesResult): string {
   }
 }
 
-export function AboutModal({ onClose }: AboutModalProps) {
+export function AboutModal({ openExternal, updates, onClose }: AboutModalProps) {
   const [update, setUpdate] = useState<UpdateState>({ kind: "idle" });
 
-  // Route links through the main process so they open in the system browser
-  // rather than navigating the renderer window.
-  const openExternal = (url: string) => {
-    void window.ptsbuilder?.openExternal(url);
-  };
-
   const checkForUpdates = async () => {
-    if (update.kind === "checking" || !window.ptsbuilder) return;
+    if (update.kind === "checking" || !updates) return;
     setUpdate({ kind: "checking" });
-    const result = await window.ptsbuilder.checkForUpdates();
+    const result = await updates.check();
     setUpdate({ kind: "result", result });
   };
 
@@ -81,13 +78,18 @@ export function AboutModal({ onClose }: AboutModalProps) {
             <button className="topbtn" onClick={() => openExternal(GITHUB_URL)}>
               <Icons.Github size={14} /> View on GitHub
             </button>
-            <button
-              className="topbtn"
-              onClick={() => void checkForUpdates()}
-              disabled={update.kind === "checking"}
-            >
-              <Icons.Refresh size={14} /> Check for updates
-            </button>
+            {/* Omitted rather than disabled where the host cannot update
+                itself: in a browser a reload is the update, so an inert button
+                would be describing a mechanism that does not exist. */}
+            {updates && (
+              <button
+                className="topbtn"
+                onClick={() => void checkForUpdates()}
+                disabled={update.kind === "checking"}
+              >
+                <Icons.Refresh size={14} /> Check for updates
+              </button>
+            )}
           </div>
 
           {updateMessage && (
