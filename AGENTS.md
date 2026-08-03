@@ -74,6 +74,7 @@ which `validation.ts` flags rather than forbids.
 | `electron/` | Main process and preload bridge |
 | `shared/` | Types and channel names shared by the Electron main process and the renderer |
 | `docs/adr/` | Decisions with lasting consequences |
+| `docs/deploying.md` | The Cloudflare Pages settings PTSBuilderLite is served from |
 
 ## Conventions
 
