@@ -1,4 +1,20 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
+import {
+  DIM,
+  formatQuoteDate,
+  drawRightText,
+  drawText,
+  HAIRLINE,
+  INK,
+  MARGIN_TOP,
+  MARGIN_X,
+  MUT,
+  NOTE_BG,
+  PAGE_HEIGHT,
+  PAGE_WIDTH,
+  wrapLines,
+  type Painter
+} from "@/domain/pdf-typesetting";
 import { totalPathLength } from "@/domain/parts";
 import type { ReadyQuote } from "@/domain/commercial/quote-readiness";
 import type { DesignState } from "@/types";
@@ -6,47 +22,6 @@ import type { DesignState } from "@/types";
 /** The one field a quote does not get from settings. Defaults to today. */
 export type QuotePdfOptions = {
   date?: string;
-};
-
-/** Long-form date for the quote header, e.g. "May 26, 2026". Defaults to today. */
-export function formatQuoteDate(date = new Date()): string {
-  return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-}
-
-const PAGE_WIDTH = 612;
-const PAGE_HEIGHT = 792;
-const MARGIN_X = 56;
-const MARGIN_TOP = 56;
-
-const INK = rgb(0.106, 0.118, 0.149);
-const DIM = rgb(0.357, 0.392, 0.451);
-const MUT = rgb(0.478, 0.502, 0.564);
-const HAIRLINE = rgb(0.843, 0.824, 0.773);
-const NOTE_BG = rgb(0.937, 0.925, 0.875);
-
-/**
- * Codepoints WinAnsi (CP1252) encodes above Latin-1's range — the curly quotes,
- * dashes, ellipsis and symbols that word processors produce and that therefore
- * arrive in pasted company and customer details.
- */
-const CP1252_EXTRAS = new Set([
-  0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030, 0x0160, 0x2039, 0x0152,
-  0x017d, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, 0x02dc, 0x2122, 0x0161, 0x203a,
-  0x0153, 0x017e, 0x0178
-]);
-
-/** Characters WinAnsi cannot encode, mapped to something readable. */
-const TRANSLITERATIONS: Record<string, string> = {
-  "‑": "-", // non-breaking hyphen
-  "‒": "-", // figure dash
-  "―": "-", // horizontal bar
-  "′": "'", // prime
-  "″": '"', // double prime
-  " ": " ", // no-break space (encodable, but a plain space lays out better)
-  " ": " ",
-  " ": " ",
-  " ": " ",
-  " ": " "
 };
 
 /**
@@ -63,86 +38,9 @@ const TRANSLITERATIONS: Record<string, string> = {
  * Embedding a Unicode font is the real fix if client text ever needs it —
  * ADR-0004 records why that is deferred.
  */
-export function sanitize(s: string): string {
-  let out = "";
-  for (const ch of s) {
-    const replacement = TRANSLITERATIONS[ch];
-    if (replacement !== undefined) {
-      out += replacement;
-      continue;
-    }
-    const code = ch.codePointAt(0) ?? 0;
-    const encodable =
-      (code >= 0x20 && code <= 0x7e) || // ASCII printable
-      (code >= 0xa0 && code <= 0xff) || // Latin-1 supplement
-      CP1252_EXTRAS.has(code);
-    out += encodable ? ch : "?";
-  }
-  return out;
-}
 
 function money(n: number): string {
   return `$${n.toFixed(2)}`;
-}
-
-type Painter = {
-  page: PDFPage;
-  sans: PDFFont;
-  sansBold: PDFFont;
-  mono: PDFFont;
-};
-
-function drawText(
-  p: Painter,
-  text: string,
-  x: number,
-  y: number,
-  opts: { size: number; font?: PDFFont; color?: ReturnType<typeof rgb> }
-): void {
-  p.page.drawText(sanitize(text), {
-    x,
-    y,
-    size: opts.size,
-    font: opts.font ?? p.sans,
-    color: opts.color ?? INK
-  });
-}
-
-function drawRightText(
-  p: Painter,
-  text: string,
-  rightX: number,
-  y: number,
-  opts: { size: number; font?: PDFFont; color?: ReturnType<typeof rgb> }
-): void {
-  const font = opts.font ?? p.sans;
-  const safe = sanitize(text);
-  const width = font.widthOfTextAtSize(safe, opts.size);
-  p.page.drawText(safe, {
-    x: rightX - width,
-    y,
-    size: opts.size,
-    font,
-    color: opts.color ?? INK
-  });
-}
-
-function wrapLines(font: PDFFont, size: number, text: string, maxWidth: number): string[] {
-  const words = text.split(/\s+/);
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    const width = font.widthOfTextAtSize(sanitize(candidate), size);
-    if (width > maxWidth && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = candidate;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
 }
 
 /**

@@ -118,6 +118,9 @@ export type AppProps = {
 
 export default function App({ platform, product }: AppProps) {
   const { titleBarInset, titleBarRightInset } = platform.chrome;
+  // A host that autosaves a session has no Open, Save or Save As, and no
+  // unsaved state to mark — the design is never not saved.
+  const usesFiles = platform.documents.kind === "files";
   const shellStyle = useMemo(
     () =>
       // The assertion is required: this @types/react has no index signature for
@@ -141,6 +144,11 @@ export default function App({ platform, product }: AppProps) {
   const history = session.history;
   const design = history.present;
   const dirty = isDirty(session);
+  // The bullet marks unsaved work against a file. A session that autosaves has
+  // nothing to mark, so Lite shows the name alone.
+  const documentLabel = usesFiles
+    ? `${displayFilename(session)}${dirty ? " •" : ""}`
+    : displayFilename(session);
   const buildArea = design.metadata.buildArea;
   const undoAvailable = canUndo(history);
   const redoAvailable = canRedo(history);
@@ -471,13 +479,13 @@ export default function App({ platform, product }: AppProps) {
         return;
       }
       setConfirm({
-        title: "Close PTSBuilder",
+        title: `Close ${product.name}`,
         message: "This design has unsaved changes. They will be lost.",
         confirmLabel: "Discard and close",
         onConfirm: () => void gate.confirm()
       });
     });
-  }, [dirty, platform.closeGate]);
+  }, [dirty, platform.closeGate, product.name]);
 
   const handleNew = useCallback(() => {
     guardUnsaved("New design", "Discard and start over", () => {
@@ -575,10 +583,15 @@ export default function App({ platform, product }: AppProps) {
     <div className="app-shell" style={shellStyle}>
       <TopBar
         onNew={handleNew}
-        onOpen={handleOpen}
-        onSave={() => void handleSave()}
-        onSaveAs={() => void handleSaveAs()}
-        documentLabel={`${displayFilename(session)}${dirty ? " •" : ""}`}
+        {...(usesFiles
+          ? {
+              onOpen: handleOpen,
+              onSave: () => void handleSave(),
+              onSaveAs: () => void handleSaveAs()
+            }
+          : {})}
+        documentLabel={documentLabel}
+        productName={product.name}
         settingsMenu={product.settingsMenu}
         onEdit={setSettingsTab}
         onUndo={undo}
@@ -657,6 +670,7 @@ export default function App({ platform, product }: AppProps) {
         })}
       {aboutOpen && (
         <AboutModal
+          productName={product.name}
           openExternal={platform.openExternal}
           updates={platform.updates}
           onClose={() => setAboutOpen(false)}
