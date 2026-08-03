@@ -3,7 +3,8 @@ import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
 import type { AppSettings } from "@/domain/app-settings";
 import { totalPathLength } from "@/domain/parts";
-import { formatQuoteDate, generateQuotePdf } from "@/domain/commercial/quote-pdf";
+import { generateQuotePdf } from "@/domain/commercial/quote-pdf";
+import { formatQuoteDate } from "@/domain/pdf-typesetting";
 import {
   quoteReadiness,
   quoteSubtotal,

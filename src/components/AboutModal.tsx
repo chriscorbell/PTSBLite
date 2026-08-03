@@ -5,6 +5,7 @@ import type { UpdateChannel, UpdateCheckResult } from "@/platform/types";
 import "@/components/AboutModal.css";
 
 export type AboutModalProps = {
+  productName: string;
   openExternal: (url: string) => void;
   /** `null` where the host cannot update itself, which hides the check. */
   updates: UpdateChannel | null;
@@ -32,7 +33,7 @@ function updateMessageFor(result: UpdateCheckResult): string {
   }
 }
 
-export function AboutModal({ openExternal, updates, onClose }: AboutModalProps) {
+export function AboutModal({ productName, openExternal, updates, onClose }: AboutModalProps) {
   const [update, setUpdate] = useState<UpdateState>({ kind: "idle" });
 
   const checkForUpdates = async () => {
@@ -52,7 +53,7 @@ export function AboutModal({ openExternal, updates, onClose }: AboutModalProps) 
     update.kind === "result" && update.result.status === "manual" ? update.result.url : null;
 
   return (
-    <Modal label="About PTSBuilder" onClose={onClose} size="sm">
+    <Modal label={`About ${productName}`} onClose={onClose} size="sm">
       <>
         <div className="modal__header">
           <Icons.Info size={15} />
@@ -65,7 +66,7 @@ export function AboutModal({ openExternal, updates, onClose }: AboutModalProps) 
 
         <div className="about__body">
           <div>
-            <div className="about__name">PTSBuilder</div>
+            <div className="about__name">{productName}</div>
             <div className="about__description">{DESCRIPTION}</div>
           </div>
 

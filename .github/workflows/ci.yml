@@ -35,5 +35,12 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build (electron-vite)
+      # Both products build. The Lite build additionally fails if any commercial
+      # or Electron module reaches its bundle — see vite.config.ts and ADR-0011.
+      - name: Build PTSBuilderLite (web)
+        run: pnpm exec vite build
+
+      # PTSBuilder's desktop artifacts are not published at present, so this
+      # step is the only thing keeping the Electron target compiling.
+      - name: Build PTSBuilder (electron)
         run: pnpm exec electron-vite build
