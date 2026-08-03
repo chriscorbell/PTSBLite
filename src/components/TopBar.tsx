@@ -14,6 +14,8 @@ export type TopBarProps = {
    * The Settings screens this product offers. Empty hides the Edit menu — a
    * menu that opens nothing is worse than no menu.
    */
+  /** The product name shown in the brand slot. */
+  productName: string;
   settingsMenu: SettingsMenuItem[];
   onEdit: (tab: string) => void;
   onUndo: () => void;
@@ -33,6 +35,7 @@ export function TopBar({
   onSave,
   onSaveAs,
   documentLabel,
+  productName,
   settingsMenu,
   onEdit,
   onUndo,
@@ -47,7 +50,7 @@ export function TopBar({
 }: TopBarProps) {
   return (
     <div className="topbar nosel">
-      <div className="topbar__brand">PTSBuilder</div>
+      <div className="topbar__brand">{productName}</div>
       <FileMenu onNew={onNew} onOpen={onOpen} onSave={onSave} onSaveAs={onSaveAs} />
       {documentLabel && (
         <span className="topbar__document nosel" title={documentLabel}>

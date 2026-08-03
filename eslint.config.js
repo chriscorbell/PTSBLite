@@ -4,7 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["out/**", "dist/**", "release/**", "node_modules/**"] },
+  { ignores: ["out/**", "dist/**", "dist-lite/**", "release/**", "node_modules/**"] },
 
   js.configs.recommended,
   // Type-aware rules: worth the slower run here because the interesting bugs in

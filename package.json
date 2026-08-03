@@ -17,8 +17,11 @@
   },
   "scripts": {
     "dev": "env -u ELECTRON_RUN_AS_NODE electron-vite dev",
+    "dev:lite": "vite",
     "build": "tsc --noEmit && electron-vite build",
+    "build:lite": "tsc --noEmit && vite build",
     "preview": "env -u ELECTRON_RUN_AS_NODE electron-vite preview",
+    "preview:lite": "vite preview --outDir dist-lite",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
