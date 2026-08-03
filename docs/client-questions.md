@@ -1,14 +1,20 @@
 <!--
 Plain-English rendering of the open `question` issues, written to be sent to the client.
 Keep in sync when those change:
-  1 -> #92   2 -> #48   3 -> #94   4 -> #93   5 -> #54   6 -> #95
+  1 -> #92   2 -> #48   3 -> #94   4 -> #93   5 -> #54
+Question 6 (#95, what computers this runs on) is answered and has been removed: the public
+web version is what ships, and desktop installers are not being published. If desktop
+distribution resumes, the Windows code-signing half of #95 becomes live again — ADR-0006.
 No jargon, no issue numbers, no file paths. The reader runs the business, not the build.
 -->
 
 # Questions about how you work
 
-PTSBuilder can now draw a system and produce a quote from it. Before it goes much further, there are
-a few things about your business I've had to guess at.
+There are now two versions. **PTSBuilderLite** is the one anybody can open in a web browser — it
+draws a system and gives you a parts list, and shows no prices at all. The **full version** is the
+one your team would use internally, which adds pricing and the customer quote.
+
+Before either goes much further, there are a few things about your business I've had to guess at.
 
 Where I guessed, I picked something sensible and wrote it down — but a wrong guess gets more
 expensive the longer it stays in, because everything built afterwards sits on top of it. These are
@@ -103,27 +109,12 @@ should be asking for the customer on each quote and counting the quote numbers u
 
 ---
 
-## 6. What computers will this run on?
+## One thing you have already settled
 
-I've assumed Windows. It's also built for Mac and Linux, but Windows is what I've planned around.
+You told me the web version needs to work in Chrome, Edge, Firefox and Safari on desktop computers.
+That is what it does, and it needs nothing installed — you just send someone a link.
 
-One thing to flag now rather than on install day: **the first time someone installs it on Windows,
-they'll get a blue warning box** saying the publisher isn't recognised. They have to click "More
-info", then "Run anyway". It appears once, on that first install — after that it never comes back,
-and updates install quietly in the background.
-
-That box is there because I haven't bought a Windows signing certificate. They run a few hundred
-dollars a year, renewed annually, and removing that one warning is the entire benefit. I judged it
-not worth it, but it's your call, and it's easy to add later. The Mac equivalent is already done —
-that one was free with an account I already had, so there's no warning there.
-
-**Why it matters:** if you or your customers have an IT policy that blocks software showing that
-warning, I need to know before someone tries to install it.
-
-**What would help most:** what the machines actually run — Windows 10, Windows 11, Macs — and
-whether anyone has to approve new software before it can be installed.
-
----
-
-Partial answers are fine, and anything is better than nothing. **Questions 1 and 2 unlock the most
-work**, so if you only get to two, make it those.
+That also answers the question I was going to ask about Windows install warnings. Nobody installs
+anything, so nobody sees one. If you later want the full version handed out as a proper installable
+program, that question comes back and it is worth about a few hundred dollars a year to make the
+warning go away. Not something to decide now.
