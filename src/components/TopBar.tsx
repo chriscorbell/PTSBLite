@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import "@/components/TopBar.css";
 import { Icons } from "@/components/Icons";
-import type { SettingsTab } from "@/components/SettingsModal";
+import type { SettingsMenuItem } from "@/products/types";
 
 export type TopBarProps = {
   onNew?: () => void;
@@ -10,7 +10,12 @@ export type TopBarProps = {
   onSaveAs?: () => void;
   /** Shown beside the File menu; carries an asterisk when unsaved. */
   documentLabel?: string;
-  onEdit?: (tab: SettingsTab) => void;
+  /**
+   * The Settings screens this product offers. Empty hides the Edit menu — a
+   * menu that opens nothing is worse than no menu.
+   */
+  settingsMenu: SettingsMenuItem[];
+  onEdit: (tab: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -28,6 +33,7 @@ export function TopBar({
   onSave,
   onSaveAs,
   documentLabel,
+  settingsMenu,
   onEdit,
   onUndo,
   onRedo,
@@ -48,7 +54,7 @@ export function TopBar({
           {documentLabel}
         </span>
       )}
-      <EditMenu onEdit={onEdit} />
+      <EditMenu items={settingsMenu} onEdit={onEdit} />
       <button
         className="topbtn icon topbar-no-drag"
         title="Undo (⌘Z)"
@@ -144,41 +150,37 @@ function FileMenu({
       </button>
       {open && (
         <div role="menu" className="topbar-menu__panel topbar-menu__panel--file topbar-no-drag">
-          <button
-            className="filemenu-item topbar-no-drag"
-            role="menuitem"
-            onClick={() => choose(onNew)}
-          >
-            <Icons.New size={14} /> New
-          </button>
-          <button
-            className="filemenu-item topbar-no-drag"
-            role="menuitem"
-            onClick={() => choose(onOpen)}
-          >
-            <Icons.Open size={14} /> Open…
-          </button>
-          <button
-            className="filemenu-item topbar-no-drag"
-            role="menuitem"
-            onClick={() => choose(onSave)}
-          >
-            <Icons.Save size={14} /> Save
-          </button>
-          <button
-            className="filemenu-item topbar-no-drag"
-            role="menuitem"
-            onClick={() => choose(onSaveAs)}
-          >
-            <Icons.Save size={14} /> Save As…
-          </button>
+          {onNew && (
+            <MenuItem onSelect={() => choose(onNew)} icon={<Icons.New size={14} />} label="New" />
+          )}
+          {onOpen && (
+            <MenuItem
+              onSelect={() => choose(onOpen)}
+              icon={<Icons.Open size={14} />}
+              label="Open…"
+            />
+          )}
+          {onSave && (
+            <MenuItem
+              onSelect={() => choose(onSave)}
+              icon={<Icons.Save size={14} />}
+              label="Save"
+            />
+          )}
+          {onSaveAs && (
+            <MenuItem
+              onSelect={() => choose(onSaveAs)}
+              icon={<Icons.Save size={14} />}
+              label="Save As…"
+            />
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function EditMenu({ onEdit }: { onEdit?: (tab: SettingsTab) => void }) {
+function EditMenu({ items, onEdit }: { items: SettingsMenuItem[]; onEdit: (tab: string) => void }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -199,9 +201,11 @@ function EditMenu({ onEdit }: { onEdit?: (tab: SettingsTab) => void }) {
     };
   }, [open]);
 
-  const choose = (tab: SettingsTab) => {
+  if (items.length === 0) return null;
+
+  const choose = (tab: string) => {
     setOpen(false);
-    onEdit?.(tab);
+    onEdit(tab);
   };
 
   return (
@@ -216,36 +220,33 @@ function EditMenu({ onEdit }: { onEdit?: (tab: SettingsTab) => void }) {
       </button>
       {open && (
         <div role="menu" className="topbar-menu__panel topbar-menu__panel--edit topbar-no-drag">
-          <button
-            className="filemenu-item topbar-no-drag"
-            role="menuitem"
-            onClick={() => choose("pricing")}
-          >
-            <Icons.Bom size={14} /> Parts Pricing…
-          </button>
-          <button
-            className="filemenu-item topbar-no-drag"
-            role="menuitem"
-            onClick={() => choose("quote")}
-          >
-            <Icons.Pdf size={14} /> Quote &amp; Tax…
-          </button>
-          <button
-            className="filemenu-item topbar-no-drag"
-            role="menuitem"
-            onClick={() => choose("company")}
-          >
-            <Icons.Info size={14} /> Company Info…
-          </button>
-          <button
-            className="filemenu-item topbar-no-drag"
-            role="menuitem"
-            onClick={() => choose("system")}
-          >
-            <Icons.Layers size={14} /> System Details…
-          </button>
+          {items.map((item) => (
+            <MenuItem
+              key={item.id}
+              onSelect={() => choose(item.id)}
+              icon={item.icon}
+              label={item.label}
+            />
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+function MenuItem({
+  onSelect,
+  icon,
+  label
+}: {
+  onSelect: () => void;
+  icon?: ReactNode;
+  label: string;
+}) {
+  return (
+    <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={onSelect}>
+      {icon}
+      {label}
+    </button>
   );
 }

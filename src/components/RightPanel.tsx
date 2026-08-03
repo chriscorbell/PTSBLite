@@ -1,34 +1,28 @@
+import type { ReactNode } from "react";
 import { Icons } from "@/components/Icons";
-import { isPricedRow, priceRows, type Pricing } from "@/domain/commercial/pricing";
 import { bomRows, totalPathLength } from "@/domain/parts";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { DesignState } from "@/types";
 import "@/components/RightPanel.css";
 
-/** 0.0825 -> "8.25" (trailing-zero trimmed) for tax-rate labels. */
-function formatPct(rate: number): string {
-  return String(+(rate * 100).toFixed(4));
-}
-
 export type RightPanelProps = {
   open: boolean;
   onClose: () => void;
   design: DesignState;
-  pricing: Pricing;
-  taxRate: number | null;
-  onExport: () => void;
+  /**
+   * What sits under the parts table. Quote totals and a quote export in
+   * PTSBuilder; a BOM export in PTSBuilderLite, which shows no money.
+   *
+   * A slot rather than a flag: the totals are the only part of this panel that
+   * knows what a price is, and the product that must not show one does not
+   * import them at all.
+   */
+  footer: ReactNode;
 };
 
-export function RightPanel({ open, onClose, design, pricing, taxRate, onExport }: RightPanelProps) {
+export function RightPanel({ open, onClose, design, footer }: RightPanelProps) {
   if (!open) return null;
-  const rows = priceRows(bomRows(design), pricing);
-  // Totals cover the rows that have a price. Anything unpriced is shown as such
-  // rather than counted as zero, so the subtotal never quietly understates the
-  // job — the "prices missing" note below says how many are excluded.
-  const unpriced = rows.filter((r) => !isPricedRow(r)).length;
-  const subtotal = rows.reduce((a, r) => a + (isPricedRow(r) ? r.qty * r.unitPrice : 0), 0);
-  const tax = taxRate === null ? null : subtotal * taxRate;
-  const total = tax === null ? null : subtotal + tax;
+  const rows = bomRows(design);
   return (
     <div className="bom nosel">
       <div className="bom__header">
@@ -57,8 +51,6 @@ export function RightPanel({ open, onClose, design, pricing, taxRate, onExport }
             <tr>
               <th>PART</th>
               <th className="bom__num">QTY</th>
-              <th className="bom__num">EACH</th>
-              <th className="bom__num">TOTAL</th>
             </tr>
           </thead>
           <tbody>
@@ -72,58 +64,13 @@ export function RightPanel({ open, onClose, design, pricing, taxRate, onExport }
                   </div>
                 </td>
                 <td className={`bom__num bom__qty${r.qty ? "" : " bom__qty--zero"}`}>{r.qty}</td>
-                <td className="bom__num bom__each">
-                  {isPricedRow(r) ? `$${r.unitPrice.toFixed(2)}` : "—"}
-                </td>
-                <td className="bom__num bom__line-total">
-                  {isPricedRow(r) ? `$${(r.qty * r.unitPrice).toFixed(2)}` : "—"}
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div className="bom__totals">
-        <Row label="Subtotal" value={`$${subtotal.toFixed(2)}`} />
-        <Row
-          label={taxRate === null ? "Tax (not set)" : `Tax (${formatPct(taxRate)}%)`}
-          value={tax === null ? "—" : `$${tax.toFixed(2)}`}
-          dim
-        />
-        <div className="bom__gap" />
-        <Row label="Quote total" value={total === null ? "—" : `$${total.toFixed(2)}`} bold />
-        {(unpriced > 0 || taxRate === null) && (
-          <div className="bom__incomplete">
-            {unpriced > 0 && `${unpriced} part${unpriced === 1 ? "" : "s"} have no price. `}
-            {taxRate === null && "Tax rate is not set. "}
-            Totals are incomplete until these are entered in Settings.
-          </div>
-        )}
-        <button className="bom__export" onClick={onExport}>
-          <Icons.Pdf size={14} /> Export PDF quote
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  dim,
-  bold
-}: {
-  label: string;
-  value: string;
-  dim?: boolean;
-  bold?: boolean;
-}) {
-  const modifier = bold ? " bom__row--total" : dim ? " bom__row--dim" : "";
-  return (
-    <div className={`bom__row${modifier}`}>
-      <span className="bom__row-label">{label}</span>
-      <span className="bom__row-value">{value}</span>
+      {footer}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Icons } from "@/components/Icons";
 import type { UpdateChannel } from "@/platform/types";
-import "@/components/UpdateNotification.css";
+import "@/components/commercial/UpdateNotification.css";
 
 export type UpdateNotificationProps = {
   version: string;

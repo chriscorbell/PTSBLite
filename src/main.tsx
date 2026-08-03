@@ -4,15 +4,14 @@ import { createRoot } from "react-dom/client";
 // which meant a network round-trip on every launch and a silent fallback to
 // system-ui when offline. `wght` is the upright variable axis; no italic files.
 import "@fontsource-variable/geist/wght.css";
-import App from "@/App";
 import { electronPlatform } from "@/platform/electron";
+import { DesktopProduct } from "@/products/desktop/DesktopProduct";
 import "@/styles/app.css";
 
-// The desktop composition root. It chooses the host, and from PR 3 onward it is
-// also where the commercial surfaces are assembled — so the Lite entry beside it
-// can leave them out of its module graph entirely.
+// PTSBuilder's entry point. Its counterpart is `main-lite.tsx`; the only modules
+// the two share are the editor, so nothing commercial is reachable from there.
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <App platform={electronPlatform()} />
+    <DesktopProduct platform={electronPlatform()} />
   </StrictMode>
 );

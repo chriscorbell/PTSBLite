@@ -140,59 +140,10 @@
   color: var(--text-dim);
 }
 
-.bom__each {
-  color: var(--text-mut);
-}
-
-.bom__line-total {
-  color: var(--text);
-}
-
-.bom__totals {
+.bom__footer {
   padding: 14px 16px;
   border-top: 1px solid var(--line);
   background: var(--ink-2);
-}
-
-.bom__row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 2px 0;
-  white-space: nowrap;
-}
-
-.bom__row-label {
-  font-size: 12px;
-  color: var(--text-mut);
-}
-.bom__row--dim .bom__row-label {
-  color: var(--text-dim);
-}
-
-.bom__row-value {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text);
-}
-.bom__row--dim .bom__row-value {
-  color: var(--text-mut);
-}
-.bom__row--total .bom__row-value {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.bom__gap {
-  height: 8px;
-}
-
-.bom__incomplete {
-  margin-top: 10px;
-  font-size: 11px;
-  color: var(--warn);
-  line-height: 1.5;
 }
 
 .bom__export {

@@ -11,10 +11,10 @@ import {
   type QuoteBlockerTab,
   type ReadyQuote
 } from "@/domain/commercial/quote-readiness";
-import type { SettingsTab } from "@/components/SettingsModal";
+import type { SettingsTab } from "@/components/commercial/SettingsModal";
 import type { Platform } from "@/platform/types";
 import type { DesignState } from "@/types";
-import "@/components/ExportPdfModal.css";
+import "@/components/commercial/ExportPdfModal.css";
 
 export type ExportPdfModalProps = {
   design: DesignState;

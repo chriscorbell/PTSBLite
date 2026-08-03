@@ -10,15 +10,11 @@ import {
 import { AboutModal } from "@/components/AboutModal";
 import { ActiveToolBar } from "@/components/ActiveToolBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { ExportPdfModal } from "@/components/ExportPdfModal";
 import { LeftRail } from "@/components/LeftRail";
 import { RightPanel } from "@/components/RightPanel";
-import { SettingsModal, type SettingsTab } from "@/components/SettingsModal";
 import { StatusBar } from "@/components/StatusBar";
 import { TopBar } from "@/components/TopBar";
-import { UpdateNotification } from "@/components/UpdateNotification";
 import { ViewportHUD } from "@/components/ViewportHUD";
-import { DEFAULT_SETTINGS, mergeSettings, type AppSettings } from "@/domain/app-settings";
 import { deserializeDesign, serializeDesign } from "@/domain/design-file";
 import { canRedo, canUndo } from "@/domain/design-history";
 import {
@@ -55,6 +51,7 @@ import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
+import type { ProductSurfaces } from "@/products/types";
 import { Viewport, type ViewportHandle } from "@/renderer/Viewport";
 import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
 
@@ -115,9 +112,11 @@ function describeLoss(parts: number, obstacles: number): string {
 export type AppProps = {
   /** The host this is running inside. See `src/platform/types.ts`. */
   platform: Platform;
+  /** What differs between PTSBuilder and PTSBuilderLite. */
+  product: ProductSurfaces;
 };
 
-export default function App({ platform }: AppProps) {
+export default function App({ platform, product }: AppProps) {
   const { titleBarInset, titleBarRightInset } = platform.chrome;
   const shellStyle = useMemo(
     () =>
@@ -160,17 +159,16 @@ export default function App({ platform }: AppProps) {
 
   const [rightOpen, setRightOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [updateReady, setUpdateReady] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
     confirmLabel: string;
     onConfirm: () => void;
   } | null>(null);
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
+  // Which settings screen is open, if any. The id comes from the product's own
+  // menu; App does not know what the screens are.
+  const [settingsTab, setSettingsTab] = useState<string | null>(null);
   const [autoBuilding, setAutoBuilding] = useState(false);
   const [autoBuildJustRan, setAutoBuildJustRan] = useState(false);
   const [autoBuildSummary, setAutoBuildSummary] = useState<AutoBuildSummary | null>(null);
@@ -246,69 +244,6 @@ export default function App({ platform }: AppProps) {
     dispatchDocument({ type: "redo" });
     clearTransientAfterHistoryMove();
   }, [redoAvailable, clearTransientAfterHistoryMove]);
-
-  // Load persisted global settings once on startup and apply pricing overrides so
-  // the BOM/quote reflect the user's saved prices.
-  useEffect(() => {
-    const store = platform.settings;
-    if (!store) return;
-    let active = true;
-    void (async () => {
-      const loaded = await store.load();
-      if (!active) return;
-      setSettings(mergeSettings(DEFAULT_SETTINGS, loaded.data ?? null));
-      // A missing file on first run reports no error and no data. An actual
-      // read failure looks identical from `data` alone, and silently showing
-      // defaults would invite an installer to re-enter prices that are still
-      // on disk, unreadable.
-      if (loaded.error) {
-        setErrorFlash(`Could not read saved settings: ${loaded.error}`);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [platform.settings, setErrorFlash]);
-
-  // Surface the on-brand "update ready" prompt. Listen for the live push and
-  // also query for an update that finished downloading before this listener
-  // attached (autoUpdateSupported platforms only — elsewhere it stays null).
-  useEffect(() => {
-    const updates = platform.updates;
-    if (!updates) return;
-    const unsubscribe = updates.onDownloaded((info) => {
-      setUpdateReady(info.version);
-    });
-    let active = true;
-    void (async () => {
-      const pending = await updates.getPending();
-      if (active && pending) setUpdateReady(pending.version);
-    })();
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [platform.updates]);
-
-  const updateSettings = useCallback(
-    (next: AppSettings) => {
-      // Applied on screen either way — the installer's typing should not vanish
-      // because the disk refused it — but a failed write has to be said out
-      // loud. Settings hold the only copy of part prices and the tax rate
-      // (ADR-0003), so silently losing them means the next launch blocks quote
-      // export again with no explanation (issue #73).
-      setSettings(next);
-      const store = platform.settings;
-      if (!store) return;
-      void (async () => {
-        const result = await store.save(JSON.stringify(next, null, 2));
-        if (!result.ok) {
-          setErrorFlash(`Settings not saved: ${result.error ?? "unknown error"}`);
-        }
-      })();
-    },
-    [platform.settings, setErrorFlash]
-  );
 
   const updateMetadata = useCallback(
     (metadata: DesignState["metadata"]) => {
@@ -466,7 +401,6 @@ export default function App({ platform }: AppProps) {
     selectTool("cursor");
     setAutoBuildJustRan(false);
     setAutoBuildSummary(null);
-    setExportOpen(false);
     setStatusOpen(false);
     setErrorFlash(null);
   }, [selectTool, setErrorFlash]);
@@ -645,6 +579,7 @@ export default function App({ platform }: AppProps) {
         onSave={() => void handleSave()}
         onSaveAs={() => void handleSaveAs()}
         documentLabel={`${displayFilename(session)}${dirty ? " •" : ""}`}
+        settingsMenu={product.settingsMenu}
         onEdit={setSettingsTab}
         onUndo={undo}
         onRedo={redo}
@@ -684,7 +619,7 @@ export default function App({ platform }: AppProps) {
             scene={viewportScene}
             tool={tool}
             autoBuilding={autoBuilding}
-            errorFlash={errorFlash}
+            errorFlash={errorFlash ?? product.error}
             obstacleDraft={obstacleDraft}
             buildArea={buildArea}
             onObstacleBaseYChange={setObstacleBaseY}
@@ -696,9 +631,7 @@ export default function App({ platform }: AppProps) {
             open={rightOpen}
             onClose={() => setRightOpen(false)}
             design={design}
-            pricing={settings.pricing}
-            taxRate={settings.taxRate}
-            onExport={() => setExportOpen(true)}
+            footer={product.renderBomFooter({ design, openSettings: setSettingsTab })}
           />
           <ActiveToolBar tool={tool} />
         </div>
@@ -715,29 +648,13 @@ export default function App({ platform }: AppProps) {
         onZoom={(delta) => viewportRef.current?.zoomBy(delta)}
         onResetView={() => viewportRef.current?.resetView()}
       />
-      {exportOpen && (
-        <ExportPdfModal
-          design={design}
-          savePdf={platform.savePdf}
-          settings={settings}
-          onClose={() => setExportOpen(false)}
-          onError={setErrorFlash}
-          onOpenSettings={(tab) => {
-            setExportOpen(false);
-            setSettingsTab(tab);
-          }}
-        />
-      )}
-      {settingsTab && (
-        <SettingsModal
-          tab={settingsTab}
-          settings={settings}
-          onSettingsChange={updateSettings}
-          metadata={design.metadata}
-          onMetadataChange={updateMetadata}
-          onClose={() => setSettingsTab(null)}
-        />
-      )}
+      {settingsTab &&
+        product.renderSettings({
+          tab: settingsTab,
+          metadata: design.metadata,
+          onMetadataChange: updateMetadata,
+          onClose: () => setSettingsTab(null)
+        })}
       {aboutOpen && (
         <AboutModal
           openExternal={platform.openExternal}
@@ -758,13 +675,7 @@ export default function App({ platform }: AppProps) {
           onCancel={() => setConfirm(null)}
         />
       )}
-      {updateReady && platform.updates && (
-        <UpdateNotification
-          version={updateReady}
-          updates={platform.updates}
-          onDismiss={() => setUpdateReady(null)}
-        />
-      )}
+      {product.renderOverlays({ design, openSettings: setSettingsTab })}
     </div>
   );
 }
