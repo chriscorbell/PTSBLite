@@ -179,6 +179,12 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     expect(validate(result.design)).toEqual([]);
   });
 
+  // Explicit timeout, not the 5s default. This one runs a full auto-build twice
+  // over a 40x22 area with a floor-to-ceiling obstacle in the way, and takes
+  // ~2.2s locally against ~5.1s on a CI runner — close enough to the default to
+  // fail on a loaded machine, which it did. Raising it here rather than
+  // globally: everything else in the suite finishing inside 5s is information
+  // worth keeping.
   it("never routes below the ground plane to reach a down-facing terminal behind a tall obstacle", () => {
     // Regression: a down-facing destination terminal plus a floor-to-ceiling
     // obstacle between the endpoints used to tempt the planner into burrowing
@@ -209,7 +215,7 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
       expect(result.unroutedPairs).toEqual([]);
       expect(validate(result.design)).toEqual([]);
     }
-  });
+  }, 20_000);
 
   it("reports unrouted pairs when the budget would be exceeded", () => {
     const result = autoBuildOpenPortPair(designWith(basicParts([10, 0, 0])), {
@@ -325,7 +331,9 @@ describe("why auto-build failed", () => {
     if (result.ok) return;
     expect(result.reason).toBe("search-limit");
     expect(result.message).toBe(PATHFINDER_SEARCH_LIMIT_MESSAGE);
-  });
+    // ~2.0s locally; searching to the expansion budget is the point of the test,
+    // so the cost is inherent rather than accidental.
+  }, 20_000);
 
   it("still reports giving up when the budget is lowered", () => {
     const result = autoBuildOpenPortPair(designWith(nearby, nearShell), { maxExpansions: 20 });
