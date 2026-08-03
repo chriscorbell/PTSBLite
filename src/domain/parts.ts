@@ -28,36 +28,33 @@ export function tubeFeet(input: Part[] | DesignState): number {
     .reduce((a, p) => a + partLength(p), 0);
 }
 
-/** Unit prices keyed by part-registry key. A key absent from the map has no price. */
-export type Pricing = Readonly<Record<string, number>>;
-
+/**
+ * One line of the bill of materials: what the design needs, and how many.
+ *
+ * Deliberately carries no price and no money of any kind. It used to hold a
+ * `unitPrice: number | null`, which meant every consumer of a BOM held a price
+ * field whether or not it had any business showing one — and PTSBuilderLite,
+ * which may show no money at all, would have held one too. Pricing is a
+ * decoration applied by `@/domain/commercial/pricing` on the way to a quote,
+ * not a property of the bill of materials. See ADR-0011.
+ */
 export type BomRow = {
-  /** Registry key this row prices, e.g. "tube6". */
+  /** Registry key this row counts, e.g. "tube6". */
   key: string;
   name: string;
   partNo: string;
   qty: number;
   note?: string;
-  /** `null` when the installer has not entered a price for this part. */
-  unitPrice: number | null;
 };
 
-/** A row that has a price, and therefore a line total. */
-export type PricedBomRow = BomRow & { unitPrice: number };
-
-export function isPricedRow(row: BomRow): row is PricedBomRow {
-  return row.unitPrice !== null;
-}
-
 /**
- * The bill of materials, priced from `pricing`.
+ * The bill of materials for a design.
  *
- * Prices are an argument rather than something this module reaches for. They
- * used to come from a mutable module-level global that `App` wrote on startup,
- * which meant the BOM was not a function of its inputs, could not be tested
- * without global setup, and leaked between tests by execution order.
+ * A pure function of the parts, and of nothing else. Prices are not an argument
+ * because they are not part of the answer; `priceRows` adds them where a quote
+ * needs them.
  */
-export function bomRows(input: Part[] | DesignState, pricing: Pricing): BomRow[] {
+export function bomRows(input: Part[] | DesignState): BomRow[] {
   const parts = Array.isArray(input) ? input : input.parts;
   const blowers = parts.filter((p) => p.type === "blower").length;
   const terminals = parts.filter((p) => p.type === "terminal").length;
@@ -68,7 +65,7 @@ export function bomRows(input: Part[] | DesignState, pricing: Pricing): BomRow[]
 
   const row = (key: string, qty: number, note?: string): BomRow => {
     const { name, partNo } = partRegistry.get(key);
-    return { key, name, partNo, qty, note, unitPrice: pricing[key] ?? null };
+    return { key, name, partNo, qty, note };
   };
 
   return [

@@ -3,14 +3,14 @@ import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
 import type { AppSettings } from "@/domain/app-settings";
 import { totalPathLength } from "@/domain/parts";
-import { formatQuoteDate, generateQuotePdf, pdfBytesToBase64 } from "@/domain/quote-pdf";
+import { formatQuoteDate, generateQuotePdf, pdfBytesToBase64 } from "@/domain/commercial/quote-pdf";
 import {
   quoteReadiness,
   quoteSubtotal,
   type QuoteBlocker,
   type QuoteBlockerTab,
   type ReadyQuote
-} from "@/domain/quote-readiness";
+} from "@/domain/commercial/quote-readiness";
 import type { SettingsTab } from "@/components/SettingsModal";
 import type { DesignState } from "@/types";
 import "@/components/ExportPdfModal.css";
