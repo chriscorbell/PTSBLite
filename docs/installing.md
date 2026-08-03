@@ -1,5 +1,14 @@
 ## Installing
 
+PTSBuilderLite needs no installation — it runs in a desktop browser. What follows applies to
+PTSBuilder, the desktop app.
+
+**These instructions describe releases that are not currently being published.** Desktop artifact
+builds are paused while PTSBuilderLite is the focus; see
+[ADR-0010](https://github.com/chriscorbell/PTSBuilder/blob/main/docs/adr/0010-one-codebase-two-products.md).
+They are kept because they are correct for the builds that already exist, and will be correct again.
+
+
 **Windows** — these builds are not code-signed, so SmartScreen shows "Windows protected your PC" the
 first time you run the installer. Click **More info**, then **Run anyway**. You will only see this
 once: later updates are applied by the app itself and do not warn. See
