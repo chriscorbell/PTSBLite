@@ -23,7 +23,7 @@ target compiling.
 
 ## Tech Stack
 
-- Vite for the web build, deployed as static files to Cloudflare Pages
+- Vite for the web build, deployed as static files to Cloudflare Pages ([how](docs/deploying.md))
 - Electron, electron-vite, and electron-builder for the desktop app shell and packaging
 - React 19 and TypeScript for the UI
 - Three.js for the 3D viewport
