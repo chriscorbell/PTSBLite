@@ -22,6 +22,45 @@ function withObstacle(cell: Vec3): DesignState {
 }
 
 describe("free placement orientation", () => {
+  it("faces a blower and a terminal up before anyone rotates them", () => {
+    // A tube system is mostly risers, so up is the useful first guess. This is
+    // a placement default, not a spec fact — nothing in ADR-0001 constrains
+    // which way a port may face.
+    for (const type of ["blower", "terminal"] as const) {
+      const ghost = freePlacementGhost({
+        type,
+        design: emptyDesign(),
+        cell: [5, 0, 5],
+        memory: DEFAULT_FREE_PLACEMENT_MEMORY,
+        rotationSteps: 0
+      });
+      const facing =
+        ghost?.type === "blower" ? ghost.dir : ghost?.type === "terminal" ? ghost.axis : null;
+      expect(facing).toEqual([0, 1, 0]);
+    }
+  });
+
+  it("rotates out of vertical onto the horizontal headings", () => {
+    // R from a vertical base lands on +X and then cycles the four compass
+    // directions, so the default costs no reachable orientation.
+    const facings = [1, 2, 3, 4].map((rotationSteps) => {
+      const ghost = freePlacementGhost({
+        type: "blower",
+        design: emptyDesign(),
+        cell: [5, 0, 5],
+        memory: DEFAULT_FREE_PLACEMENT_MEMORY,
+        rotationSteps
+      });
+      return ghost?.type === "blower" ? ghost.dir : null;
+    });
+    expect(facings).toEqual([
+      [1, 0, 0],
+      [0, 0, 1],
+      [-1, 0, 0],
+      [0, 0, -1]
+    ]);
+  });
+
   it("defaults to the last-used orientation per free-placement part type", () => {
     const memory = rememberFreePlacementOrientation(
       DEFAULT_FREE_PLACEMENT_MEMORY,
@@ -47,7 +86,8 @@ describe("free placement orientation", () => {
         memory,
         rotationSteps: 0
       })
-    ).toMatchObject({ type: "blower", dir: [1, 0, 0] });
+      // Untouched, so still the default: memory is per type, not shared.
+    ).toMatchObject({ type: "blower", dir: [0, 1, 0] });
   });
 
   it("auto-snaps to an adjacent open port when that orientation connects cleanly", () => {
@@ -77,9 +117,11 @@ describe("free placement orientation", () => {
   });
 
   it("cycles vertical orientation up and down for Shift+R", () => {
-    expect(rotateOrientationVertically(1)).toEqual([0, 1, 0]);
-    expect(rotateOrientationVertically(2)).toEqual([0, -1, 0]);
-    expect(rotateOrientationVertically(3)).toEqual([0, 1, 0]);
+    // Down first: up is where a part starts, so sending it up would make the
+    // first press appear to do nothing.
+    expect(rotateOrientationVertically(1)).toEqual([0, -1, 0]);
+    expect(rotateOrientationVertically(2)).toEqual([0, 1, 0]);
+    expect(rotateOrientationVertically(3)).toEqual([0, -1, 0]);
   });
 
   it("uses vertical rotation for free-placement previews without losing horizontal R", () => {
@@ -92,7 +134,8 @@ describe("free placement orientation", () => {
         rotationSteps: 0,
         verticalRotationSteps: 1
       })
-    ).toMatchObject({ type: "blower", dir: [0, 1, 0] });
+      // One shift-R from the vertical default flips it over.
+    ).toMatchObject({ type: "blower", dir: [0, -1, 0] });
 
     expect(
       freePlacementGhost({
@@ -103,7 +146,8 @@ describe("free placement orientation", () => {
         rotationSteps: 0,
         verticalRotationSteps: 2
       })
-    ).toMatchObject({ type: "terminal", axis: [0, -1, 0] });
+      // A second brings it back up.
+    ).toMatchObject({ type: "terminal", axis: [0, 1, 0] });
 
     expect(
       resolveFreePlacementOrientation([0, 1, 0], { horizontalSteps: 1, verticalSteps: 0 })
