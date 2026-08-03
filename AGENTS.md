@@ -28,7 +28,14 @@ have to be right or the app starts and never shows anything — the reasons are 
 script, and the one that wastes the most time is that Electron prefers Wayland and silently ignores
 `DISPLAY`.
 
-Every PR must leave `pnpm run check` green. CI runs the same four gates.
+**Check PTSBuilderLite in a real browser before calling it done.** `pnpm run build:lite &&
+pnpm run preview:lite` serves the actual build. happy-dom has no WebGL, no downloads and no
+meaningful storage behaviour, so the suite cannot see the whole class of thing that only breaks in a
+browser — the first browser run of this app found two defects the tests were happy with, one of them
+a File menu offering actions the web host cannot perform.
+
+Every PR must leave `pnpm run check` green. CI runs those four gates and then builds both products
+— the Lite build is also what enforces rule 2 below.
 
 ## The three things most likely to be got wrong
 
@@ -73,6 +80,7 @@ which `validation.ts` flags rather than forbids.
 | `src/products/` | One composition root per product, supplying `App` with what differs |
 | `electron/` | Main process and preload bridge |
 | `shared/` | Types and channel names shared by the Electron main process and the renderer |
+| `web-public/` | Copied verbatim into the Lite build. `_headers` is the production CSP and cache policy |
 | `docs/adr/` | Decisions with lasting consequences |
 | `docs/deploying.md` | The Cloudflare Pages settings PTSBuilderLite is served from |
 
@@ -86,7 +94,10 @@ which `validation.ts` flags rather than forbids.
   [ADR-0009](docs/adr/0009-component-styling-lives-in-stylesheets.md).
 - Commit subjects are imperative and sentence case, with a body explaining *why*. Match the existing
   log; it is unusually good and worth keeping that way.
-- `main` is protected and requires a green `verify` check, so all work goes through a PR.
+- `main` is protected and requires a green `verify` check, so all work goes through a PR. It is also
+  **strict**: a branch has to be up to date with `main` before it can merge. Merging one PR makes
+  every other open one stale, so expect to rebase and wait for a second CI run rather than merging a
+  queue in one go.
 - Don't add a dependency, abstraction, or test that isn't earned by a concrete need.
 - pnpm 11 reads its settings from `pnpm-workspace.yaml`, **not** `package.json`. A `pnpm.overrides`
   key in `package.json` is ignored with only a warning, so a dependency override put there looks
@@ -99,10 +110,15 @@ which `validation.ts` flags rather than forbids.
 
 ## Before inventing behaviour
 
-This is a product being sold to a client whose requirements have not arrived yet.
+This is a product being sold to a client. Some of their requirements have arrived — the split into
+two products, the browsers to support, no money in Lite, a BOM export, and picking up where you left
+off — and those are built. Plenty has not: how many stations a real system has, whether an installer
+must be able to move a placed part, and where the real catalog comes from are all still open.
+
 [`docs/baked-in-assumptions.md`](docs/baked-in-assumptions.md) lists what the current model can and
-cannot express. Questions only the client can answer are tracked as issues labelled `question`. If a
-task appears to need one of those answers, open an issue — do not guess an implementation.
+cannot express, and is the fastest way to size an incoming requirement. Questions only the client can
+answer are tracked as issues labelled `question`. If a task appears to need one of those answers,
+open an issue — do not guess an implementation.
 
 [`docs/client-questions.md`](docs/client-questions.md) is the same set written to be sent to the
 client, who does not read code. Change one and change the other; the mapping is a comment at the top
