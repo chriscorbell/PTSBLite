@@ -121,7 +121,8 @@ describe("Terminal 1 inline placement", () => {
       id: "t2",
       type: "terminal",
       cell: [20, 0, 10],
-      axis: [0, 0, 1]
+      // One rotation from the vertical default lands on +X.
+      axis: [1, 0, 0]
     });
   });
 
