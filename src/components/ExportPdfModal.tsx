@@ -3,7 +3,7 @@ import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
 import type { AppSettings } from "@/domain/app-settings";
 import { totalPathLength } from "@/domain/parts";
-import { formatQuoteDate, generateQuotePdf, pdfBytesToBase64 } from "@/domain/commercial/quote-pdf";
+import { formatQuoteDate, generateQuotePdf } from "@/domain/commercial/quote-pdf";
 import {
   quoteReadiness,
   quoteSubtotal,
@@ -12,12 +12,15 @@ import {
   type ReadyQuote
 } from "@/domain/commercial/quote-readiness";
 import type { SettingsTab } from "@/components/SettingsModal";
+import type { Platform } from "@/platform/types";
 import type { DesignState } from "@/types";
 import "@/components/ExportPdfModal.css";
 
 export type ExportPdfModalProps = {
   design: DesignState;
   settings: AppSettings;
+  /** Where the generated PDF goes. Supplied by the host; see `Platform`. */
+  savePdf: Platform["savePdf"];
   onClose: () => void;
   onError?: (message: string) => void;
   /** Jump to the Settings screen that resolves a blocker. */
@@ -27,6 +30,7 @@ export type ExportPdfModalProps = {
 export function ExportPdfModal({
   design,
   settings,
+  savePdf,
   onClose,
   onError,
   onOpenSettings
@@ -46,6 +50,7 @@ export function ExportPdfModal({
     <QuotePreviewDialog
       design={design}
       quote={readiness.quote}
+      savePdf={savePdf}
       onClose={onClose}
       onError={onError}
     />
@@ -55,11 +60,12 @@ export function ExportPdfModal({
 type QuotePreviewDialogProps = {
   design: DesignState;
   quote: ReadyQuote;
+  savePdf: Platform["savePdf"];
   onClose: () => void;
   onError?: (message: string) => void;
 };
 
-function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDialogProps) {
+function QuotePreviewDialog({ design, quote, savePdf, onClose, onError }: QuotePreviewDialogProps) {
   const date = useMemo(() => formatQuoteDate(), []);
   // Project detail lines fall back to a description of the drawing, matching
   // what generateQuotePdf does, so preview and PDF cannot drift.
@@ -91,16 +97,10 @@ function QuotePreviewDialog({ design, quote, onClose, onError }: QuotePreviewDia
 
   const handleDownload = async () => {
     if (busy) return;
-    const api = window.ptsbuilder;
-    if (!api) {
-      onError?.("Download is unavailable: file bridge not connected.");
-      return;
-    }
     setBusy("download");
     try {
       const bytes = await generateQuotePdf(design, quote, { date });
-      const base64 = pdfBytesToBase64(bytes);
-      const result = await api.exportQuote(base64);
+      const result = await savePdf(bytes, previewFilename);
       if (result.canceled) return;
       if (result.error) onError?.(`Export failed: ${result.error}`);
     } catch (err) {

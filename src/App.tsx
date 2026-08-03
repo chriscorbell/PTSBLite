@@ -54,6 +54,7 @@ import {
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
+import type { Platform } from "@/platform/types";
 import { Viewport, type ViewportHandle } from "@/renderer/Viewport";
 import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
 
@@ -111,15 +112,13 @@ function describeLoss(parts: number, obstacles: number): string {
   return parts > 0 ? plural(parts, "part") : plural(obstacles, "obstacle");
 }
 
-export default function App() {
-  const titleBarInset = useMemo(() => {
-    if (window.ptsbuilder) return window.ptsbuilder.titleBarInset;
-    return navigator.platform.toLowerCase().includes("mac") ? 86 : 0;
-  }, []);
-  const titleBarRightInset = useMemo(() => {
-    if (window.ptsbuilder) return window.ptsbuilder.titleBarRightInset;
-    return navigator.platform.toLowerCase().includes("win") ? 148 : 0;
-  }, []);
+export type AppProps = {
+  /** The host this is running inside. See `src/platform/types.ts`. */
+  platform: Platform;
+};
+
+export default function App({ platform }: AppProps) {
+  const { titleBarInset, titleBarRightInset } = platform.chrome;
   const shellStyle = useMemo(
     () =>
       // The assertion is required: this @types/react has no index signature for
@@ -251,41 +250,45 @@ export default function App() {
   // Load persisted global settings once on startup and apply pricing overrides so
   // the BOM/quote reflect the user's saved prices.
   useEffect(() => {
+    const store = platform.settings;
+    if (!store) return;
     let active = true;
     void (async () => {
-      const loaded = await window.ptsbuilder?.getSettings();
+      const loaded = await store.load();
       if (!active) return;
-      setSettings(mergeSettings(DEFAULT_SETTINGS, loaded?.data ?? null));
+      setSettings(mergeSettings(DEFAULT_SETTINGS, loaded.data ?? null));
       // A missing file on first run reports no error and no data. An actual
       // read failure looks identical from `data` alone, and silently showing
       // defaults would invite an installer to re-enter prices that are still
       // on disk, unreadable.
-      if (loaded?.error) {
+      if (loaded.error) {
         setErrorFlash(`Could not read saved settings: ${loaded.error}`);
       }
     })();
     return () => {
       active = false;
     };
-  }, [setErrorFlash]);
+  }, [platform.settings, setErrorFlash]);
 
   // Surface the on-brand "update ready" prompt. Listen for the live push and
   // also query for an update that finished downloading before this listener
   // attached (autoUpdateSupported platforms only — elsewhere it stays null).
   useEffect(() => {
-    const unsubscribe = window.ptsbuilder?.onUpdateDownloaded((info) => {
+    const updates = platform.updates;
+    if (!updates) return;
+    const unsubscribe = updates.onDownloaded((info) => {
       setUpdateReady(info.version);
     });
     let active = true;
     void (async () => {
-      const pending = await window.ptsbuilder?.getPendingUpdate();
+      const pending = await updates.getPending();
       if (active && pending) setUpdateReady(pending.version);
     })();
     return () => {
       active = false;
-      unsubscribe?.();
+      unsubscribe();
     };
-  }, []);
+  }, [platform.updates]);
 
   const updateSettings = useCallback(
     (next: AppSettings) => {
@@ -295,14 +298,16 @@ export default function App() {
       // (ADR-0003), so silently losing them means the next launch blocks quote
       // export again with no explanation (issue #73).
       setSettings(next);
+      const store = platform.settings;
+      if (!store) return;
       void (async () => {
-        const result = await window.ptsbuilder?.setSettings(JSON.stringify(next, null, 2));
-        if (result && !result.ok) {
+        const result = await store.save(JSON.stringify(next, null, 2));
+        if (!result.ok) {
           setErrorFlash(`Settings not saved: ${result.error ?? "unknown error"}`);
         }
       })();
     },
-    [setErrorFlash]
+    [platform.settings, setErrorFlash]
   );
 
   const updateMetadata = useCallback(
@@ -426,23 +431,23 @@ export default function App() {
    */
   const writeDocument = useCallback(
     async (promptForPath: boolean) => {
-      const api = window.ptsbuilder;
-      if (!api) {
-        setErrorFlash("Save is unavailable: file bridge not connected.");
+      const documents = platform.documents;
+      if (documents.kind !== "files") {
+        setErrorFlash("Save is unavailable: this build does not use files.");
         return false;
       }
       try {
         const json = JSON.stringify(serializeDesign(design, __APP_VERSION__), null, 2);
-        const result = await api.saveDesign({
+        const result = await documents.save({
           json,
-          filePath: promptForPath ? null : session.path
+          path: promptForPath ? null : session.path
         });
         if (result.canceled) return false;
-        if (result.error || !result.filePath) {
+        if (result.error || !result.path) {
           setErrorFlash(`Save failed: ${result.error ?? "no path returned"}`);
           return false;
         }
-        dispatchDocument({ type: "saved", path: result.filePath });
+        dispatchDocument({ type: "saved", path: result.path });
         setErrorFlash(null);
         return true;
       } catch (err) {
@@ -450,7 +455,7 @@ export default function App() {
         return false;
       }
     },
-    [design, session.path, setErrorFlash]
+    [design, platform.documents, session.path, setErrorFlash]
   );
 
   const handleSave = useCallback(() => writeDocument(false), [writeDocument]);
@@ -467,13 +472,13 @@ export default function App() {
   }, [selectTool, setErrorFlash]);
 
   const openDocument = useCallback(async () => {
-    const api = window.ptsbuilder;
-    if (!api) {
-      setErrorFlash("Open is unavailable: file bridge not connected.");
+    const documents = platform.documents;
+    if (documents.kind !== "files") {
+      setErrorFlash("Open is unavailable: this build does not use files.");
       return;
     }
     try {
-      const result = await api.openDesign();
+      const result = await documents.open();
       if (result.canceled) return;
       if (result.error || result.contents === null) {
         setErrorFlash(`Open failed: ${result.error ?? "could not read file"}`);
@@ -487,13 +492,13 @@ export default function App() {
       dispatchDocument({
         type: "opened",
         design: parsed.design,
-        path: result.filePath ?? ""
+        path: result.path ?? ""
       });
       resetForNewDocument();
     } catch (err) {
       setErrorFlash(`Open failed: ${String(err)}`);
     }
-  }, [resetForNewDocument, setErrorFlash]);
+  }, [platform.documents, resetForNewDocument, setErrorFlash]);
 
   /**
    * Run `action`, but if there is unsaved work ask first. Replaces a raw
@@ -519,26 +524,26 @@ export default function App() {
     guardUnsaved("Open another design", "Discard and open", () => void openDocument());
   }, [guardUnsaved, openDocument]);
 
-  // Main vetoes the window close and asks here, because only the renderer knows
+  // The host vetoes the window close and asks here, because only the app knows
   // whether there is unsaved work. Re-subscribing when `dirty` changes rather
   // than mirroring it into a ref: refs must not be written during render, and
-  // an IPC listener swap per commit is far cheaper than that unsafety.
+  // a listener swap per commit is far cheaper than that unsafety.
   useEffect(() => {
-    const api = window.ptsbuilder;
-    if (!api?.onCloseRequested) return;
-    return api.onCloseRequested(() => {
+    const gate = platform.closeGate;
+    if (!gate) return;
+    return gate.onRequested(() => {
       if (!dirty) {
-        void api.confirmClose();
+        void gate.confirm();
         return;
       }
       setConfirm({
         title: "Close PTSBuilder",
         message: "This design has unsaved changes. They will be lost.",
         confirmLabel: "Discard and close",
-        onConfirm: () => void api.confirmClose()
+        onConfirm: () => void gate.confirm()
       });
     });
-  }, [dirty]);
+  }, [dirty, platform.closeGate]);
 
   const handleNew = useCallback(() => {
     guardUnsaved("New design", "Discard and start over", () => {
@@ -713,6 +718,7 @@ export default function App() {
       {exportOpen && (
         <ExportPdfModal
           design={design}
+          savePdf={platform.savePdf}
           settings={settings}
           onClose={() => setExportOpen(false)}
           onError={setErrorFlash}
@@ -732,7 +738,13 @@ export default function App() {
           onClose={() => setSettingsTab(null)}
         />
       )}
-      {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+      {aboutOpen && (
+        <AboutModal
+          openExternal={platform.openExternal}
+          updates={platform.updates}
+          onClose={() => setAboutOpen(false)}
+        />
+      )}
       {confirm && (
         <ConfirmDialog
           title={confirm.title}
@@ -746,8 +758,12 @@ export default function App() {
           onCancel={() => setConfirm(null)}
         />
       )}
-      {updateReady && (
-        <UpdateNotification version={updateReady} onDismiss={() => setUpdateReady(null)} />
+      {updateReady && platform.updates && (
+        <UpdateNotification
+          version={updateReady}
+          updates={platform.updates}
+          onDismiss={() => setUpdateReady(null)}
+        />
       )}
     </div>
   );

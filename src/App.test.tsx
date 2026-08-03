@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { act } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import { serializeDesign } from "@/domain/design-file";
 import { designFromScene } from "@/domain/design-state";
 import type { Vec3 } from "@/types";
 import type { ViewportHandle, ViewportProps } from "@/renderer/Viewport";
+import type { Platform } from "@/platform/types";
 
 // The real Viewport builds a WebGLRenderer, which happy-dom cannot provide. It
 // is also the only part of the tree that needs a GPU, so mocking just this
@@ -32,13 +33,13 @@ afterEach(() => {
   viewport.props = null;
   viewport.handle.zoomBy.mockClear();
   viewport.handle.resetView.mockClear();
-  delete (window as { ptsbuilder?: unknown }).ptsbuilder;
+  platform = null;
   vi.restoreAllMocks();
 });
 
 async function renderApp() {
   const App = (await import("@/App")).default;
-  const utils = render(<App />);
+  const utils = render(<App platform={platform ?? stubPlatform()} />);
   // The app queries persisted settings on mount; let that microtask settle so
   // the first assertion is not racing a state update.
   await act(async () => {
@@ -48,20 +49,104 @@ async function renderApp() {
 }
 
 /**
- * Install a fake preload bridge. App queries settings and pending updates on
- * mount, so every stub needs those present or the component fails to render
- * for reasons unrelated to the test.
+ * The host the next `renderApp()` will be given. Set by `stubBridge`, which most
+ * tests do not need — those get the defaults below.
  */
-function stubBridge(overrides: Record<string, unknown> = {}) {
-  const bridge = {
+let platform: Platform | null = null;
+
+/**
+ * Install a fake host. App queries settings and pending updates on mount, so
+ * every stub needs those present or the component fails to render for reasons
+ * unrelated to the test.
+ *
+ * Override keys keep the old bridge names because that is what the assertions
+ * read; what changed is that they are wired into a `Platform` rather than onto
+ * `window`.
+ */
+type BridgeStubs = {
+  getSettings: Mock<() => Promise<{ data: unknown; error?: string }>>;
+  setSettings: Mock<(json: string) => Promise<{ ok: boolean; error?: string }>>;
+  saveDesign: Mock<
+    (request: { json: string; filePath?: string | null }) => Promise<{
+      canceled: boolean;
+      filePath: string | null;
+      error?: string;
+    }>
+  >;
+  openDesign: Mock<
+    () => Promise<{
+      canceled: boolean;
+      filePath: string | null;
+      contents: string | null;
+      error?: string;
+    }>
+  >;
+  exportQuote: Mock<(bytes: Uint8Array, name: string) => Promise<{ canceled: boolean }>>;
+  onUpdateDownloaded: Mock<(cb: (info: { version: string }) => void) => () => void>;
+  getPendingUpdate: Mock<() => Promise<{ version: string } | null>>;
+  onCloseRequested: (cb: () => void) => () => void;
+  confirmClose: Mock<() => Promise<void>>;
+};
+
+function stubBridge(overrides: Partial<BridgeStubs> = {}): BridgeStubs {
+  const stubs: BridgeStubs = {
     getSettings: vi.fn().mockResolvedValue({ data: null }),
     setSettings: vi.fn().mockResolvedValue({ ok: true }),
+    saveDesign: vi.fn().mockResolvedValue({ canceled: true, filePath: null }),
+    openDesign: vi.fn().mockResolvedValue({ canceled: true, filePath: null, contents: null }),
+    exportQuote: vi.fn().mockResolvedValue({ canceled: false }),
     onUpdateDownloaded: vi.fn().mockReturnValue(() => undefined),
     getPendingUpdate: vi.fn().mockResolvedValue(null),
+    onCloseRequested: () => () => undefined,
+    confirmClose: vi.fn().mockResolvedValue(undefined),
     ...overrides
   };
-  (window as { ptsbuilder?: unknown }).ptsbuilder = bridge;
-  return bridge;
+
+  platform = {
+    chrome: { titleBarInset: 0, titleBarRightInset: 0 },
+    documents: {
+      kind: "files",
+      save: async (request) => {
+        const r = await stubs.saveDesign({ json: request.json, filePath: request.path });
+        return { canceled: r.canceled, path: r.filePath ?? null, error: r.error };
+      },
+      open: async () => {
+        const r = await stubs.openDesign();
+        return {
+          canceled: r.canceled,
+          path: r.filePath ?? null,
+          contents: r.contents ?? null,
+          error: r.error
+        };
+      }
+    },
+    settings: {
+      load: async () => {
+        const r = await stubs.getSettings();
+        return { data: r.data, error: r.error };
+      },
+      save: async (json) => stubs.setSettings(json)
+    },
+    savePdf: async (bytes, name) => stubs.exportQuote(bytes, name),
+    openExternal: vi.fn(),
+    updates: {
+      check: vi.fn().mockResolvedValue({ status: "up-to-date" }),
+      getPending: () => stubs.getPendingUpdate(),
+      quitAndInstall: vi.fn().mockResolvedValue(undefined),
+      onDownloaded: (cb) => stubs.onUpdateDownloaded(cb)
+    },
+    closeGate: {
+      onRequested: (cb) => stubs.onCloseRequested(cb),
+      confirm: () => stubs.confirmClose()
+    }
+  };
+  return stubs;
+}
+
+/** A host with every default, for the tests that do not care which. */
+function stubPlatform(): Platform {
+  stubBridge();
+  return platform as Platform;
 }
 
 /** Click the grid at `cell`, as the 3D viewport would on a left click. */
