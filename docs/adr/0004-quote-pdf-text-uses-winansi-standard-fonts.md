@@ -5,7 +5,7 @@
 
 ## Context
 
-`sanitize` in `src/domain/quote-pdf.ts` replaces every codepoint above `0x7e` with a hyphen, so
+`sanitize` replaces every codepoint above `0x7e` with a hyphen, so
 "Müller GmbH" prints as "M-ller GmbH" and "Café Bertrand" as "Caf- Bertrand". These are values the
 installer types into their own company settings, so the app corrupts their identity on the document
 they send to customers (issue #8).
@@ -16,6 +16,9 @@ block. The em-dash is already special-cased precisely because it is representabl
 
 The alternative was embedding a TrueType font via `@pdf-lib/fontkit`, which would additionally cover
 Central and Eastern European names and let the quote use the product typeface instead of Helvetica.
+
+*Written when `sanitize` lived in `src/domain/quote-pdf.ts`. It is now in
+`src/domain/pdf-typesetting.ts`, shared with the BOM renderer.*
 
 ## Decision
 
@@ -33,3 +36,6 @@ Widen `sanitize` to permit **everything WinAnsi can encode**, and keep the stand
   decision that keeps the bundle small.
 - Substitution must remain lossy-but-safe: never throw on unencodable input, since the text comes
   straight from user settings.
+- This now governs two documents rather than one. `generateBomPdf` types PTSBuilderLite's bill of
+  materials with the same standard fonts and the same `sanitize`, so a part name outside CP1252
+  degrades identically there. Nothing about that changes the decision — it widens what depends on it.
