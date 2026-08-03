@@ -13,6 +13,11 @@ overrides:
   #
   # It matters because js-yaml ships: electron-updater parses the latest*.yml
   # update feed fetched from GitHub, which is remote input. See #84.
+  #
+  # That reachability argument is dormant while desktop releases are paused —
+  # nothing publishes a feed, so nothing fetches one. The pin stays anyway: it
+  # costs nothing, and it has to be right again the moment .github/workflows/
+  # release.yml is taken off manual dispatch.
   js-yaml: ^4.3.0
   #
   # Deliberately NOT overridden: brace-expansion. `pnpm audit` reports one high
