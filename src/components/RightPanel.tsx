@@ -1,5 +1,6 @@
 import { Icons } from "@/components/Icons";
-import { bomRows, isPricedRow, totalPathLength, type Pricing } from "@/domain/parts";
+import { isPricedRow, priceRows, type Pricing } from "@/domain/commercial/pricing";
+import { bomRows, totalPathLength } from "@/domain/parts";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { DesignState } from "@/types";
 import "@/components/RightPanel.css";
@@ -20,7 +21,7 @@ export type RightPanelProps = {
 
 export function RightPanel({ open, onClose, design, pricing, taxRate, onExport }: RightPanelProps) {
   if (!open) return null;
-  const rows = bomRows(design, pricing);
+  const rows = priceRows(bomRows(design), pricing);
   // Totals cover the rows that have a price. Anything unpriced is shown as such
   // rather than counted as zero, so the subtotal never quietly understates the
   // job — the "prices missing" note below says how many are excluded.
