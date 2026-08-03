@@ -24,9 +24,24 @@ export const DEFAULT_FREE_PLACEMENT_ROTATION: FreePlacementRotation = {
   verticalSteps: 0
 };
 
+/** Straight up. Not one of `FREE_PLACEMENT_DIRECTIONS`, which are the four horizontal headings. */
+export const UP: Vec3 = [0, 1, 0];
+
+/**
+ * Which way a blower or terminal faces before anyone rotates it.
+ *
+ * Vertical, because a tube system is mostly risers: a blower sits on the floor
+ * blowing up and a terminal takes its delivery from above far more often than
+ * either points sideways. R still cycles the four horizontal headings, and
+ * `resolveFreePlacementOrientation` already handles a base that is not one of
+ * them — the first press lands on +X.
+ *
+ * This is a placement default, not a spec fact. Nothing in ADR-0001 constrains
+ * which way a port may face.
+ */
 export const DEFAULT_FREE_PLACEMENT_MEMORY: FreePlacementMemory = {
-  blower: FREE_PLACEMENT_DIRECTIONS[0],
-  terminal: FREE_PLACEMENT_DIRECTIONS[0]
+  blower: UP,
+  terminal: UP
 };
 
 export const FREE_PLACEMENT_MESSAGES = {
@@ -53,8 +68,15 @@ export function rotateOrientation(base: Vec3, steps: number): Vec3 {
   return FREE_PLACEMENT_DIRECTIONS[modulo(idx + steps, FREE_PLACEMENT_DIRECTIONS.length)];
 }
 
+/**
+ * Shift-R alternates between facing up and facing down.
+ *
+ * The first press goes *down*, because up is now where a part starts
+ * (`DEFAULT_FREE_PLACEMENT_MEMORY`). Sending it up first would make the first
+ * press of a rotate key appear to do nothing.
+ */
 export function rotateOrientationVertically(steps: number): Vec3 {
-  return modulo(steps - 1, 2) === 0 ? [0, 1, 0] : [0, -1, 0];
+  return modulo(steps, 2) === 1 ? [0, -1, 0] : [0, 1, 0];
 }
 
 export function resolveFreePlacementOrientation(
