@@ -6,13 +6,22 @@ vocabulary and, more importantly, says which numbers in this codebase are author
 ## Commands
 
 ```sh
-pnpm dev            # run the app
 pnpm run check      # format:check + lint + typecheck + test, in CI's order
 pnpm run format     # fix formatting
-pnpm run package    # build installers into release/
 
-pnpm run build && scripts/run-headless.sh   # screenshot the real renderer
+pnpm run dev:lite   # PTSBuilderLite in a browser — this is what ships
+pnpm run build:lite # …into dist-lite/, which Cloudflare Pages serves
+
+pnpm dev            # PTSBuilder, the Electron app
+pnpm run package    # build installers into release/ (not published; see below)
+
+pnpm run build && scripts/run-headless.sh   # screenshot the real Electron renderer
 ```
+
+**Desktop artifact builds are paused.** `release.yml` only runs on manual dispatch, so a `v*` tag
+publishes nothing. `ci.yml` still compiles the Electron target on every push, which is the only
+thing keeping it from rotting — keep it green. The workflow header lists what decays while it sits
+idle. See [ADR-0010](docs/adr/0010-one-codebase-two-products.md).
 
 `scripts/run-headless.sh` is for machines with no desktop session to put a window on. Four flags
 have to be right or the app starts and never shows anything — the reasons are at the top of the
@@ -21,7 +30,7 @@ script, and the one that wastes the most time is that Electron prefers Wayland a
 
 Every PR must leave `pnpm run check` green. CI runs the same four gates.
 
-## The two things most likely to be got wrong
+## The three things most likely to be got wrong
 
 **1. Authoritative spec vs. placeholder data.** The engineering constants — 300 ft centerline cap,
 6 ft tube stock, 90° bends at 3 ft radius, 1 cell = 1 ft, Terminal 1 flush against the blower — are
@@ -34,7 +43,15 @@ loader actively rejects a catalog entry carrying a price.
 
 User-facing copy must interpolate these constants, never restate them.
 
-**2. `parts`/`obstacles` must agree with `grid`.** `DesignState` carries a `SparseGrid` alongside
+**2. PTSBuilderLite must not be able to express money.** Not "must not display" — must not be able
+to. `BomRow` carries no price, `bomRows` takes no pricing argument, and everything commercial lives
+under a `commercial/` subdirectory that nothing on Lite's import graph may reach. A build flag
+around a component does not help: a static import puts the module in the bundle whatever the
+condition says. The Lite build fails and names the offender if any of it arrives
+([ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md)). If a feature needs a price on
+screen, it belongs to PTSBuilder.
+
+**3. `parts`/`obstacles` must agree with `grid`.** `DesignState` carries a `SparseGrid` alongside
 its occupant lists. A part present in one but not the other renders and gets priced yet cannot be
 erased or collided with. `reconstructDesign` is the single checked path that rebuilds all three
 together; `expectGridMatchesDesign` (in `src/test/design-invariants.ts`) asserts the invariant and
@@ -51,6 +68,9 @@ which `validation.ts` flags rather than forbids.
 | `src/domain/` | Pure logic. No React, no Three.js. Most tests live here |
 | `src/renderer/` | The Three.js viewport, split into meshes, scene affordances, pure interaction helpers, and the React lifecycle |
 | `src/components/` | React UI |
+| `**/commercial/` | Anything to do with money. **PTSBuilderLite may not import it** |
+| `src/platform/` | What differs about the host: files or a session, an updater or none |
+| `src/products/` | One composition root per product, supplying `App` with what differs |
 | `electron/` | Main process and preload bridge |
 | `shared/` | Types and channel names shared by the Electron main process and the renderer |
 | `docs/adr/` | Decisions with lasting consequences |
