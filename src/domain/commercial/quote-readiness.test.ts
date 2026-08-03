@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, type AppSettings } from "@/domain/app-settings";
 import { emptyDesign } from "@/domain/design-state";
-import { quoteReadiness, quoteSubtotal } from "@/domain/quote-readiness";
+import { quoteReadiness, quoteSubtotal } from "@/domain/commercial/quote-readiness";
 import type { DesignState, Part } from "@/types";
 
 const READY_SETTINGS: AppSettings = {

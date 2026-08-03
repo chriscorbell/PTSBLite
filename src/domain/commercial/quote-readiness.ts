@@ -1,12 +1,18 @@
 import type { AppSettings, CompanyInfo } from "@/domain/app-settings";
-import { bomRows, isPricedRow, type BomRow, type PricedBomRow } from "@/domain/parts";
+import {
+  isPricedRow,
+  priceRows,
+  type PricedBomRow,
+  type QuotedRow
+} from "@/domain/commercial/pricing";
+import { bomRows } from "@/domain/parts";
 import { partRegistry } from "@/domain/part-registry";
 import type { DesignState } from "@/types";
 
 /**
  * A quote whose every customer-visible value has been entered by the installer.
  *
- * This type is the gate. `renderQuotePdf` accepts only this, so a quote built
+ * This type is the gate. `generateQuotePdf` accepts only this, so a quote built
  * from placeholder data is not something the code can express — as opposed to
  * something a dialog discourages. See ADR-0003.
  */
@@ -53,7 +59,7 @@ function blank(value: string): boolean {
  * one field at a time.
  */
 export function quoteReadiness(design: DesignState, settings: AppSettings): QuoteReadiness {
-  const rows = bomRows(design, settings.pricing);
+  const rows = priceRows(bomRows(design), settings.pricing);
   const blockers: QuoteBlocker[] = [];
 
   for (const { key, label } of COMPANY_FIELDS) {
@@ -90,7 +96,7 @@ export function quoteReadiness(design: DesignState, settings: AppSettings): Quot
   };
 }
 
-function priceLabel(row: BomRow): string {
+function priceLabel(row: QuotedRow): string {
   return partRegistry.tryGet(row.key)?.name ?? row.key;
 }
 

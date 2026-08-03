@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 import { inflateSync } from "node:zlib";
 import { PDFDocument } from "pdf-lib";
 import { emptyDesign } from "@/domain/design-state";
-import { bomRows, type Pricing } from "@/domain/parts";
-import { generateQuotePdf, sanitize } from "@/domain/quote-pdf";
-import { quoteReadiness, quoteSubtotal, type ReadyQuote } from "@/domain/quote-readiness";
+import { priceRows, type Pricing } from "@/domain/commercial/pricing";
+import { bomRows } from "@/domain/parts";
+import { generateQuotePdf, sanitize } from "@/domain/commercial/quote-pdf";
+import {
+  quoteReadiness,
+  quoteSubtotal,
+  type ReadyQuote
+} from "@/domain/commercial/quote-readiness";
 import type { DesignState, Part } from "@/types";
 
 function designWith(parts: Part[]): DesignState {
@@ -129,7 +134,7 @@ describe("generateQuotePdf", () => {
     const design = designWith(sampleParts);
     const bytes = await generateQuotePdf(design, readyQuoteFor(design));
     const text = extractText(bytes);
-    const rows = bomRows(design, PRICES);
+    const rows = priceRows(bomRows(design), PRICES);
     for (const row of rows) {
       if (row.qty === 0) continue;
       expect(text).toContain(row.partNo);

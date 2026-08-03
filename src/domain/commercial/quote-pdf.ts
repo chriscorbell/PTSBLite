@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { totalPathLength } from "@/domain/parts";
-import type { ReadyQuote } from "@/domain/quote-readiness";
+import type { ReadyQuote } from "@/domain/commercial/quote-readiness";
 import type { DesignState } from "@/types";
 
 /** The one field a quote does not get from settings. Defaults to today. */
