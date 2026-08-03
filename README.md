@@ -3,17 +3,27 @@
         title="PTSBuilder" alt="PTSBuilder logo" width="120" />
     <h1>PTSBuilder</h1>
     <p>
-        PTSBuilder is a fully cross-platform desktop 3D builder for pneumatic tube systems.
-        <br>
-        It supports part placement, obstacle volumes, auto-routing, validation, BOM review, and quote PDF export.
+        A 3D builder for pneumatic tube systems: part placement, obstacle volumes,
+        auto-routing, validation and BOM review.
     </p>
-    <a href="https://github.com/chriscorbell/PTSBuilder/releases/latest">
-        Download
-    </a>
 </div>
+
+## Two products
+
+One codebase, two build targets ([ADR-0010](docs/adr/0010-one-codebase-two-products.md)).
+
+**PTSBuilderLite** is the public web app, and the one that ships today. It runs in a desktop
+browser, autosaves a single design to that browser, and exports a bill of materials. It shows no
+prices — not hidden, but absent: the code that knows what a price is cannot reach its bundle, and
+the build fails if it does ([ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md)).
+
+**PTSBuilder** is the full internal desktop app, which adds the installer's pricing and the
+customer-facing quote PDF. Its artifact builds are paused while Lite is the focus; CI keeps the
+target compiling.
 
 ## Tech Stack
 
+- Vite for the web build, deployed as static files to Cloudflare Pages
 - Electron, electron-vite, and electron-builder for the desktop app shell and packaging
 - React 19 and TypeScript for the UI
 - Three.js for the 3D viewport
@@ -27,7 +37,8 @@ both track Node 24).
 
 ```sh
 pnpm install
-pnpm dev             # run the app with hot reload
+pnpm run dev:lite    # PTSBuilderLite in a browser — this is what ships
+pnpm dev             # PTSBuilder, the Electron app
 ```
 
 Quality gates, in the order CI runs them:
@@ -40,10 +51,18 @@ pnpm test
 pnpm run check          # all four in one go
 ```
 
-Packaging (writes installers to `release/`):
+Building:
 
 ```sh
+pnpm run build:lite     # typecheck + vite build, into dist-lite/
+pnpm run preview:lite   # serve that build locally
 pnpm run build          # typecheck + electron-vite build
+```
+
+Packaging the desktop app writes installers to `release/`. **These are not currently published** —
+`release.yml` runs only on manual dispatch while PTSBuilderLite is the focus.
+
+```sh
 pnpm run package        # build + electron-builder
 pnpm run package:dir    # unpacked directory, faster for smoke tests
 ```
@@ -53,13 +72,16 @@ automatically; locally, run `git config blame.ignoreRevsFile .git-blame-ignore-r
 
 ## Architecture
 
-Five deliberately separated layers:
+Layers separated by kind, not by subject:
 
 | Path | Contains |
 |---|---|
-| `src/domain/` | Pure logic: geometry, placement rules, topology, routing, validation, pricing, file format. No React, no Three.js. Most tests live here |
+| `src/domain/` | Pure logic: geometry, placement rules, topology, routing, validation, the file format, the autosaved session. No React, no Three.js. Most tests live here |
 | `src/renderer/` | The Three.js viewport, split into meshes, scene affordances, pure interaction helpers, and the React lifecycle |
 | `src/components/` | React UI |
+| `**/commercial/` | Anything to do with money. PTSBuilderLite may not import it |
+| `src/platform/` | What differs about the host: files or an autosaved session, an updater or none |
+| `src/products/` | One composition root per product, supplying `App` with what differs |
 | `electron/` | Main process and preload bridge |
 | `shared/` | Types and channel names shared by the Electron main process and the renderer |
 

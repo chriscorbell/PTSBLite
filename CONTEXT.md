@@ -1,11 +1,24 @@
 # PTSBuilder — Domain Context
 
-PTSBuilder is a desktop 3D builder for **pneumatic tube systems (PTS)**: an installer lays out a
-system in a 3D grid, the app validates it against the system's engineering rules, and it produces a
-bill of materials and a customer-facing quote PDF.
+A 3D builder for **pneumatic tube systems (PTS)**: lay a system out in a 3D grid, have it validated
+against the system's engineering rules, and get a bill of materials out.
 
-Audience: PTS installers and distributors. It is an early-stage product, not a demo — the numbers it
-prints are intended to end up in front of a paying customer.
+## Two products
+
+They share this domain, the file format, the renderer and most of the UI. What differs is
+commercial, and the host each runs inside. See
+[ADR-0010](docs/adr/0010-one-codebase-two-products.md).
+
+**PTSBuilderLite** — public, free, in a desktop browser. Prospects use it themselves. It shows
+**no prices, costs or dollar amounts of any kind**, exports a bill of materials rather than a
+quote, and autosaves one design to the browser rather than saving files. This is what ships today.
+
+**PTSBuilder** — the full internal product, an Electron desktop app for installers and
+distributors, with the quote and the installer's own pricing. The numbers it prints are intended to
+end up in front of a paying customer. Its artifact builds are paused while Lite is the focus; the
+code stays compiled by CI.
+
+When something below says "the app" without qualifying, it is true of both.
 
 ## Authoritative vs. placeholder data
 
@@ -85,17 +98,29 @@ Terminal 2). Contrast with tube/bend/Terminal 1, which must land on a port.
 
 ## Architecture
 
-Five layers, deliberately separated:
+Layers separated by kind, not by subject:
 
-- `src/domain/` — pure logic: geometry, placement rules, topology, routing, validation, pricing,
-  file format. No React, no Three.js. This is where most of the tests live.
+- `src/domain/` — pure logic: geometry, placement rules, topology, routing, validation, the file
+  format, the autosaved session. No React, no Three.js. This is where most of the tests live.
 - `src/renderer/` — the Three.js viewport, split by responsibility: `design-meshes` for the parts,
   `scene-affordances` for ground, highlights, ports and labels, `interaction` for pure pointer maths,
   `three-utils` for the palette and GPU disposal, and `Viewport.tsx` for the React lifecycle.
 - `src/components/` — React UI. Each component's styling sits in a colocated `.css` file beside it;
   see ADR-0009 for the rule and the few runtime-value exceptions.
+- `src/platform/` — what differs about the host the app runs inside: files or an autosaved session,
+  a settings store or none, an updater or none. `Platform` in `types.ts` is the contract, and its
+  capability table is the quickest way to see what each host can do.
+- `src/products/` — one composition root per product. It supplies `App` with the surfaces that
+  differ; `App` itself holds only the editor.
 - `electron/` — main process and preload bridge.
 - `shared/` — the IPC contract: channel names and payload types both processes import.
+
+A `commercial/` subdirectory inside `domain/` and `components/` holds everything to do with money —
+pricing, quote readiness, the quote PDF, the quote preview and the pricing settings panes. It is a
+subdirectory rather than a sixth layer precisely because the layers separate by kind: pricing is
+pure logic and the quote preview is React, so they belong in the layers they already belonged in.
+**Nothing PTSBuilderLite imports may reach it**, and the Lite build fails if anything does
+([ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md)).
 
 `DesignState` carries a `SparseGrid` of cell occupancy alongside its parts and obstacles. **These
 must agree.** A part present in one but not the other renders and gets priced yet cannot be erased or

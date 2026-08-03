@@ -42,6 +42,13 @@ labour lines, discounts, freight, or arbitrary line items.
 
 **One design per file, one file per window.** No project containers, no multi-document.
 
+**In PTSBuilderLite, one design per browser profile.** There are no files at all: a single design
+autosaves to `localStorage` and is offered back on return
+([ADR-0012](adr/0012-lite-persists-a-session-not-files.md)). It lives in one browser on one machine
+— clearing site data loses it, and a different browser sees nothing. Storage is scoped to the
+origin, so moving to a custom domain makes every stored design unreachable. Two tabs overwrite each
+other, last write wins.
+
 ---
 
 ## Workflow
@@ -77,11 +84,17 @@ and notarized.
 ## Commercial
 
 **Part numbers and names** in `src/data/parts.json` are invented and will be replaced when the real
-catalog arrives. The `partNo` values in particular look authoritative and are not.
+catalog arrives. The `partNo` values in particular look authoritative and are not. **They are now
+published**: PTSBuilderLite prints them into a BOM PDF that any member of the public can download
+and keep. That is a deliberate decision, recorded in
+[ADR-0013](adr/0013-lite-publishes-placeholder-part-numbers.md), and it is the one place invented
+data reaches a customer-facing artifact on purpose. Issue #94.
 
 **Prices and the tax rate ship empty** and are entered by the installer
 ([ADR-0003](adr/0003-quotes-require-installer-entered-pricing.md)). The catalog cannot carry a
-price — `loadPartRegistry` rejects one.
+price — `loadPartRegistry` rejects one. In PTSBuilderLite there are no prices at all, and no code
+that could hold one ([ADR-0011](adr/0011-lite-has-no-commercial-data-path.md)); a requirement that
+puts money on a Lite screen is a requirement for PTSBuilder.
 
 **The stock-tube purchasing rule is an open question**, not a decision. `bomRows` currently uses
 `ceil(total tube feet / 6)`, which assumes offcuts are not reused — and the default quote wording
@@ -103,7 +116,13 @@ correct because export is gated, but the second one can carry the first one's na
 
 **Copy, duplicate, array, mirror.** No bulk operations of any kind.
 
-**Any collaboration, cloud, account, or telemetry surface.** Deliberately.
+**Any collaboration, cloud, account, or telemetry surface.** Deliberately. PTSBuilderLite is
+served as static files with a `connect-src 'none'` policy: nothing it does reaches the network
+after load, so there is also no error reporting from production.
+
+**A styled "you have unsaved work" prompt in the browser.** A browser offers only `beforeunload`,
+whose message cannot be written or styled. Lite registers it solely while a write to storage has
+failed, because autosave means there is otherwise nothing to lose.
 
 ---
 
