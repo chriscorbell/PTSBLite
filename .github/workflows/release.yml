@@ -1,11 +1,24 @@
 name: Release
 
-# Semantic-versioned releases: push a tag like v1.2.3 to build all platforms
-# and upload them to a GitHub Release.
+# Semantic-versioned releases: build all platforms and upload them to a GitHub
+# Release.
+#
+# PAUSED. Desktop artifacts are not being published while PTSBuilderLite is the
+# only product shipping, so this no longer runs on a tag push — it has to be
+# started by hand, against a v* tag. Everything below still works and is kept
+# deliberately: re-deriving a signed, notarized, three-platform pipeline is far
+# more expensive than leaving a dormant one in place. Restore the trigger by
+# putting back the `push: tags: ["v*"]` block when full PTSBuilder work begins.
+#
+# Two things rot while this sits idle, and neither fails loudly until the day it
+# is needed:
+#   - The macOS signing certificate and the App Store Connect key in this
+#     repository's secrets both expire. Check them before the first release back.
+#   - `pnpm-workspace.yaml` pins js-yaml because electron-updater parses the
+#     update feed this workflow publishes. Nothing publishes that feed now, so
+#     the pin is dormant too. It stays, and becomes load-bearing again here.
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,6 +29,20 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
+      # The dispatch dropdown offers branches as well as tags, and the release
+      # job derives the package version from the ref name. Started from a
+      # branch, that would sync the version to something like "main" and fail
+      # deep inside the platform matrix, after three OS builds have run.
+      - name: Require a v* tag
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/v*) ;;
+            *)
+              echo "::error::Run this workflow against a v* tag, not $GITHUB_REF_NAME."
+              exit 1
+              ;;
+          esac
+
       - uses: actions/checkout@v7
 
       - name: Setup pnpm
