@@ -20,14 +20,18 @@ overrides:
   # release.yml is taken off manual dispatch.
   js-yaml: ^4.3.0
   #
-  # Deliberately NOT overridden: brace-expansion. `pnpm audit` reports one high
-  # advisory against it, and it is expected to stay. Only the 5.x line was
-  # patched; the 1.x and 2.x copies reach us through minimatch 3/5/9, deep
-  # inside electron-builder, and forcing 5.x on them is a major-version jump
-  # their ranges never allowed — into the code that packs the asar and builds
-  # the signed installers.
+  # Deliberately NOT overridden: brace-expansion. This was a standing high
+  # advisory for months and is now resolved without an override, which is why
+  # the entry stays as a record rather than being deleted.
   #
-  # It is also not reachable here. The advisory is a DoS on a crafted glob
-  # pattern, and every glob this project expands is one we wrote ourselves in
-  # electron-builder.yml. Nothing an attacker controls reaches it. Revisit when
-  # electron-builder moves to minimatch 10, not before.
+  # The reasoning was: only the 5.x line had been patched, and the 1.x and 2.x
+  # copies reach us through minimatch 3/5/9 deep inside electron-builder, so
+  # forcing 5.x on them would have been a major-version jump their ranges never
+  # allowed — into the code that packs the asar and builds the signed
+  # installers. It was also not reachable: the advisory is a DoS on a crafted
+  # glob pattern, and every glob this project expands is one we wrote ourselves
+  # in electron-builder.yml.
+  #
+  # Upstream backported the fix. 1.1.18 and 2.1.4 are both past the patched
+  # thresholds, and a routine lockfile refresh picked them up. Waiting cost
+  # nothing and an override would have had to be unpicked.

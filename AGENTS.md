@@ -91,8 +91,10 @@ which `validation.ts` flags rather than forbids.
 - pnpm 11 reads its settings from `pnpm-workspace.yaml`, **not** `package.json`. A `pnpm.overrides`
   key in `package.json` is ignored with only a warning, so a dependency override put there looks
   applied and isn't — check the resolved version, not the config.
-- `pnpm audit` is expected to report one high `brace-expansion` advisory, and a clean run would mean
-  something changed. `pnpm-workspace.yaml` says why it stays.
+- `pnpm audit` is expected to be clean. It reported a high `brace-expansion` advisory for a long
+  time; upstream backported the fix to the 1.x and 2.x lines and a lockfile refresh picked it up.
+  An advisory reappearing is worth reading rather than assuming, since the last one was unreachable
+  in this project — `pnpm-workspace.yaml` records why.
 - Record a decision with lasting consequences as an ADR rather than a comment.
 
 ## Before inventing behaviour
