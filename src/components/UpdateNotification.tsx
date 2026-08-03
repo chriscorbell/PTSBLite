@@ -1,21 +1,23 @@
 import { useState } from "react";
 import { Icons } from "@/components/Icons";
+import type { UpdateChannel } from "@/platform/types";
 import "@/components/UpdateNotification.css";
 
 export type UpdateNotificationProps = {
   version: string;
+  updates: UpdateChannel;
   onDismiss: () => void;
 };
 
 // Non-blocking, on-brand replacement for the old native "update ready" dialog.
 // Sits bottom-right above the status bar; dismissing is safe because the update
 // still applies automatically the next time the app quits.
-export function UpdateNotification({ version, onDismiss }: UpdateNotificationProps) {
+export function UpdateNotification({ version, updates, onDismiss }: UpdateNotificationProps) {
   const [restarting, setRestarting] = useState(false);
 
   const restart = () => {
     setRestarting(true);
-    void window.ptsbuilder?.quitAndInstall();
+    void updates.quitAndInstall();
   };
 
   return (
