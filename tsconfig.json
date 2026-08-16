@@ -20,16 +20,8 @@
     // "@/styles/app.css"` in src/main.tsx.
     "types": ["node", "react", "react-dom", "vite/client"],
     "paths": {
-      "@/*": ["./src/*"],
-      "@shared/*": ["./shared/*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "electron",
-    "shared",
-    "src",
-    "electron.vite.config.ts",
-    "vite.config.ts",
-    "vitest.config.ts"
-  ]
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
 }

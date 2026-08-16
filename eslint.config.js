@@ -4,7 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["out/**", "dist/**", "dist-lite/**", "release/**", "node_modules/**"] },
+  { ignores: ["dist-lite/**", "out/**", "release/**", "node_modules/**"] },
 
   js.configs.recommended,
   // Type-aware rules: worth the slower run here because the interesting bugs in
@@ -21,7 +21,7 @@ export default tseslint.config(
     }
   },
 
-  // Renderer: browser globals plus the build-time defines from electron.vite.config.
+  // Browser app globals plus the build-time defines from vite.config.
   {
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
@@ -44,16 +44,15 @@ export default tseslint.config(
     }
   },
 
-  // Main process, preload, and build config all run in Node.
+  // Build config runs in Node.
   {
-    files: ["electron/**/*.ts", "*.config.ts", "*.config.js"],
+    files: ["*.config.ts", "*.config.js"],
     languageOptions: { globals: globals.node }
   },
 
   {
     rules: {
-      // Match the existing convention of prefixing deliberately unused bindings
-      // with an underscore (see the destructuring in electron/main.ts).
+      // Prefix deliberately unused bindings with an underscore.
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }

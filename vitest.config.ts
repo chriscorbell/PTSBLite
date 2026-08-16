@@ -2,10 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
-// The renderer reads package metadata through build-time defines that
-// electron.vite.config.ts injects. Component tests load those modules for real,
-// so the same values have to exist here — sourced from package.json rather than
-// duplicated, so the two configs cannot drift.
+// The app reads package metadata through build-time defines. Component tests
+// load those modules for real, so the same values have to exist here — sourced
+// from package.json rather than duplicated, so the two configs cannot drift.
 const pkg = JSON.parse(readFileSync(resolve(__dirname, "package.json"), "utf-8")) as {
   version: string;
   description: string;
@@ -25,8 +24,7 @@ const PLATFORM_TESTS = "src/platform/**/*.test.ts";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": resolve(__dirname, "src"),
-      "@shared": resolve(__dirname, "shared")
+      "@": resolve(__dirname, "src")
     }
   },
   define: {
@@ -42,7 +40,7 @@ export default defineConfig({
         test: {
           name: "domain",
           environment: "node",
-          include: ["src/**/*.test.ts", "electron/**/*.test.ts"],
+          include: ["src/**/*.test.ts"],
           exclude: [PLATFORM_TESTS]
         }
       },

@@ -15,7 +15,7 @@ import type {
 
 export const CURRENT_SCHEMA_VERSION = "1";
 
-export type DesignFile = {
+export type SerializedDesign = {
   schemaVersion: string;
   appVersion: string;
   metadata: DesignMetadata;
@@ -26,13 +26,13 @@ export type DesignFile = {
 export type DeserializeResult = { ok: true; design: DesignState } | { ok: false; message: string };
 
 /**
- * `appVersion` is stamped on the file for provenance — which build wrote it,
- * for interpreting a file that arrives later. It is a required argument rather
+ * `appVersion` is stamped on the stored payload for provenance. It is a
+ * required argument rather
  * than a module constant because the domain layer has no business reading the
  * bundler's build defines, and because the constant it replaced had drifted to
  * three releases stale without anything noticing.
  */
-export function serializeDesign(design: DesignState, appVersion: string): DesignFile {
+export function serializeDesign(design: DesignState, appVersion: string): SerializedDesign {
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     appVersion,
@@ -47,9 +47,9 @@ export function deserializeDesign(text: string): DeserializeResult {
   try {
     raw = JSON.parse(text);
   } catch {
-    return fail("Could not parse file — invalid JSON.");
+    return fail("Could not parse stored design — invalid JSON.");
   }
-  if (!isRecord(raw)) return fail("File is not a valid design object.");
+  if (!isRecord(raw)) return fail("Stored value is not a valid design object.");
 
   if (typeof raw.schemaVersion !== "string") {
     return fail("Missing schemaVersion field.");
@@ -79,12 +79,12 @@ export function deserializeDesign(text: string): DeserializeResult {
     obstacles.push(obstacleResult.obstacle);
   }
 
-  // Geometry is checked here rather than assumed. A file whose parts fall
+  // Geometry is checked here rather than assumed. A stored design whose parts fall
   // outside the build area or land on top of each other used to load anyway,
   // with those parts present in `parts` but missing from `grid` — visible and
-  // priced, but impossible to erase or collide with. Reporting beats repairing:
-  // the file says something the app cannot represent, and silently dropping
-  // part of a saved design is worse than declining to open it.
+  // listed in the BOM, but impossible to erase or collide with. Reporting beats
+  // repairing: the payload says something the app cannot represent, and silently
+  // dropping part of a stored design is worse than declining to restore it.
   const rebuilt = reconstructDesign({ parts, obstacles }, metadataResult.metadata);
   if (!rebuilt.ok) {
     const [first, ...rest] = rebuilt.issues;
@@ -121,7 +121,7 @@ function parseMetadata(
     metadata: {
       filename: value.filename,
       revision: value.revision,
-      // Forgiving migration: files saved before the build area was configurable
+      // Forgiving migration: designs saved before the build area was configurable
       // (or with a malformed area) fall back to the default, clamped to limits.
       buildArea: parseBuildArea(value.buildArea)
     }

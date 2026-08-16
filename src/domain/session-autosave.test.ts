@@ -85,7 +85,7 @@ describe("readStoredSession", () => {
 
   it("reports a design whose geometry does not rebuild as unreadable", () => {
     // Two parts in the same cell. `reconstructDesign` refuses it, so a payload
-    // that would render and price but could not be erased never loads.
+    // that would render and appear in the BOM but could not be erased never loads.
     const overlapping = JSON.parse(stored(emptyDesign())) as { parts: Part[] };
     overlapping.parts = [blower, { ...blower, id: "b2" }];
     expect(readStoredSession(JSON.stringify(overlapping)).status).toBe("unreadable");

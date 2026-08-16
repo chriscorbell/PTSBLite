@@ -7,7 +7,7 @@ import type { DesignState } from "@/types";
  * Assert that a design's `grid` agrees with its `parts` and `obstacles`.
  *
  * CONTEXT.md names this as the invariant that matters most in this codebase: a
- * part present in `parts` but absent from `grid` renders and gets priced, yet
+ * part present in `parts` but absent from `grid` renders and appears in the BOM, yet
  * cannot be erased or collided with. It was previously held by hand in every
  * module that adds or removes an occupant, and by nothing else.
  *

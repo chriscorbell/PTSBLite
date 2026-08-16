@@ -47,8 +47,8 @@ describe("Modal", () => {
   });
 
   it("ignores backdrop clicks when asked to, for dialogs holding form state", () => {
-    // Settings and the quote preview carry uncommitted input; a stray click on
-    // the backdrop must not discard what the installer has typed.
+    // Settings carry uncommitted input; a stray click on the backdrop must not
+    // discard what the visitor has typed.
     const { onClose, container } = renderModal({ dismissOnBackdrop: false });
 
     fireEvent.click(container.querySelector("dialog")!);

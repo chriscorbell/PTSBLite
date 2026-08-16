@@ -1,19 +1,10 @@
-/*
- * Settings dialog chrome and field controls.
- *
- * Shared rather than colocated with one dialog: both products have a Settings
- * screen and both render `SystemDetailsFields` inside it. PTSBuilder adds tabs,
- * a price list and a currency prefix, which stay in
- * `commercial/SettingsModal.css` — PTSBuilderLite has one pane and no money, so
- * it must not import that file.
- */
+/* Settings dialog chrome and field controls. */
 
 .settings__panel {
   flex: 1;
   overflow-y: auto;
   padding: 18px;
 }
-/* Every tab but Pricing is a stack of fields. */
 .settings__fields {
   display: flex;
   flex-direction: column;
@@ -48,7 +39,6 @@
   font-size: 12px;
   box-sizing: border-box;
 }
-/* A money or percentage entry does not need the full column width. */
 .settings__input--narrow {
   width: 140px;
 }
