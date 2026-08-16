@@ -25,7 +25,7 @@ PNPM_VERSION = 11.5.0
 ```
 
 **`NODE_VERSION` is not optional.** Cloudflare's default build image ships an older Node than the
-`>=24` in `package.json`'s `engines`, and `pnpm install` refuses outright rather than warning. It is
+`^24` in `package.json`'s `engines`, and `pnpm install` refuses outright rather than warning. It is
 a confusing failure because nothing in the log points at the version.
 
 ## Who can see what
@@ -40,10 +40,6 @@ browser before it shipped, but a branch that has not been reviewed should not ha
 
 `pnpm run build:lite` runs `tsc --noEmit && vite build`, so a type error fails the deploy before
 anything is published.
-
-It also runs the check from [ADR-0011](adr/0011-lite-has-no-commercial-data-path.md): if a module
-under `commercial/` reaches the bundle, the build fails and names it. That check runs on
-Cloudflare's builder exactly as it does locally.
 
 `web-public/_headers` is copied into the output. It carries the Content-Security-Policy and the
 cache rules, and explains itself — including why `connect-src 'none'` is a statement of fact rather

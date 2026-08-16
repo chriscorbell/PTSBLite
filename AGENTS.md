@@ -3,10 +3,10 @@
 Read [`CONTEXT.md`](CONTEXT.md) before changing anything under `src/domain/`. It defines the
 vocabulary and identifies which engineering constraints are authoritative.
 
-PTSBuilderLite is the repository's only product. It is Kelly Tube Systems' public,
-consumer-facing browser app and marketing tool. Do not add Electron, desktop packaging, pricing,
-quotes, customer data, tax, or other commercial functionality. See
-[ADR-0014](docs/adr/0014-ptsbuilderlite-is-the-only-product.md).
+PTSBuilderLite is the repository's only product
+([ADR-0014](docs/adr/0014-ptsbuilderlite-is-the-only-product.md)); the README says what it is.
+Do not add Electron, desktop packaging, pricing, quotes, customer data, tax, or other commercial
+functionality.
 
 ## Commands
 
@@ -35,8 +35,8 @@ placeholders. See [ADR-0001](docs/adr/0001-engineering-constraints-are-authorita
 User-facing copy must interpolate engineering constants rather than restating them.
 
 **2. PTSBuilderLite cannot express money.** `BomRow` has no price, the catalog loader rejects
-`unitPrice`, and the production build rejects modules under `commercial/`. The application exports
-a BOM, never a quote. See [ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md).
+`unitPrice`, and the UI tests assert no money reaches the screen. The application exports a BOM,
+never a quote. See [ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md).
 
 **3. `parts` and `obstacles` must agree with `grid`.** `reconstructDesign` is the checked path that
 rebuilds all three together. Call `expectGridMatchesDesign` after operations that add or remove an
@@ -45,14 +45,8 @@ validation can report it.
 
 ## Layout
 
-| Path | Contains |
-|---|---|
-| `src/domain/` | Pure logic; most tests live here |
-| `src/renderer/` | Three.js viewport and interaction helpers |
-| `src/components/` | React UI with colocated component stylesheets |
-| `src/platform/` | Browser storage, downloads, and external links |
-| `web-public/` | Production CSP and cache headers |
-| `docs/adr/` | Lasting decisions |
+The architecture table in [README.md](README.md#architecture) maps the directories;
+[CONTEXT.md](CONTEXT.md) explains the layering in detail. Most tests live in `src/domain/`.
 
 ## Conventions
 
