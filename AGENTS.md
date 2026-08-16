@@ -14,7 +14,7 @@ functionality.
 pnpm run check  # format:check + lint + typecheck + test, in CI order
 pnpm run format # fix formatting
 pnpm dev        # browser development server
-pnpm run build  # production build into dist-lite/
+pnpm run build  # production build into dist/
 pnpm preview    # serve the production build
 ```
 

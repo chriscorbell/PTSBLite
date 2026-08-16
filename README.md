@@ -16,7 +16,7 @@ Requires Node 24 and pnpm 11.
 pnpm install
 pnpm dev       # Vite development server
 pnpm run check # formatting, lint, typecheck, and tests
-pnpm run build # production build into dist-lite/
+pnpm run build # production build into dist/
 pnpm preview   # serve the production build locally
 ```
 

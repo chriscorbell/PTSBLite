@@ -14,7 +14,7 @@ the dashboard offers first and which needs a `wrangler.jsonc` this repository do
 | Production branch | `main` |
 | Framework preset | None |
 | Build command | `pnpm run build` |
-| Build output directory | `dist-lite` |
+| Build output directory | `dist` |
 | Root directory | *(empty)* |
 
 Environment variables, set for both Production and Preview:
@@ -62,7 +62,7 @@ The About modal shows the short commit SHA, taken from `CF_PAGES_COMMIT_SHA` on 
 ## Running the same build locally
 
 ```sh
-pnpm run build # into dist-lite/
+pnpm run build # into dist/
 pnpm preview   # serve it on http://localhost:4173
 ```
 

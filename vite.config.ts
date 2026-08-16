@@ -44,7 +44,7 @@ export default defineConfig({
     __GITHUB_URL__: JSON.stringify(repoUrl)
   },
   build: {
-    outDir: "dist-lite",
+    outDir: "dist",
     emptyOutDir: true
   },
   plugins: [react()]
