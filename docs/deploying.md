@@ -13,7 +13,7 @@ the dashboard offers first and which needs a `wrangler.jsonc` this repository do
 | Project name | `ptsblite` |
 | Production branch | `main` |
 | Framework preset | None |
-| Build command | `pnpm run build:lite` |
+| Build command | `pnpm run build` |
 | Build output directory | `dist-lite` |
 | Root directory | *(empty)* |
 
@@ -38,7 +38,7 @@ browser before it shipped, but a branch that has not been reviewed should not ha
 
 ## What the build does
 
-`pnpm run build:lite` runs `tsc --noEmit && vite build`, so a type error fails the deploy before
+`pnpm run build` runs `tsc --noEmit && vite build`, so a type error fails the deploy before
 anything is published.
 
 `web-public/_headers` is copied into the output. It carries the Content-Security-Policy and the

@@ -17,7 +17,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "build:lite": "pnpm run build",
     "preview": "vite preview --outDir dist-lite",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

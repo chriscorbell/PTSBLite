@@ -18,7 +18,6 @@ pnpm run build  # production build into dist-lite/
 pnpm preview    # serve the production build
 ```
 
-Cloudflare Pages currently uses `pnpm run build:lite`, which aliases `pnpm run build`.
 
 Check the production build in a real browser before calling browser-facing work done. happy-dom has
 no WebGL, downloads, or meaningful storage behavior.

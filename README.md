@@ -20,8 +20,7 @@ pnpm run build # production build into dist-lite/
 pnpm preview   # serve the production build locally
 ```
 
-Cloudflare Pages still calls `pnpm run build:lite`; that script is a compatibility alias for
-`pnpm run build`. Deployment settings are in [docs/deploying.md](docs/deploying.md).
+Deployment settings are in [docs/deploying.md](docs/deploying.md).
 
 ## Architecture
 
