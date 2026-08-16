@@ -5,11 +5,9 @@ against the system's engineering rules, and get a bill of materials out.
 
 ## Product
 
-**PTSBuilderLite** — Kelly Tube Systems' public, consumer-facing marketing tool. It runs in a
-desktop browser, lets visitors explore a pneumatic tube system layout, exports a bill of materials,
-and autosaves one design to that browser. It shows **no prices, costs or dollar amounts of any
-kind**. This is the repository's only product. See
-[ADR-0014](docs/adr/0014-ptsbuilderlite-is-the-only-product.md).
+**PTSBuilderLite** — the repository's only product; the [README](README.md) says what it is and
+[ADR-0014](docs/adr/0014-ptsbuilderlite-is-the-only-product.md) why. It shows **no prices, costs
+or dollar amounts of any kind** ([ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md)).
 
 *Avoid:* "PTSBuilder", "full version", "desktop app".
 

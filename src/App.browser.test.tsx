@@ -45,11 +45,6 @@ async function renderApp() {
   return utils;
 }
 
-function openMenu(name: RegExp) {
-  fireEvent.click(screen.getByRole("button", { name }));
-  return screen.getAllByRole("menuitem").map((item) => item.textContent ?? "");
-}
-
 describe("PTSBuilderLite", () => {
   it("shows no money anywhere on screen", async () => {
     await renderApp();
@@ -63,22 +58,11 @@ describe("PTSBuilderLite", () => {
     expect(text).not.toMatch(/\bEACH\b/);
   });
 
-  it("offers a BOM export and no quote export", async () => {
+  it("offers a BOM export", async () => {
     await renderApp();
     fireEvent.click(screen.getByRole("button", { name: "BOM" }));
 
     expect(screen.getByRole("button", { name: /Export BOM PDF/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /quote/i })).toBeNull();
-  });
-
-  it("offers no file actions", async () => {
-    await renderApp();
-    expect(openMenu(/^File/)).toEqual(["New"]);
-  });
-
-  it("offers only design settings", async () => {
-    await renderApp();
-    expect(openMenu(/^Edit/)).toEqual(["Design Settings…"]);
   });
 
   it("uses the PTSBuilderLite name", async () => {

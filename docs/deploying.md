@@ -13,8 +13,8 @@ the dashboard offers first and which needs a `wrangler.jsonc` this repository do
 | Project name | `ptsblite` |
 | Production branch | `main` |
 | Framework preset | None |
-| Build command | `pnpm run build:lite` |
-| Build output directory | `dist-lite` |
+| Build command | `pnpm run build` |
+| Build output directory | `dist` |
 | Root directory | *(empty)* |
 
 Environment variables, set for both Production and Preview:
@@ -25,7 +25,7 @@ PNPM_VERSION = 11.5.0
 ```
 
 **`NODE_VERSION` is not optional.** Cloudflare's default build image ships an older Node than the
-`>=24` in `package.json`'s `engines`, and `pnpm install` refuses outright rather than warning. It is
+`^24` in `package.json`'s `engines`, and `pnpm install` refuses outright rather than warning. It is
 a confusing failure because nothing in the log points at the version.
 
 ## Who can see what
@@ -38,12 +38,8 @@ browser before it shipped, but a branch that has not been reviewed should not ha
 
 ## What the build does
 
-`pnpm run build:lite` runs `tsc --noEmit && vite build`, so a type error fails the deploy before
+`pnpm run build` runs `tsc --noEmit && vite build`, so a type error fails the deploy before
 anything is published.
-
-It also runs the check from [ADR-0011](adr/0011-lite-has-no-commercial-data-path.md): if a module
-under `commercial/` reaches the bundle, the build fails and names it. That check runs on
-Cloudflare's builder exactly as it does locally.
 
 `web-public/_headers` is copied into the output. It carries the Content-Security-Policy and the
 cache rules, and explains itself — including why `connect-src 'none'` is a statement of fact rather
@@ -66,7 +62,7 @@ The About modal shows the short commit SHA, taken from `CF_PAGES_COMMIT_SHA` on 
 ## Running the same build locally
 
 ```sh
-pnpm run build # into dist-lite/
+pnpm run build # into dist/
 pnpm preview   # serve it on http://localhost:4173
 ```
 
