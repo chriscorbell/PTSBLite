@@ -1,18 +1,9 @@
 import { rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
-/**
- * Typesetting shared by every PDF this app produces.
- *
- * Extracted when the second document arrived: PTSBuilder prints a quote and
- * PTSBuilderLite prints a bill of materials, and the two share their page size,
- * palette, text drawing and — the part that matters — WinAnsi sanitising.
- *
- * Deliberately money-neutral. Currency formatting stays with the quote, so this
- * module is safe for a product that must show no prices to import.
- */
+/** Typesetting primitives for the bill-of-materials PDF. */
 
-/** Long-form date for the quote header, e.g. "May 26, 2026". Defaults to today. */
-export function formatQuoteDate(date = new Date()): string {
+/** Long-form document date, e.g. "May 26, 2026". Defaults to today. */
+export function formatDocumentDate(date = new Date()): string {
   return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
@@ -25,7 +16,6 @@ export const INK = rgb(0.106, 0.118, 0.149);
 export const DIM = rgb(0.357, 0.392, 0.451);
 export const MUT = rgb(0.478, 0.502, 0.564);
 export const HAIRLINE = rgb(0.843, 0.824, 0.773);
-export const NOTE_BG = rgb(0.937, 0.925, 0.875);
 
 const CP1252_EXTRAS = new Set([
   0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030, 0x0160, 0x2039, 0x0152,
@@ -35,8 +25,7 @@ const CP1252_EXTRAS = new Set([
 
 /**
  * Codepoints WinAnsi (CP1252) encodes above Latin-1's range — the curly quotes,
- * dashes, ellipsis and symbols that word processors produce and that therefore
- * arrive in pasted company and customer details.
+ * dashes, ellipsis and symbols that word processors produce.
  */
 const TRANSLITERATIONS: Record<string, string> = {
   "‑": "-", // non-breaking hyphen
@@ -109,22 +98,4 @@ export function drawRightText(
     font,
     color: opts.color ?? INK
   });
-}
-
-export function wrapLines(font: PDFFont, size: number, text: string, maxWidth: number): string[] {
-  const words = text.split(/\s+/);
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    const width = font.widthOfTextAtSize(sanitize(candidate), size);
-    if (width > maxWidth && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = candidate;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
 }

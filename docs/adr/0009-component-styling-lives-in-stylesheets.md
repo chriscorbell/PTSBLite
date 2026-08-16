@@ -12,14 +12,12 @@ nearest when it was written:
    constants (`inputStyle`, `iconBtn`, `kbdStyle`, `labelStyle`, `th`, `td`, …).
 2. **`src/styles/app.css`** — 119 lines holding the design tokens, a reset, the app shell, and a
    handful of utility classes.
-3. **Two components injecting global CSS at render time** — a `<style>` block in `TopBar.tsx`
-   defining `.topbtn` and `.filemenu-item`, and another in `UpdateNotification.tsx` defining a
-   keyframe.
+3. **Components injecting global CSS at render time** — including a `<style>` block in `TopBar.tsx`
+   defining `.topbtn` and `.filemenu-item`.
 
-The third is the worst of the three and shows what the absence of a convention cost. `.topbtn` was
-defined inside `TopBar` but *used* by `UpdateNotification`, so a component's styling depended on an
-unrelated component being mounted. The rules were global despite living in a component, re-inserted
-into the document on every render, and ordered by mount rather than by cascade.
+The third is the worst of the three and shows what the absence of a convention cost. The rules were
+global despite living in a component, re-inserted into the document on every render, and ordered by
+mount rather than by cascade.
 
 The inline majority cost something subtler. With no stylesheet to put a rule in, reuse had to happen
 in JavaScript, and where that meant threading props it did not happen at all. `LeftRail.tsx` defines
@@ -45,14 +43,8 @@ beside `LeftRail.tsx` and is imported by it.
 - **`src/styles/app.css` keeps only** design tokens, the reset, app-shell layout, and primitives
   genuinely shared by more than one component (`.topbtn`, `.filemenu-item`, `.nosel`).
 - **No `<style>` blocks in components.** Ever.
-- **`style=` is reserved for values computed at runtime** that CSS cannot know. The permitted
-  exceptions are enumerated below, and the list is exhaustive: anything not on it is a bug.
-
-### Permitted runtime-style exceptions
-
-| Site | Value | Why it cannot be a class |
-|---|---|---|
-| `App.tsx` `shellStyle` | `--topbar-left-padding`, `--topbar-right-padding` | The inset is reported by Electron per platform at runtime. Duplicating the 86/148 constants into CSS would give the same number two owners. Only the custom properties are set inline; every declaration that consumes them is in the stylesheet. |
+- **`style=` is reserved for values computed at runtime** that CSS cannot know. There are currently
+  no permitted exceptions.
 
 A value with a finite set of states is not an exception — it is a modifier class. A numeric value a
 native element can carry is not an exception either: a progress bar is `<progress value>`, not an

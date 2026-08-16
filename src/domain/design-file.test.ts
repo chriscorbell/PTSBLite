@@ -3,7 +3,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   deserializeDesign,
   serializeDesign,
-  type DesignFile
+  type SerializedDesign
 } from "@/domain/design-file";
 import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
@@ -34,18 +34,18 @@ const TEST_APP_VERSION = "9.9.9";
 
 describe("serializeDesign", () => {
   it("includes schemaVersion and appVersion headers", () => {
-    const file = serializeDesign(emptyDesign(), TEST_APP_VERSION);
-    expect(file.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-    expect(file.appVersion).toBe(TEST_APP_VERSION);
+    const payload = serializeDesign(emptyDesign(), TEST_APP_VERSION);
+    expect(payload.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(payload.appVersion).toBe(TEST_APP_VERSION);
   });
 
   it("serializes parts, obstacles, and metadata", () => {
-    const design = designFromScene(FULL_SCENE, { filename: "house.ptsb", revision: "0.3" });
-    const file = serializeDesign(design, TEST_APP_VERSION);
-    expect(file.parts).toHaveLength(4);
-    expect(file.obstacles).toHaveLength(1);
-    expect(file.metadata).toEqual({
-      filename: "house.ptsb",
+    const design = designFromScene(FULL_SCENE, { filename: "House", revision: "0.3" });
+    const payload = serializeDesign(design, TEST_APP_VERSION);
+    expect(payload.parts).toHaveLength(4);
+    expect(payload.obstacles).toHaveLength(1);
+    expect(payload.metadata).toEqual({
+      filename: "House",
       revision: "0.3",
       buildArea: DEFAULT_BUILD_AREA
     });
@@ -53,9 +53,9 @@ describe("serializeDesign", () => {
 
   it("produces JSON-stringifiable output (no live grid handle)", () => {
     const design = designFromScene(FULL_SCENE);
-    const file = serializeDesign(design, TEST_APP_VERSION);
-    const text = JSON.stringify(file);
-    const parsed = JSON.parse(text) as DesignFile;
+    const payload = serializeDesign(design, TEST_APP_VERSION);
+    const text = JSON.stringify(payload);
+    const parsed = JSON.parse(text) as SerializedDesign;
     expect(parsed.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(parsed.parts).toHaveLength(4);
   });
@@ -63,7 +63,7 @@ describe("serializeDesign", () => {
 
 describe("deserializeDesign", () => {
   it("roundtrips a full design preserving parts, obstacles, and metadata", () => {
-    const original = designFromScene(FULL_SCENE, { filename: "house.ptsb", revision: "0.3" });
+    const original = designFromScene(FULL_SCENE, { filename: "House", revision: "0.3" });
     const text = JSON.stringify(serializeDesign(original, TEST_APP_VERSION));
     const result = deserializeDesign(text);
     expect(result.ok).toBe(true);
@@ -86,7 +86,7 @@ describe("deserializeDesign", () => {
 
   it("roundtrips a custom build area", () => {
     const original = designFromScene(FULL_SCENE, {
-      filename: "house.ptsb",
+      filename: "House",
       revision: "0.3",
       buildArea: { width: 40, depth: 80, height: 12 }
     });
@@ -96,8 +96,8 @@ describe("deserializeDesign", () => {
     expect(result.design.metadata.buildArea).toEqual({ width: 40, depth: 80, height: 12 });
   });
 
-  it("defaults the build area for files saved before it existed", () => {
-    // A v1 file written before the build-area field was added.
+  it("defaults the build area for designs saved before it existed", () => {
+    // A v1 payload written before the build-area field was added.
     const legacy = {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       appVersion: "0.1.0",

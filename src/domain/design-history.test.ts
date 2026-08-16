@@ -73,10 +73,10 @@ describe("designHistoryReducer", () => {
       initDesignHistory(design("a")),
       { type: "commit", design: design("b") },
       { type: "undo" },
-      { type: "reset", design: design("opened") }
+      { type: "reset", design: design("restored") }
     );
 
-    expect(history.present.metadata.filename).toBe("opened");
+    expect(history.present.metadata.filename).toBe("restored");
     expect(canUndo(history)).toBe(false);
     expect(canRedo(history)).toBe(false);
   });

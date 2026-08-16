@@ -24,8 +24,8 @@ describe("DesignState", () => {
   });
 
   it("emptyDesign accepts metadata overrides", () => {
-    const d = emptyDesign({ filename: "house.ptsb", revision: "1.2" });
-    expect(d.metadata.filename).toBe("house.ptsb");
+    const d = emptyDesign({ filename: "Main loop", revision: "1.2" });
+    expect(d.metadata.filename).toBe("Main loop");
     expect(d.metadata.revision).toBe("1.2");
   });
 
@@ -53,8 +53,8 @@ describe("DesignState", () => {
 
   it("designFromScene applies metadata overrides", () => {
     const scene: Scene = { parts: [], obstacles: [] };
-    const d = designFromScene(scene, { filename: "x.ptsb" });
-    expect(d.metadata.filename).toBe("x.ptsb");
+    const d = designFromScene(scene, { filename: "Warehouse" });
+    expect(d.metadata.filename).toBe("Warehouse");
     expect(d.metadata.revision).toBe(DEFAULT_REVISION);
   });
 });

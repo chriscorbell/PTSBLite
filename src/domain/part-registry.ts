@@ -58,12 +58,10 @@ export function loadPartRegistry(entries: Record<string, PartCatalogEntry>): Par
     if (!entry.type) throw new Error(`PartRegistry: entry "${key}" missing type`);
     if (!entry.partNo) throw new Error(`PartRegistry: entry "${key}" missing partNo`);
     if ("unitPrice" in entry) {
-      // ADR-0003: the shipped catalog carries no prices, so a quote cannot be
-      // built from invented ones. This guard used to require a numeric
-      // unitPrice; it now refuses one, so the placeholders cannot come back by
-      // way of a catalog edit.
+      // The public product has no commercial data path. Rejecting a price here
+      // prevents a catalog edit from silently creating one.
       throw new Error(
-        `PartRegistry: entry "${key}" carries a unitPrice. Prices are installer-entered (ADR-0003).`
+        `PartRegistry: entry "${key}" carries a unitPrice. PTSBuilderLite has no prices (ADR-0011).`
       );
     }
     if (entry.type === "bend") {

@@ -4,9 +4,7 @@ import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
-// PTSBuilderLite: the browser build. PTSBuilder's Electron build is configured
-// separately in electron.vite.config.ts; the two share `src/` but not an entry
-// point, and nothing reachable from this one is commercial.
+// PTSBuilderLite is the repository's only application and deployment target.
 
 const pkg = JSON.parse(readFileSync(resolve(__dirname, "package.json"), "utf-8")) as {
   version: string;
@@ -18,12 +16,9 @@ const repoUrl = pkg.repository.url.replace(/^git\+/, "").replace(/\.git$/, "");
 /**
  * What this build calls itself.
  *
- * Not `package.json`'s version. That only moves when a desktop release tag is
- * cut, and desktop releases are paused while Lite deploys on every push to
- * `main` — so it would name a build from weeks ago. The commit is the only
- * thing that identifies what is actually deployed. Cloudflare Pages supplies
- * `CF_PAGES_COMMIT_SHA`; a local build falls back to git, and a build with
- * neither says so rather than inventing a number.
+ * The commit identifies the exact static build that is deployed. Cloudflare
+ * Pages supplies `CF_PAGES_COMMIT_SHA`; a local build falls back to git, and a
+ * build with neither says so rather than inventing a number.
  */
 function buildId(): string {
   const fromPages = process.env.CF_PAGES_COMMIT_SHA;
@@ -40,8 +35,7 @@ export default defineConfig({
   publicDir: resolve(__dirname, "web-public"),
   resolve: {
     alias: {
-      "@": resolve(__dirname, "src"),
-      "@shared": resolve(__dirname, "shared")
+      "@": resolve(__dirname, "src")
     }
   },
   define: {
@@ -51,16 +45,13 @@ export default defineConfig({
   },
   build: {
     outDir: "dist-lite",
-    emptyOutDir: true,
-    rollupOptions: {
-      input: resolve(__dirname, "index-lite.html")
-    }
+    emptyOutDir: true
   },
-  plugins: [react(), noCommercialCode(), emitAsIndexHtml()]
+  plugins: [react(), noCommercialCode()]
 });
 
 /**
- * Fail the build if anything commercial or Electron-only reaches the bundle.
+ * Fail the build if commercial code reaches the public marketing app.
  *
  * This is the enforcement behind ADR-0011. PTSBuilderLite must be unable to
  * show a price, and the guarantee is that the modules which know what a price
@@ -72,10 +63,7 @@ export default defineConfig({
  * computed currency string would evade it.
  */
 function noCommercialCode(): Plugin {
-  const FORBIDDEN = [
-    { pattern: "/commercial/", why: "prices, quote readiness and the quote PDF" },
-    { pattern: "/platform/electron", why: "the Electron preload bridge" }
-  ];
+  const FORBIDDEN = [{ pattern: "/commercial/", why: "pricing or quote functionality" }];
   return {
     name: "ptsbuilder:no-commercial-code",
     apply: "build",
@@ -91,42 +79,10 @@ function noCommercialCode(): Plugin {
       }
       if (offenders.length > 0) {
         this.error(
-          "PTSBuilderLite must contain no commercial or Electron code, but these " +
+          "PTSBuilderLite must contain no commercial code, but these " +
             `modules reached the bundle:\n${offenders.join("\n")}\n` +
-            "See ADR-0011. Something on the Lite entry's import graph pulled them in."
+            "See ADR-0011. Something on the app's import graph pulled them in."
         );
-      }
-    }
-  };
-}
-
-/**
- * Emit `index-lite.html` as `index.html`.
- *
- * The entry has to be named distinctly in the repository root so it does not
- * collide with Electron's `index.html`, but a static host needs to serve it as
- * the directory index.
- */
-function emitAsIndexHtml(): Plugin {
-  return {
-    name: "ptsbuilder:emit-as-index",
-    apply: "build",
-    // Renamed in the bundle rather than on disk afterwards. A `closeBundle`
-    // hook doing `renameSync` still runs when an earlier hook has failed the
-    // build, and its ENOENT then buries the error that actually mattered.
-    //
-    // `order: "post"` because Vite's own html plugin emits the document in
-    // `generateBundle` as well, and without it this runs first and finds
-    // nothing to rename.
-    generateBundle: {
-      order: "post",
-      handler(_options, bundle) {
-        const entry = Object.keys(bundle).find((name) => name.endsWith("index-lite.html"));
-        if (!entry) return;
-        const asset = bundle[entry];
-        asset.fileName = "index.html";
-        bundle["index.html"] = asset;
-        delete bundle[entry];
       }
     }
   };

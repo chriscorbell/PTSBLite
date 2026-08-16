@@ -1,9 +1,5 @@
 # Deploying PTSBuilderLite
 
-**This covers PTSBuilderLite only** — the public web app. PTSBuilder, the Electron desktop app, is
-not deployed from here and its artifact builds are currently paused; see
-[ADR-0010](adr/0010-one-codebase-two-products.md) and the header of `.github/workflows/release.yml`.
-
 PTSBuilderLite is a static site. It has no backend, makes no network request after load, and stores
 nothing outside the visitor's own browser.
 
@@ -45,10 +41,9 @@ browser before it shipped, but a branch that has not been reviewed should not ha
 `pnpm run build:lite` runs `tsc --noEmit && vite build`, so a type error fails the deploy before
 anything is published.
 
-It also runs the check from [ADR-0011](adr/0011-lite-has-no-commercial-data-path.md): if any module
-under `commercial/` or `platform/electron` reaches the bundle, the build fails and names it. That
-check runs on Cloudflare's builder exactly as it does locally, so it gates what is published and not
-only what is merged.
+It also runs the check from [ADR-0011](adr/0011-lite-has-no-commercial-data-path.md): if a module
+under `commercial/` reaches the bundle, the build fails and names it. That check runs on
+Cloudflare's builder exactly as it does locally.
 
 `web-public/_headers` is copied into the output. It carries the Content-Security-Policy and the
 cache rules, and explains itself — including why `connect-src 'none'` is a statement of fact rather
@@ -65,18 +60,16 @@ origin simply has nothing in it. There is no migration path and there is nothing
 
 ## What the deployed build calls itself
 
-Not `package.json`'s version. That only moves when a desktop release tag is cut, and those are
-paused, so it would name a build from weeks ago. The About modal shows the short commit SHA instead,
-taken from `CF_PAGES_COMMIT_SHA` on Cloudflare and from `git rev-parse` locally. The reasoning is in
-`vite.config.ts`.
+The About modal shows the short commit SHA, taken from `CF_PAGES_COMMIT_SHA` on Cloudflare and from
+`git rev-parse` locally. That identifies the exact static build being served.
 
 ## Running the same build locally
 
 ```sh
-pnpm run build:lite     # into dist-lite/
-pnpm run preview:lite   # serve it on http://localhost:4173
+pnpm run build # into dist-lite/
+pnpm preview   # serve it on http://localhost:4173
 ```
 
-`preview:lite` serves the built output, not the dev server, so it is the closest thing to what
+`preview` serves the built output, not the dev server, so it is the closest thing to what
 Cloudflare publishes. It does **not** apply `_headers` — the CSP is only enforced once Cloudflare is
 serving it, so a policy violation will not show up locally.

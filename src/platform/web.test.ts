@@ -37,33 +37,9 @@ function withFailingWrites(error: Error, body: () => void): void {
   }
 }
 
-describe("web platform capabilities", () => {
-  it("reports no window-chrome inset", () => {
-    // A browser tab owns no title bar. The renderer used to guess this from
-    // `navigator.platform` and would have indented the top bar by 86px on a Mac
-    // for controls that are not there.
-    expect(webPlatform().chrome).toEqual({ titleBarInset: 0, titleBarRightInset: 0 });
-  });
-
-  it("has no settings, updater or close gate", () => {
-    const platform = webPlatform();
-    // Null rather than no-op functions: the UI omits these controls instead of
-    // rendering ones that do nothing.
-    expect(platform.settings).toBeNull();
-    expect(platform.updates).toBeNull();
-    expect(platform.closeGate).toBeNull();
-  });
-
-  it("persists designs by session rather than by file", () => {
-    expect(webPlatform().documents.kind).toBe("session");
-  });
-});
-
 describe("session persistence", () => {
   function session() {
-    const documents = webPlatform().documents;
-    if (documents.kind !== "session") throw new Error("expected session persistence");
-    return documents;
+    return webPlatform().session;
   }
 
   it("round-trips a stored design", () => {
@@ -126,8 +102,7 @@ describe("isSafeExternalUrl", () => {
   });
 
   it("refuses schemes that execute or embed", () => {
-    // The Electron main process already refuses these. The browser would
-    // otherwise hand them straight to window.open.
+    // The browser would otherwise hand these straight to window.open.
     expect(isSafeExternalUrl("javascript:alert(1)")).toBe(false);
     expect(isSafeExternalUrl("data:text/html,<script>alert(1)</script>")).toBe(false);
     expect(isSafeExternalUrl("file:///etc/passwd")).toBe(false);

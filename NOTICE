@@ -1,9 +1,9 @@
-PTSBuilder
+PTSBuilderLite
 Copyright 2026 Chris Corbell
 
 This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 
-"PTSBuilder" is a product name of Chris Corbell. Apache-2.0 grants no trademark
+"PTSBuilderLite" is a product name of Chris Corbell. Apache-2.0 grants no trademark
 rights (section 6); forks and derivative works should use a different name.
 
 This product bundles the Geist variable font via @fontsource-variable/geist,

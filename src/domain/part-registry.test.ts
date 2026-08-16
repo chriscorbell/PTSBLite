@@ -128,11 +128,9 @@ describe("declared cell counts", () => {
   });
 });
 
-describe("catalog prices", () => {
+describe("commercial data", () => {
   it("rejects an entry that carries a unitPrice", () => {
-    // The guard used to require one. ADR-0003 inverted it: prices are
-    // installer-entered, so a catalog edit must not be able to reintroduce a
-    // plausible-looking placeholder.
+    // A catalog edit must not be able to introduce commercial data.
     expect(() =>
       loadPartRegistry({
         sneaky: {

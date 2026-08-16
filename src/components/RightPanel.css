@@ -105,7 +105,7 @@
   border-top: 1px solid var(--line);
 }
 
-/* Quantity, unit price and line total all sit right-aligned in the sans face. */
+/* Quantities sit right-aligned in the sans face. */
 .bom__table th.bom__num,
 .bom__table td.bom__num {
   text-align: right;

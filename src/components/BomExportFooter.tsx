@@ -5,12 +5,7 @@ export type BomExportFooterProps = {
   onExport: () => Promise<void>;
 };
 
-/**
- * PTSBuilderLite's BOM panel footer: an export, and nothing else.
- *
- * Its counterpart is `commercial/QuoteTotals`, which adds subtotal, tax and a
- * quote total. This product has no prices, so there is nothing to total.
- */
+/** PTSBuilderLite's BOM panel export. */
 export function BomExportFooter({ onExport }: BomExportFooterProps) {
   const [busy, setBusy] = useState(false);
 

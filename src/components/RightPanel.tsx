@@ -9,14 +9,7 @@ export type RightPanelProps = {
   open: boolean;
   onClose: () => void;
   design: DesignState;
-  /**
-   * What sits under the parts table. Quote totals and a quote export in
-   * PTSBuilder; a BOM export in PTSBuilderLite, which shows no money.
-   *
-   * A slot rather than a flag: the totals are the only part of this panel that
-   * knows what a price is, and the product that must not show one does not
-   * import them at all.
-   */
+  /** What sits under the parts table. */
   footer: ReactNode;
 };
 

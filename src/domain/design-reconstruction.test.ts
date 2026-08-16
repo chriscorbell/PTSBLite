@@ -38,7 +38,7 @@ describe("reconstructDesign", () => {
 describe("reconstructDesign rejects parts it cannot represent", () => {
   it("rejects a part outside the build area, naming the part and the cell", () => {
     // The bug this replaces: the part stayed in `parts` and was simply absent
-    // from `grid`, so it rendered and was priced but could not be erased.
+    // from `grid`, so it rendered and appeared in the BOM but could not be erased.
     const result = rebuild([{ id: "far", type: "blower", cell: [999, 0, 0], dir: [1, 0, 0] }]);
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -129,7 +129,7 @@ describe("reconstructDesign treats obstacles as volumes, not objects", () => {
   });
 });
 
-describe("opening a file with geometry the app cannot represent", () => {
+describe("restoring geometry the app cannot represent", () => {
   function fileWith(parts: Part[], obstacles: Obstacle[] = []): string {
     return JSON.stringify({
       ...serializeDesign(emptyDesign(), "9.9.9"),

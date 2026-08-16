@@ -11,20 +11,14 @@ export type DesignSettingsModalProps = {
   onClose: () => void;
 };
 
-/**
- * PTSBuilderLite's whole Settings screen.
- *
- * One pane and no tab bar, because the other three — Parts Pricing, Quote & Tax,
- * Company — exist only to produce a quote, and this product has none. They are
- * not hidden here; they are in a module this product never imports.
- */
+/** PTSBuilderLite's design settings. */
 export function DesignSettingsModal({
   metadata,
   onMetadataChange,
   onClose
 }: DesignSettingsModalProps) {
-  // Edit against a draft and commit on Save, matching how the desktop settings
-  // screen behaves — a half-typed build-area number should not resize the grid.
+  // A half-typed build-area number should not resize the grid, so edits use a
+  // draft and apply together on Save.
   const [draft, setDraft] = useState<DesignMetadata>(metadata);
 
   const handleSave = () => {

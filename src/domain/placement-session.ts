@@ -40,8 +40,7 @@ import type { BuildArea, DesignState, Ghost, ToolId, Vec3 } from "@/types";
  * independent: arming a tool abandons whatever the last one had in flight, and
  * shrinking the build area both clamps the elevation and drops the draft. Rules
  * like that belong somewhere they can be stated once and tested without a
- * renderer, which is the same argument `document-session.ts` already makes for
- * the document half of the app.
+ * renderer.
  *
  * Nothing here touches React, the DOM, or the file system, and nothing here
  * generates an id — `attemptPlacement` takes one, so it stays a function of its

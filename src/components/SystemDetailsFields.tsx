@@ -15,22 +15,14 @@ export type SystemDetailsFieldsProps = {
   onChange: (next: DesignMetadata) => void;
 };
 
-/**
- * System name, revision and build area.
- *
- * Shared because these belong to the design rather than to a product: they are
- * saved into the file and both PTSBuilder and PTSBuilderLite let you edit them.
- * Everything else on PTSBuilder's Settings screen — prices, tax, seller
- * identity, quote defaults — exists only to produce a quote, so Lite has none
- * of it and reuses just this.
- */
+/** System name, revision and build area stored with the design. */
 export function SystemDetailsFields({ value, onChange }: SystemDetailsFieldsProps) {
   const setBuildArea = (patch: Partial<BuildArea>) =>
     onChange({ ...value, buildArea: clampBuildArea({ ...value.buildArea, ...patch }) });
 
   return (
     <div className="settings__fields">
-      <p className="settings__note">These belong to the current design and are saved with it.</p>
+      <p className="settings__note">Changes are saved automatically in this browser.</p>
       <Field label="System name">
         <input
           value={value.filename}
