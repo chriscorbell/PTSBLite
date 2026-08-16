@@ -10,7 +10,7 @@ import type { DesignMetadata, DesignState, Obstacle, Part, Vec3 } from "@/types"
  *
  * `DesignState` carries a `SparseGrid` alongside its `parts` and `obstacles`,
  * and the two must agree — a part registered in one but not the other renders
- * and gets priced but cannot be erased or collided with. CONTEXT.md names this
+ * and appears in the BOM but cannot be erased or collided with. CONTEXT.md names this
  * as the invariant that matters most in the codebase.
  *
  * Reconstruction used to degrade in two different unchosen ways. Out-of-bounds

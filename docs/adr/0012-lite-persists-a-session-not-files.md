@@ -5,9 +5,8 @@
 
 ## Context
 
-PTSBuilder saves and opens `.ptsb` files through native dialogs. A browser tab has no such thing,
-and PTSBuilderLite's visitors are prospects trying the tool out — people with no reason to want a
-file, and nowhere obvious to put one.
+PTSBuilderLite's visitors are exploring the product in a browser. They have no reason to manage a
+design file, but they do expect closing the tab and returning later not to lose their work.
 
 What they do have a reason to expect is that closing the tab and coming back later does not lose
 their work.
@@ -16,8 +15,8 @@ their work.
 
 **One design, autosaved to `localStorage`, offered back on return.**
 
-The value stored under `ptsbuilder-lite:autosave:v1` is exactly what `serializeDesign` produces —
-the same payload a `.ptsb` file holds. No wrapper, no second version number: a timestamp and an
+The value stored under `ptsbuilder-lite:autosave:v1` is exactly what `serializeDesign` produces.
+No wrapper, no second version number: a timestamp and an
 independent autosave format version would both be things to maintain with no use the UI has asked
 for.
 
@@ -48,8 +47,7 @@ something to lose, and that prompt is all a browser offers.
 ## Consequences
 
 There is no Save, Save As or Open in PTSBuilderLite, and no unsaved-work marker — the design is
-never not saved. `App` derives all of that from `platform.documents.kind` rather than from a
-product flag, so a host that cannot do something never renders a control claiming it can.
+never not saved.
 
 **A design lives in one browser profile on one machine.** Clearing site data loses it. A different
 browser, a different machine, or private browsing sees nothing. This is a real product limitation
@@ -62,7 +60,6 @@ before telling anyone about the tool.
 **One slot means two tabs overwrite each other.** Last write wins. Documented rather than
 coordinated against, because multi-tab work has not been asked for.
 
-**A future schema change must handle autosave before it deploys.** Sharing the file format avoids a
-second migration path, which is the point, but it also means `CURRENT_SCHEMA_VERSION` moving will
+**A future schema change must handle autosave before it deploys.** `CURRENT_SCHEMA_VERSION` moving will
 make every stored session unreadable until `deserializeDesign` can migrate it. The backup key is
 what makes that recoverable rather than final.

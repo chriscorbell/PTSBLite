@@ -3,19 +3,18 @@
 What the current model can and cannot express, so an incoming requirement can be sized in an
 afternoon rather than a week.
 
-This is a map of the blast radius, not a roadmap. Nothing here is a commitment to change, and
+This records the scope of each assumption, not a roadmap. Nothing here is a commitment to change, and
 several entries are deliberate and correct.
 
 **Entries are classified, because the categories cost wildly different amounts.** A workflow
-limitation is usually days; a schema limitation reaches the file format, the grid, the renderer and
+limitation is usually days; a schema limitation reaches the serialized format, the grid, the renderer and
 the router at once.
 
 | Category | Meaning |
 |---|---|
-| **Schema** | The data model genuinely cannot represent it. Changing it touches the file format and everything downstream |
+| **Schema** | The data model genuinely cannot represent it. Changing it touches the serialized format and everything downstream |
 | **Workflow** | The state could hold it; the UI and validation assume otherwise |
 | **Provisional** | A deliberate v1 fence, already documented, expected to be revisited |
-| **Commercial** | Placeholder or installer-supplied data, never authoritative |
 | **Absent** | Simply not built |
 
 ---
@@ -24,7 +23,7 @@ the router at once.
 
 **1 cell = 1 ft, integer coordinates.** `Vec3` is a integer triple throughout, and `SparseGrid` keys
 on it. Sub-foot placement, metric units, or a different resolution would change every geometry
-module, the file format, and the renderer's cell-to-world mapping. *Authoritative per
+module, the serialized format, and the renderer's cell-to-world mapping. *Authoritative per
 [ADR-0001](adr/0001-engineering-constraints-are-authoritative.md) — this is a spec fact, not a
 convenience.*
 
@@ -37,12 +36,7 @@ new footprint generation. See [ADR-0005](adr/0005-defer-the-bend-geometry-model.
 **One build area per design.** A single width × depth × height box centred on the origin, rising
 from Y = 0. No rooms, floors, zones, or non-rectangular sites.
 
-**Flat per-part pricing.** A quote is quantity × unit price, plus one tax rate. No quantity breaks,
-labour lines, discounts, freight, or arbitrary line items.
-
-**One design per file, one file per window.** No project containers, no multi-document.
-
-**In PTSBuilderLite, one design per browser profile.** There are no files at all: a single design
+**One design per browser profile.** A single design
 autosaves to `localStorage` and is offered back on return
 ([ADR-0012](adr/0012-lite-persists-a-session-not-files.md)). It lives in one browser on one machine
 — clearing site data loses it, and a different browser sees nothing. Storage is scoped to the
@@ -57,8 +51,7 @@ other, last write wins.
 enforced by `validation.ts` and assumed by the placement rules, not by the schema. Relaxing the
 count is materially cheaper than it looks. *See Provisional below for the two-terminal fence.*
 
-**Single-direction system.** Assumed by the quote's default wording and by how the topology is
-walked, not by the data.
+**Single-direction system.** Assumed by how the topology is walked, not by the data.
 
 **Terminal 1 must sit flush against the blower outlet**, zero tubing between. *Authoritative per
 ADR-0001 — a spec requirement, not a workflow convenience.*
@@ -75,13 +68,9 @@ build area to describe a Y origin rather than assuming zero.
 largest determinant of how much routing and validation work the client's requirements imply, and
 worth asking about early.
 
-**Unsigned Windows builds.** [ADR-0006](adr/0006-ship-unsigned-builds.md) — revisit if the software
-is sold beyond one customer, or a customer's IT policy blocks unsigned executables. macOS is signed
-and notarized.
-
 ---
 
-## Commercial
+## Published catalog
 
 **Part numbers and names** in `src/data/parts.json` are invented and will be replaced when the real
 catalog arrives. The `partNo` values in particular look authoritative and are not. **They are now
@@ -90,15 +79,13 @@ and keep. That is a deliberate decision, recorded in
 [ADR-0013](adr/0013-lite-publishes-placeholder-part-numbers.md), and it is the one place invented
 data reaches a customer-facing artifact on purpose. Issue #94.
 
-**Prices and the tax rate ship empty** and are entered by the installer
-([ADR-0003](adr/0003-quotes-require-installer-entered-pricing.md)). The catalog cannot carry a
-price — `loadPartRegistry` rejects one. In PTSBuilderLite there are no prices at all, and no code
-that could hold one ([ADR-0011](adr/0011-lite-has-no-commercial-data-path.md)); a requirement that
-puts money on a Lite screen is a requirement for PTSBuilder.
+**Prices do not exist in this product.** The catalog cannot carry one: `loadPartRegistry` rejects
+`unitPrice`, and the BOM model has no price field
+([ADR-0011](adr/0011-lite-has-no-commercial-data-path.md)). A requirement that adds money changes
+the product's scope and needs an explicit new decision.
 
 **The stock-tube purchasing rule is an open question**, not a decision. `bomRows` currently uses
-`ceil(total tube feet / 6)`, which assumes offcuts are not reused — and the default quote wording
-disclaims exactly that. See issue #48.
+`ceil(total tube feet / 6)`, which assumes offcuts are not reused. See issue #48.
 
 ---
 
@@ -109,10 +96,6 @@ The only way to change a placed part is to erase it and place another. **This is
 to appear in the client's requirements**, and it is substantial — it implies a selection model,
 hit-testing beyond the current erase path, move/rotate operations that maintain the grid invariant,
 and probably multi-select.
-
-**Per-quote fields.** Customer name, quote number, project and notes are *global settings*, so
-quoting a second customer means editing Settings first. Issue #54 — the first quote is necessarily
-correct because export is gated, but the second one can carry the first one's name.
 
 **Copy, duplicate, array, mirror.** No bulk operations of any kind.
 
@@ -129,7 +112,7 @@ failed, because autosave means there is otherwise nothing to lose.
 ## How to use this when requirements arrive
 
 A requirement that only touches **Workflow** or **Absent** is ordinary feature work. One that
-touches **Schema** needs a design pass and probably a file-format version bump. One that contradicts
+touches **Schema** needs a design pass and probably a serialized-format version bump. One that contradicts
 an **Authoritative** constant (marked above and in `CONTEXT.md`) needs a cited source before
 anything is written — that is what ADR-0001 exists to prevent.
 

@@ -6,9 +6,3 @@ pnpm-lock.yaml
 
 # Prose is hand-wrapped; reflowing it churns the ADRs and CONTEXT.md for no gain.
 *.md
-
-# Signed with codesign, which parses entitlements using AMFIUnserializeXML — a
-# far more primitive parser than a real XML one. It rejected this file when it
-# carried an XML comment and self-closing tags written as `<true />`. Keep it
-# byte-for-byte as Apple's own templates write it.
-build/entitlements.mac.plist

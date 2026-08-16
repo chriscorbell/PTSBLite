@@ -1,12 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { act } from "react";
-import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
-import { serializeDesign } from "@/domain/design-file";
-import { designFromScene } from "@/domain/design-state";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Vec3 } from "@/types";
 import type { ViewportHandle, ViewportProps } from "@/renderer/Viewport";
 import type { Platform } from "@/platform/types";
-import type { ProductSurfaces } from "@/products/types";
 
 // The real Viewport builds a WebGLRenderer, which happy-dom cannot provide. It
 // is also the only part of the tree that needs a GPU, so mocking just this
@@ -34,136 +31,29 @@ afterEach(() => {
   viewport.props = null;
   viewport.handle.zoomBy.mockClear();
   viewport.handle.resetView.mockClear();
-  platform = null;
   vi.restoreAllMocks();
 });
 
 async function renderApp() {
   const App = (await import("@/App")).default;
-  const utils = render(<App platform={platform ?? stubPlatform()} product={stubProduct()} />);
-  // The app queries persisted settings on mount; let that microtask settle so
-  // the first assertion is not racing a state update.
+  const utils = render(<App platform={stubPlatform()} />);
   await act(async () => {
     await Promise.resolve();
   });
   return utils;
 }
 
-/**
- * The host the next `renderApp()` will be given. Set by `stubBridge`, which most
- * tests do not need — those get the defaults below.
- */
-let platform: Platform | null = null;
-
-/**
- * Install a fake host. App queries settings and pending updates on mount, so
- * every stub needs those present or the component fails to render for reasons
- * unrelated to the test.
- *
- * Override keys keep the old bridge names because that is what the assertions
- * read; what changed is that they are wired into a `Platform` rather than onto
- * `window`.
- */
-type BridgeStubs = {
-  getSettings: Mock<() => Promise<{ data: unknown; error?: string }>>;
-  setSettings: Mock<(json: string) => Promise<{ ok: boolean; error?: string }>>;
-  saveDesign: Mock<
-    (request: { json: string; filePath?: string | null }) => Promise<{
-      canceled: boolean;
-      filePath: string | null;
-      error?: string;
-    }>
-  >;
-  openDesign: Mock<
-    () => Promise<{
-      canceled: boolean;
-      filePath: string | null;
-      contents: string | null;
-      error?: string;
-    }>
-  >;
-  exportQuote: Mock<(bytes: Uint8Array, name: string) => Promise<{ canceled: boolean }>>;
-  onUpdateDownloaded: Mock<(cb: (info: { version: string }) => void) => () => void>;
-  getPendingUpdate: Mock<() => Promise<{ version: string } | null>>;
-  onCloseRequested: (cb: () => void) => () => void;
-  confirmClose: Mock<() => Promise<void>>;
-};
-
-function stubBridge(overrides: Partial<BridgeStubs> = {}): BridgeStubs {
-  const stubs: BridgeStubs = {
-    getSettings: vi.fn().mockResolvedValue({ data: null }),
-    setSettings: vi.fn().mockResolvedValue({ ok: true }),
-    saveDesign: vi.fn().mockResolvedValue({ canceled: true, filePath: null }),
-    openDesign: vi.fn().mockResolvedValue({ canceled: true, filePath: null, contents: null }),
-    exportQuote: vi.fn().mockResolvedValue({ canceled: false }),
-    onUpdateDownloaded: vi.fn().mockReturnValue(() => undefined),
-    getPendingUpdate: vi.fn().mockResolvedValue(null),
-    onCloseRequested: () => () => undefined,
-    confirmClose: vi.fn().mockResolvedValue(undefined),
-    ...overrides
-  };
-
-  platform = {
-    chrome: { titleBarInset: 0, titleBarRightInset: 0 },
-    documents: {
-      kind: "files",
-      save: async (request) => {
-        const r = await stubs.saveDesign({ json: request.json, filePath: request.path });
-        return { canceled: r.canceled, path: r.filePath ?? null, error: r.error };
-      },
-      open: async () => {
-        const r = await stubs.openDesign();
-        return {
-          canceled: r.canceled,
-          path: r.filePath ?? null,
-          contents: r.contents ?? null,
-          error: r.error
-        };
-      }
-    },
-    settings: {
-      load: async () => {
-        const r = await stubs.getSettings();
-        return { data: r.data, error: r.error };
-      },
-      save: async (json) => stubs.setSettings(json)
-    },
-    savePdf: async (bytes, name) => stubs.exportQuote(bytes, name),
-    openExternal: vi.fn(),
-    updates: {
-      check: vi.fn().mockResolvedValue({ status: "up-to-date" }),
-      getPending: () => stubs.getPendingUpdate(),
-      quitAndInstall: vi.fn().mockResolvedValue(undefined),
-      onDownloaded: (cb) => stubs.onUpdateDownloaded(cb)
-    },
-    closeGate: {
-      onRequested: (cb) => stubs.onCloseRequested(cb),
-      confirm: () => stubs.confirmClose()
-    }
-  };
-  return stubs;
-}
-
-/**
- * A product with no commercial surfaces. `App` holds only the editor, so the
- * suite that exercises the editor needs nothing more than empty slots — which
- * is itself a check that the shell does not depend on them.
- */
-function stubProduct(): ProductSurfaces {
-  return {
-    name: "PTSBuilder",
-    settingsMenu: [{ id: "system", label: "System Details…" }],
-    error: null,
-    renderSettings: () => null,
-    renderBomFooter: () => null,
-    renderOverlays: () => null
-  };
-}
-
-/** A host with every default, for the tests that do not care which. */
 function stubPlatform(): Platform {
-  stubBridge();
-  return platform as Platform;
+  return {
+    session: {
+      load: () => null,
+      store: () => ({ ok: true }),
+      clear: () => undefined,
+      preserveUnreadable: () => undefined
+    },
+    savePdf: vi.fn().mockResolvedValue({}),
+    openExternal: vi.fn()
+  };
 }
 
 /** Click the grid at `cell`, as the 3D viewport would on a left click. */
@@ -319,80 +209,6 @@ describe("in-flight interactions", () => {
   });
 });
 
-describe("opening a design", () => {
-  /** Answer the app's own unsaved-changes dialog. */
-  function answerUnsavedPrompt(discard: boolean) {
-    const dialog = screen.getByRole("dialog");
-    const name = discard ? "Discard and open" : "Cancel";
-    fireEvent.click(within(dialog).getByRole("button", { name }));
-  }
-
-  function stubOpenDesign(contents: string) {
-    const openDesign = vi.fn().mockResolvedValue({
-      canceled: false,
-      filePath: "/tmp/incoming.ptsb",
-      contents
-    });
-    stubBridge({ openDesign });
-    return openDesign;
-  }
-
-  function chooseFileOpen() {
-    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: /Open/ }));
-  }
-
-  it("leaves the current design alone when the unsaved-changes prompt is declined", async () => {
-    const openDesign = stubOpenDesign("{}");
-    await renderApp();
-
-    fireEvent.keyDown(window, { key: "o" });
-    clickCell([0, 0, 0]);
-    clickCell([2, 0, 2]);
-    act(() => placeButton()?.click());
-    expect(canUndo()).toBe(true);
-
-    chooseFileOpen();
-    answerUnsavedPrompt(false);
-
-    expect(openDesign).not.toHaveBeenCalled();
-    expect(canUndo()).toBe(true);
-  });
-
-  it("discards the undo history of the design being replaced", async () => {
-    const incoming = serializeDesign(
-      designFromScene(
-        { parts: [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }], obstacles: [] },
-        { filename: "incoming.ptsb", revision: "2" }
-      ),
-      "9.9.9"
-    );
-    stubOpenDesign(JSON.stringify(incoming));
-
-    await renderApp();
-
-    // Build up some history first, so we can prove it gets dropped.
-    fireEvent.keyDown(window, { key: "o" });
-    clickCell([0, 0, 0]);
-    clickCell([2, 0, 2]);
-    act(() => placeButton()?.click());
-    fireEvent.keyDown(window, { key: "z", metaKey: true });
-    expect(canUndo()).toBe(false);
-    expect(canRedo()).toBe(true);
-
-    // No unsaved-changes prompt here, and that is the point: undoing back to
-    // where the document was last saved makes it genuinely clean again, which a
-    // dirty *counter* would have got wrong.
-    chooseFileOpen();
-
-    // Both stacks belong to the previous document and must not survive it.
-    await waitFor(() => {
-      expect(canRedo()).toBe(false);
-    });
-    expect(canUndo()).toBe(false);
-  });
-});
-
 describe("the placement ghost", () => {
   // The ghost is derived during render rather than stored in state. These assert
   // on the prop the Viewport actually receives, which is the whole contract.
@@ -525,148 +341,5 @@ describe("camera controls", () => {
 
     const custom = dispatch.mock.calls.filter(([event]) => event.type.startsWith("ptsb-"));
     expect(custom).toEqual([]);
-  });
-});
-
-describe("saving a design", () => {
-  function stubSaveDesign(filePath = "/designs/site.ptsb") {
-    const saveDesign = vi.fn().mockResolvedValue({ canceled: false, filePath });
-    stubBridge({ saveDesign });
-    return saveDesign;
-  }
-
-  function chooseFileMenu(item: RegExp) {
-    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: item }));
-  }
-
-  function placeSomething() {
-    fireEvent.keyDown(window, { key: "o" });
-    clickCell([0, 0, 0]);
-    clickCell([2, 0, 2]);
-    act(() => placeButton()?.click());
-  }
-
-  it("prompts on the first save, then writes straight to the same file", async () => {
-    // Save used to call showSaveDialog every time, so every save was a Save As
-    // and the file on disk multiplied (issue #7).
-    const saveDesign = stubSaveDesign();
-    await renderApp();
-    placeSomething();
-
-    chooseFileMenu(/^Save$/);
-    await waitFor(() => expect(saveDesign).toHaveBeenCalledTimes(1));
-    expect(saveDesign.mock.calls[0][0]).toMatchObject({ filePath: null });
-
-    placeSomething();
-    chooseFileMenu(/^Save$/);
-    await waitFor(() => expect(saveDesign).toHaveBeenCalledTimes(2));
-    expect(saveDesign.mock.calls[1][0]).toMatchObject({ filePath: "/designs/site.ptsb" });
-  });
-
-  it("always prompts for Save As, even once the document has a home", async () => {
-    const saveDesign = stubSaveDesign();
-    await renderApp();
-    placeSomething();
-
-    chooseFileMenu(/^Save$/);
-    await waitFor(() => expect(saveDesign).toHaveBeenCalledTimes(1));
-
-    chooseFileMenu(/Save As/);
-    await waitFor(() => expect(saveDesign).toHaveBeenCalledTimes(2));
-    expect(saveDesign.mock.calls[1][0]).toMatchObject({ filePath: null });
-  });
-
-  it("shows the saved filename and marks unsaved work", async () => {
-    stubSaveDesign();
-    await renderApp();
-
-    expect(screen.getByTitle("untitled.ptsb")).toBeTruthy();
-
-    placeSomething();
-    expect(screen.getByTitle("untitled.ptsb •")).toBeTruthy();
-
-    chooseFileMenu(/^Save$/);
-    await waitFor(() => expect(screen.getByTitle("site.ptsb")).toBeTruthy());
-  });
-
-  it("guards New behind a confirmation when there is unsaved work", async () => {
-    stubBridge();
-    await renderApp();
-    placeSomething();
-    expect(canUndo()).toBe(true);
-
-    chooseFileMenu(/^New$/);
-    const dialog = screen.getByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    expect(canUndo()).toBe(true);
-
-    chooseFileMenu(/^New$/);
-    fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Discard and start over" })
-    );
-    expect(canUndo()).toBe(false);
-  });
-});
-
-describe("closing the window", () => {
-  /** Capture the callback main would invoke when the user hits the close button. */
-  function stubCloseHandshake() {
-    let requestClose: (() => void) | null = null;
-    const confirmClose = vi.fn().mockResolvedValue(undefined);
-    stubBridge({
-      confirmClose,
-      onCloseRequested: (cb: () => void) => {
-        requestClose = cb;
-        return () => {
-          requestClose = null;
-        };
-      }
-    });
-    return { confirmClose, close: () => act(() => requestClose?.()) };
-  }
-
-  it("closes straight away when there is nothing to lose", async () => {
-    const { confirmClose, close } = stubCloseHandshake();
-    await renderApp();
-
-    close();
-
-    expect(confirmClose).toHaveBeenCalledTimes(1);
-  });
-
-  it("asks first when there is unsaved work, and stays open if declined", async () => {
-    // Main vetoes its own close event and waits for this answer, so declining
-    // simply means never answering — the window stays open (issue #6).
-    const { confirmClose, close } = stubCloseHandshake();
-    await renderApp();
-
-    fireEvent.keyDown(window, { key: "o" });
-    clickCell([0, 0, 0]);
-    clickCell([2, 0, 2]);
-    act(() => placeButton()?.click());
-
-    close();
-    expect(confirmClose).not.toHaveBeenCalled();
-
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
-    expect(confirmClose).not.toHaveBeenCalled();
-  });
-
-  it("closes once the user confirms discarding the work", async () => {
-    const { confirmClose, close } = stubCloseHandshake();
-    await renderApp();
-
-    fireEvent.keyDown(window, { key: "o" });
-    clickCell([0, 0, 0]);
-    clickCell([2, 0, 2]);
-    act(() => placeButton()?.click());
-
-    close();
-    fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Discard and close" })
-    );
-
-    expect(confirmClose).toHaveBeenCalledTimes(1);
   });
 });

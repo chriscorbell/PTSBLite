@@ -1,14 +1,10 @@
 .topbar {
-  /* The frameless window is dragged by its top bar; controls opt back out. */
-  -webkit-app-region: drag;
   height: 46px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
-  /* The insets are custom properties because Electron reports them per platform
-     at runtime; see ADR-0009. */
-  padding: 0 var(--topbar-right-padding) 0 var(--topbar-left-padding);
+  padding: 0 10px;
   background: linear-gradient(180deg, #181c25, #14181f);
   border-bottom: 1px solid var(--line);
   position: relative;
@@ -64,9 +60,4 @@
 
 .topbar-menu__panel--edit {
   min-width: 168px;
-}
-
-.topbar-no-drag,
-.topbar button {
-  -webkit-app-region: no-drag;
 }

@@ -7,7 +7,7 @@ import {
 import { obstacleCells, partCells, reconstructDesign } from "@/domain/design-reconstruction";
 import type { BuildArea, DesignMetadata, DesignState, Obstacle, Part, Scene } from "@/types";
 
-export const DEFAULT_FILENAME = "untitled.ptsb";
+export const DEFAULT_FILENAME = "Untitled system";
 export const DEFAULT_REVISION = "0.1";
 
 /** `p` for a part, `o` for an obstacle. Both are grid occupants. */

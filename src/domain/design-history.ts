@@ -33,7 +33,7 @@ export type DesignHistoryAction =
    */
   | { type: "replace-present"; design: DesignState }
   | { type: "redo" }
-  /** Replace the document wholesale, e.g. opening a file. Drops both stacks. */
+  /** Replace the design wholesale, such as restoring a session. Drops both stacks. */
   | { type: "reset"; design: DesignState };
 
 export function initDesignHistory(design: DesignState): DesignHistory {
@@ -84,7 +84,7 @@ export function designHistoryReducer(
     }
 
     case "reset":
-      // Both stacks belong to the document being replaced.
+      // Both stacks belong to the design being replaced.
       return initDesignHistory(action.design);
   }
 }

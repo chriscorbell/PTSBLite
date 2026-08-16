@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import "@/components/TopBar.css";
 import { Icons } from "@/components/Icons";
-import type { SettingsMenuItem } from "@/products/types";
+
+export type SettingsMenuItem = {
+  id: string;
+  label: string;
+  icon?: ReactNode;
+};
 
 export type TopBarProps = {
-  onNew?: () => void;
-  onOpen?: () => void;
-  onSave?: () => void;
-  onSaveAs?: () => void;
-  /** Shown beside the File menu; carries an asterisk when unsaved. */
+  onNew: () => void;
+  /** Shown beside the File menu. */
   documentLabel?: string;
   /**
    * The Settings screens this product offers. Empty hides the Edit menu — a
@@ -31,9 +33,6 @@ export type TopBarProps = {
 
 export function TopBar({
   onNew,
-  onOpen,
-  onSave,
-  onSaveAs,
   documentLabel,
   productName,
   settingsMenu,
@@ -51,7 +50,7 @@ export function TopBar({
   return (
     <div className="topbar nosel">
       <div className="topbar__brand">{productName}</div>
-      <FileMenu onNew={onNew} onOpen={onOpen} onSave={onSave} onSaveAs={onSaveAs} />
+      <FileMenu onNew={onNew} />
       {documentLabel && (
         <span className="topbar__document nosel" title={documentLabel}>
           {documentLabel}
@@ -105,17 +104,7 @@ export function TopBar({
   );
 }
 
-function FileMenu({
-  onNew,
-  onOpen,
-  onSave,
-  onSaveAs
-}: {
-  onNew?: () => void;
-  onOpen?: () => void;
-  onSave?: () => void;
-  onSaveAs?: () => void;
-}) {
+function FileMenu({ onNew }: { onNew: () => void }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -136,9 +125,9 @@ function FileMenu({
     };
   }, [open]);
 
-  const choose = (fn?: () => void) => {
+  const choose = (fn: () => void) => {
     setOpen(false);
-    fn?.();
+    fn();
   };
 
   return (
@@ -153,30 +142,7 @@ function FileMenu({
       </button>
       {open && (
         <div role="menu" className="topbar-menu__panel topbar-menu__panel--file topbar-no-drag">
-          {onNew && (
-            <MenuItem onSelect={() => choose(onNew)} icon={<Icons.New size={14} />} label="New" />
-          )}
-          {onOpen && (
-            <MenuItem
-              onSelect={() => choose(onOpen)}
-              icon={<Icons.Open size={14} />}
-              label="Open…"
-            />
-          )}
-          {onSave && (
-            <MenuItem
-              onSelect={() => choose(onSave)}
-              icon={<Icons.Save size={14} />}
-              label="Save"
-            />
-          )}
-          {onSaveAs && (
-            <MenuItem
-              onSelect={() => choose(onSaveAs)}
-              icon={<Icons.Save size={14} />}
-              label="Save As…"
-            />
-          )}
+          <MenuItem onSelect={() => choose(onNew)} icon={<Icons.New size={14} />} label="New" />
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@
 - **Status:** Reverted
 - **Date:** 2026-07-26
 - **Reverted:** 2026-07-26, the same day
+- **Amended:** 2026-08-16 — Electron-specific dependencies and the js-yaml override were removed.
 
 ## Context
 
@@ -19,9 +20,6 @@ first rather than rediscover it.
 Most of the migration worked, and worked well:
 
 - `bun install` migrated the pnpm lockfile unprompted; 448 packages in 1.8s.
-- **electron-builder 26 supports Bun properly** — it ships a dedicated `bunNodeModulesCollector` and
-  detects `bun.lock`. The packaged asar had the same 265 entries as the pnpm build, `electron-updater`
-  included, and the packaged app launched with a clean renderer console.
 - **Dependabot supports Bun.** `package-ecosystem: bun` was accepted and produced an update PR.
 - `trustedDependencies` expresses what `pnpm-workspace.yaml`'s `allowBuilds` does.
 - CI ran in 41s instead of 50s.
@@ -37,8 +35,8 @@ Three things decided it, all specific to this project rather than to Bun:
 **pnpm's `minimumReleaseAge` is worth more here than the speed is.** It refuses packages published
 within the last few days, guarding against installing a compromised release in the window before
 anyone notices. That is not hypothetical: it blocked a Dependabot PR the day before the migration.
-This repository runs Dependabot weekly, will sit unattended for months awaiting client requirements,
-and ships signed installers to a paying customer. Bun has no equivalent, and `bun audit` is not one —
+This repository runs Dependabot weekly and publishes a public web application. Bun has no
+equivalent, and `bun audit` is not one —
 it reports *known* advisories, which is a different and later thing. `pnpm audit signatures`, which
 verifies registry signatures, has no Bun equivalent either.
 
@@ -53,11 +51,7 @@ install that runs a handful of times a week.
 ## Consequences
 
 - `pnpm-lock.yaml`, `pnpm-workspace.yaml` and the pnpm workflows are restored.
-- The one thing kept from the trial is the **js-yaml override**, which fixed a real shipped
-  vulnerability. It moved from Bun's `overrides` in `package.json` to pnpm's `overrides` in
-  `pnpm-workspace.yaml` — pnpm 11 no longer reads settings from `package.json` at all, and silently
-  ignores a `pnpm.overrides` key there with only a warning. Worth knowing: the override *looked*
-  applied and was not, until the resolved version was checked directly.
+- pnpm 11 reads settings from `pnpm-workspace.yaml`, not `package.json`.
 - `bun audit` deserves no credit for finding that vulnerability. `pnpm audit` finds it too. It was
   found because an audit was finally run, not because of the package manager.
 

@@ -1,33 +1,23 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-  type CSSProperties
-} from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { AboutModal } from "@/components/AboutModal";
 import { ActiveToolBar } from "@/components/ActiveToolBar";
+import { BomExportFooter } from "@/components/BomExportFooter";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DesignSettingsModal } from "@/components/DesignSettingsModal";
+import { Icons } from "@/components/Icons";
 import { LeftRail } from "@/components/LeftRail";
 import { RightPanel } from "@/components/RightPanel";
 import { StatusBar } from "@/components/StatusBar";
 import { TopBar } from "@/components/TopBar";
 import { ViewportHUD } from "@/components/ViewportHUD";
-import { deserializeDesign, serializeDesign } from "@/domain/design-file";
+import { generateBomPdf } from "@/domain/bom-pdf";
+import { serializeDesign } from "@/domain/design-file";
 import {
   isWorthKeeping,
   readStoredSession,
   UNREADABLE_SESSION_MESSAGE
 } from "@/domain/session-autosave";
-import { canRedo, canUndo } from "@/domain/design-history";
-import {
-  displayFilename,
-  documentSessionReducer,
-  initDocumentSession,
-  isDirty
-} from "@/domain/document-session";
+import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
 import {
   DEFAULT_FILENAME,
   DEFAULT_REVISION,
@@ -56,7 +46,6 @@ import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
-import type { ProductSurfaces } from "@/products/types";
 import { Viewport, type ViewportHandle } from "@/renderer/Viewport";
 import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
 
@@ -78,7 +67,11 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
   x: "erase"
 };
 
+const PRODUCT_NAME = "PTSBuilderLite";
 const DESIGN_METADATA = { filename: DEFAULT_FILENAME, revision: DEFAULT_REVISION };
+const SETTINGS_MENU = [
+  { id: "system", label: "Design Settings…", icon: <Icons.Layers size={14} /> }
+];
 
 /**
  * How long to wait after a change before autosaving.
@@ -124,53 +117,26 @@ function describeLoss(parts: number, obstacles: number): string {
 }
 
 export type AppProps = {
-  /** The host this is running inside. See `src/platform/types.ts`. */
   platform: Platform;
-  /** What differs between PTSBuilder and PTSBuilderLite. */
-  product: ProductSurfaces;
 };
 
-export default function App({ platform, product }: AppProps) {
-  const { titleBarInset, titleBarRightInset } = platform.chrome;
-  // A host that autosaves a session has no Open, Save or Save As, and no
-  // unsaved state to mark — the design is never not saved.
-  const usesFiles = platform.documents.kind === "files";
-  const sessionStore = platform.documents.kind === "session" ? platform.documents : null;
+export default function App({ platform }: AppProps) {
+  const sessionStore = platform.session;
 
   // Read at first render rather than in an effect. This is the design the app
   // starts from, not a reaction to something — an effect would render the empty
   // design first, then replace it, and `localStorage` is synchronous anyway.
-  const [storedSession] = useState(() =>
-    readStoredSession(sessionStore ? sessionStore.load() : null)
-  );
-  const shellStyle = useMemo(
-    () =>
-      // The assertion is required: this @types/react has no index signature for
-      // CSS custom properties, so a bare object literal is not assignable to
-      // `style`. no-unnecessary-type-assertion disagrees with tsc here.
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      ({
-        "--topbar-left-padding": `${Math.max(10, titleBarInset)}px`,
-        "--topbar-right-padding": `${Math.max(10, titleBarRightInset)}px`
-      }) as CSSProperties & Record<"--topbar-left-padding" | "--topbar-right-padding", string>,
-    [titleBarInset, titleBarRightInset]
-  );
+  const [storedSession] = useState(() => readStoredSession(sessionStore.load()));
   // The design and its undo/redo stacks move together, so they are one reducer.
   // `dispatchHistory` is stable, which is what lets the history callbacks below
   // stay stable without mirroring the current design into a ref.
-  const [session, dispatchDocument] = useReducer(
-    documentSessionReducer,
+  const [history, dispatchDocument] = useReducer(
+    designHistoryReducer,
     DESIGN_METADATA,
-    (metadata) => initDocumentSession(emptyDesign(metadata))
+    (metadata) => initDesignHistory(emptyDesign(metadata))
   );
-  const history = session.history;
   const design = history.present;
-  const dirty = isDirty(session);
-  // The bullet marks unsaved work against a file. A session that autosaves has
-  // nothing to mark, so Lite shows the name alone.
-  const documentLabel = usesFiles
-    ? `${displayFilename(session)}${dirty ? " •" : ""}`
-    : displayFilename(session);
+  const documentLabel = design.metadata.filename;
   const buildArea = design.metadata.buildArea;
   const undoAvailable = canUndo(history);
   const redoAvailable = canRedo(history);
@@ -196,6 +162,7 @@ export default function App({ platform, product }: AppProps) {
   const [autosaveError, setAutosaveError] = useState<string | null>(
     storedSession.status === "unreadable" ? UNREADABLE_SESSION_MESSAGE : null
   );
+  const [exportError, setExportError] = useState<string | null>(null);
   const [rightOpen, setRightOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -205,8 +172,6 @@ export default function App({ platform, product }: AppProps) {
     confirmLabel: string;
     onConfirm: () => void;
   } | null>(null);
-  // Which settings screen is open, if any. The id comes from the product's own
-  // menu; App does not know what the screens are.
   const [settingsTab, setSettingsTab] = useState<string | null>(null);
   const [autoBuilding, setAutoBuilding] = useState(false);
   const [autoBuildJustRan, setAutoBuildJustRan] = useState(false);
@@ -238,15 +203,15 @@ export default function App({ platform, product }: AppProps) {
   // console, not to the visitor, who can do nothing with it.
   useEffect(() => {
     if (storedSession.status !== "unreadable") return;
-    console.warn(`PTSBuilder: stored design could not be read - ${storedSession.reason}`);
-    sessionStore?.preserveUnreadable();
+    console.warn(`PTSBuilderLite: stored design could not be read - ${storedSession.reason}`);
+    sessionStore.preserveUnreadable();
   }, [storedSession, sessionStore]);
 
   // Autosave, debounced so a drag does not write on every frame. Nothing is
   // written until the visitor answers the restore offer, or the blank design
   // they are looking at would overwrite the one being offered.
   useEffect(() => {
-    if (!sessionStore || restoreOffer) return;
+    if (restoreOffer) return;
     if (!isWorthKeeping(design)) {
       // Starting over empties the design. Leaving the previous one in storage
       // would offer it back on the next visit, after the visitor discarded it.
@@ -266,7 +231,7 @@ export default function App({ platform, product }: AppProps) {
   // cache. Both are idempotent, and neither survives a crash — the debounce
   // above is what covers that.
   useEffect(() => {
-    if (!sessionStore || restoreOffer) return;
+    if (restoreOffer) return;
     const flush = () => {
       if (!isWorthKeeping(design)) return;
       sessionStore.store(JSON.stringify(serializeDesign(design, __APP_VERSION__)));
@@ -286,7 +251,7 @@ export default function App({ platform, product }: AppProps) {
   // there is nothing to lose and the prompt would be pure friction — but once a
   // write has failed there is, and the browser's own dialog is all there is.
   useEffect(() => {
-    if (!sessionStore || !autosaveError) return;
+    if (!autosaveError) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
@@ -459,44 +424,18 @@ export default function App({ platform, product }: AppProps) {
     [applyPlacementResult, design, placement]
   );
 
-  /**
-   * Write the document. `promptForPath` forces the dialog, which is what Save
-   * As does; Save only prompts when the document has no home yet.
-   */
-  const writeDocument = useCallback(
-    async (promptForPath: boolean) => {
-      const documents = platform.documents;
-      if (documents.kind !== "files") {
-        setErrorFlash("Save is unavailable: this build does not use files.");
-        return false;
-      }
-      try {
-        const json = JSON.stringify(serializeDesign(design, __APP_VERSION__), null, 2);
-        const result = await documents.save({
-          json,
-          path: promptForPath ? null : session.path
-        });
-        if (result.canceled) return false;
-        if (result.error || !result.path) {
-          setErrorFlash(`Save failed: ${result.error ?? "no path returned"}`);
-          return false;
-        }
-        dispatchDocument({ type: "saved", path: result.path });
-        setErrorFlash(null);
-        return true;
-      } catch (err) {
-        setErrorFlash(`Save failed: ${String(err)}`);
-        return false;
-      }
-    },
-    [design, platform.documents, session.path, setErrorFlash]
-  );
+  const exportBom = useCallback(async () => {
+    try {
+      const bytes = await generateBomPdf(design, { productName: PRODUCT_NAME });
+      const result = await platform.savePdf(bytes, bomFilename(design));
+      setExportError(result.error ? `Export failed: ${result.error}` : null);
+    } catch (err) {
+      setExportError(`Export failed: ${String(err)}`);
+    }
+  }, [design, platform]);
 
-  const handleSave = useCallback(() => writeDocument(false), [writeDocument]);
-  const handleSaveAs = useCallback(() => writeDocument(true), [writeDocument]);
-
-  /** Clear the transient state that belonged to the document being replaced. */
-  const resetForNewDocument = useCallback(() => {
+  /** Clear transient state when the current design is replaced. */
+  const resetForNewDesign = useCallback(() => {
     selectTool("cursor");
     setAutoBuildJustRan(false);
     setAutoBuildSummary(null);
@@ -504,86 +443,23 @@ export default function App({ platform, product }: AppProps) {
     setErrorFlash(null);
   }, [selectTool, setErrorFlash]);
 
-  const openDocument = useCallback(async () => {
-    const documents = platform.documents;
-    if (documents.kind !== "files") {
-      setErrorFlash("Open is unavailable: this build does not use files.");
+  const handleNew = useCallback(() => {
+    const startNew = () => {
+      sessionStore.clear();
+      dispatchDocument({ type: "reset", design: emptyDesign(DESIGN_METADATA) });
+      resetForNewDesign();
+    };
+    if (!isWorthKeeping(design)) {
+      startNew();
       return;
     }
-    try {
-      const result = await documents.open();
-      if (result.canceled) return;
-      if (result.error || result.contents === null) {
-        setErrorFlash(`Open failed: ${result.error ?? "could not read file"}`);
-        return;
-      }
-      const parsed = deserializeDesign(result.contents);
-      if (!parsed.ok) {
-        setErrorFlash(`Open failed: ${parsed.message}`);
-        return;
-      }
-      dispatchDocument({
-        type: "opened",
-        design: parsed.design,
-        path: result.path ?? ""
-      });
-      resetForNewDocument();
-    } catch (err) {
-      setErrorFlash(`Open failed: ${String(err)}`);
-    }
-  }, [platform.documents, resetForNewDocument, setErrorFlash]);
-
-  /**
-   * Run `action`, but if there is unsaved work ask first. Replaces a raw
-   * window.confirm, which is modal to the OS, unstyled, and untestable.
-   */
-  const guardUnsaved = useCallback(
-    (title: string, confirmLabel: string, action: () => void) => {
-      if (!dirty) {
-        action();
-        return;
-      }
-      setConfirm({
-        title,
-        message: "This design has unsaved changes. They will be lost.",
-        confirmLabel,
-        onConfirm: action
-      });
-    },
-    [dirty]
-  );
-
-  const handleOpen = useCallback(() => {
-    guardUnsaved("Open another design", "Discard and open", () => void openDocument());
-  }, [guardUnsaved, openDocument]);
-
-  // The host vetoes the window close and asks here, because only the app knows
-  // whether there is unsaved work. Re-subscribing when `dirty` changes rather
-  // than mirroring it into a ref: refs must not be written during render, and
-  // a listener swap per commit is far cheaper than that unsafety.
-  useEffect(() => {
-    const gate = platform.closeGate;
-    if (!gate) return;
-    return gate.onRequested(() => {
-      if (!dirty) {
-        void gate.confirm();
-        return;
-      }
-      setConfirm({
-        title: `Close ${product.name}`,
-        message: "This design has unsaved changes. They will be lost.",
-        confirmLabel: "Discard and close",
-        onConfirm: () => void gate.confirm()
-      });
+    setConfirm({
+      title: "Start a new design?",
+      message: "This replaces the design currently stored in this browser.",
+      confirmLabel: "Start new design",
+      onConfirm: startNew
     });
-  }, [dirty, platform.closeGate, product.name]);
-
-  const handleNew = useCallback(() => {
-    guardUnsaved("New design", "Discard and start over", () => {
-      dispatchDocument({ type: "new", design: emptyDesign(DESIGN_METADATA) });
-      resetForNewDocument();
-    });
-  }, [guardUnsaved, resetForNewDocument]);
+  }, [design, resetForNewDesign, sessionStore]);
 
   const runAutoBuild = useCallback(async () => {
     setAutoBuilding(true);
@@ -671,19 +547,12 @@ export default function App({ platform, product }: AppProps) {
   const labels = useMemo(() => partLabels(design), [design]);
 
   return (
-    <div className="app-shell" style={shellStyle}>
+    <div className="app-shell">
       <TopBar
         onNew={handleNew}
-        {...(usesFiles
-          ? {
-              onOpen: handleOpen,
-              onSave: () => void handleSave(),
-              onSaveAs: () => void handleSaveAs()
-            }
-          : {})}
         documentLabel={documentLabel}
-        productName={product.name}
-        settingsMenu={product.settingsMenu}
+        productName={PRODUCT_NAME}
+        settingsMenu={SETTINGS_MENU}
         onEdit={setSettingsTab}
         onUndo={undo}
         onRedo={redo}
@@ -723,7 +592,7 @@ export default function App({ platform, product }: AppProps) {
             scene={viewportScene}
             tool={tool}
             autoBuilding={autoBuilding}
-            errorFlash={errorFlash ?? autosaveError ?? product.error}
+            errorFlash={errorFlash ?? autosaveError ?? exportError}
             obstacleDraft={obstacleDraft}
             buildArea={buildArea}
             onObstacleBaseYChange={setObstacleBaseY}
@@ -735,7 +604,7 @@ export default function App({ platform, product }: AppProps) {
             open={rightOpen}
             onClose={() => setRightOpen(false)}
             design={design}
-            footer={product.renderBomFooter({ design, openSettings: setSettingsTab })}
+            footer={<BomExportFooter onExport={exportBom} />}
           />
           <ActiveToolBar tool={tool} />
         </div>
@@ -752,18 +621,17 @@ export default function App({ platform, product }: AppProps) {
         onZoom={(delta) => viewportRef.current?.zoomBy(delta)}
         onResetView={() => viewportRef.current?.resetView()}
       />
-      {settingsTab &&
-        product.renderSettings({
-          tab: settingsTab,
-          metadata: design.metadata,
-          onMetadataChange: updateMetadata,
-          onClose: () => setSettingsTab(null)
-        })}
+      {settingsTab && (
+        <DesignSettingsModal
+          metadata={design.metadata}
+          onMetadataChange={updateMetadata}
+          onClose={() => setSettingsTab(null)}
+        />
+      )}
       {aboutOpen && (
         <AboutModal
-          productName={product.name}
+          productName={PRODUCT_NAME}
           openExternal={platform.openExternal}
-          updates={platform.updates}
           onClose={() => setAboutOpen(false)}
         />
       )}
@@ -774,15 +642,15 @@ export default function App({ platform, product }: AppProps) {
           confirmLabel="Restore it"
           cancelLabel="Start fresh"
           onConfirm={() => {
-            dispatchDocument({ type: "opened", design: restoreOffer, path: "" });
+            dispatchDocument({ type: "reset", design: restoreOffer });
             setRestoreOffer(null);
-            resetForNewDocument();
+            resetForNewDesign();
           }}
           onCancel={() => {
             // Declining discards it. Saying yes to "start fresh" and then
             // finding the old design offered again on the next visit would make
             // the answer meaningless.
-            sessionStore?.clear();
+            sessionStore.clear();
             setRestoreOffer(null);
           }}
         />
@@ -800,7 +668,15 @@ export default function App({ platform, product }: AppProps) {
           onCancel={() => setConfirm(null)}
         />
       )}
-      {product.renderOverlays({ design, openSettings: setSettingsTab })}
     </div>
   );
+}
+
+/** "BOM_MAIN_LOOP.pdf" from a design named "Main Loop". */
+function bomFilename(design: DesignState): string {
+  const base = design.metadata.filename
+    .replace(/\.[^.]+$/, "")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .toUpperCase();
+  return `BOM_${base || "UNTITLED"}.pdf`;
 }

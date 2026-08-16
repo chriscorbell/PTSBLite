@@ -31,12 +31,7 @@ export function tubeFeet(input: Part[] | DesignState): number {
 /**
  * One line of the bill of materials: what the design needs, and how many.
  *
- * Deliberately carries no price and no money of any kind. It used to hold a
- * `unitPrice: number | null`, which meant every consumer of a BOM held a price
- * field whether or not it had any business showing one — and PTSBuilderLite,
- * which may show no money at all, would have held one too. Pricing is a
- * decoration applied by `@/domain/commercial/pricing` on the way to a quote,
- * not a property of the bill of materials. See ADR-0011.
+ * Deliberately carries no price or other commercial data. See ADR-0011.
  */
 export type BomRow = {
   /** Registry key this row counts, e.g. "tube6". */
@@ -50,9 +45,8 @@ export type BomRow = {
 /**
  * The bill of materials for a design.
  *
- * A pure function of the parts, and of nothing else. Prices are not an argument
- * because they are not part of the answer; `priceRows` adds them where a quote
- * needs them.
+ * A pure function of the parts, and of nothing else. Prices are not part of the
+ * product or this model.
  */
 export function bomRows(input: Part[] | DesignState): BomRow[] {
   const parts = Array.isArray(input) ? input : input.parts;

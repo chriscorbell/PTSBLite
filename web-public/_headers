@@ -1,7 +1,6 @@
 # Cloudflare Pages response headers for PTSBuilderLite.
 #
-# A real header rather than the <meta> tag the Electron build injects, which is
-# what lets `frame-ancestors` work at all — a meta-tag CSP cannot set it.
+# A real header rather than a meta tag, which cannot set `frame-ancestors`.
 #
 # `connect-src 'none'` is not aspirational. Fonts are self-hosted through
 # @fontsource-variable/geist, the parts catalog is bundled from

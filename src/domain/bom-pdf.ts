@@ -4,7 +4,7 @@ import {
   DIM,
   drawRightText,
   drawText,
-  formatQuoteDate,
+  formatDocumentDate,
   HAIRLINE,
   MARGIN_TOP,
   MARGIN_X,
@@ -26,21 +26,15 @@ export type BomPdfOptions = {
 /**
  * Render a design's bill of materials to PDF bytes.
  *
- * A separate renderer rather than the quote with its money hidden. Threading a
- * flag through `generateQuotePdf` would have meant a document built around
- * `ReadyQuote` — a type that requires prices, a tax rate, seller identity and
- * customer details — and one wrong condition away from printing them. This
- * takes `BomRow[]`, which cannot carry a price at all. See ADR-0011.
- *
- * What it deliberately omits: unit prices, line totals, subtotal, tax, quote
- * total, seller letterhead, customer block, quote number and terms.
+ * `BomRow` cannot carry prices, so this document cannot expose commercial
+ * information. See ADR-0011.
  */
 export async function generateBomPdf(
   design: DesignState,
   options: BomPdfOptions = {}
 ): Promise<Uint8Array> {
-  const date = options.date ?? formatQuoteDate();
-  const productName = options.productName ?? "PTSBuilder";
+  const date = options.date ?? formatDocumentDate();
+  const productName = options.productName ?? "PTSBuilderLite";
   const rows = bomRows(design).filter((row) => row.qty > 0);
 
   const doc = await PDFDocument.create();

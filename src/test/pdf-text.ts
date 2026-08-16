@@ -8,9 +8,9 @@ import { inflateSync } from "node:zlib";
  * `stream ... endstream`, inflate it if it looks compressed, then collect the
  * `(literal) Tj` and `<hex> Tj` payloads.
  *
- * Shared by the quote and BOM suites. The BOM one asserts on what is *absent* —
- * that no currency amount reaches the page — and an extractor that quietly
- * returned nothing would make that assertion pass for the wrong reason.
+ * The BOM suite asserts on what is absent — that no currency amount reaches the
+ * page — and an extractor that quietly returned nothing would make that pass
+ * for the wrong reason.
  */
 export function extractText(bytes: Uint8Array): string {
   // Parse raw PDF bytes: locate every `stream ... endstream` segment, try to

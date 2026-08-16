@@ -9,17 +9,16 @@
 centerline, 6 ft tube stock, 90° bends at a 3 ft radius, 1 cell = 1 ft, and a requirement that
 Terminal 1 sit flush against the blower outlet with zero tubing between them.
 
-Read cold, these are indistinguishable from the invented prices in `src/data/parts.json` — both are
-just literals in source. That ambiguity is dangerous in opposite directions: someone could "clean up"
-a real spec constraint, or could trust a placeholder price as reference data.
+Read cold, these are indistinguishable from the invented names and part numbers in
+`src/data/parts.json` — both are just literals in source. That ambiguity is dangerous in opposite
+directions: someone could "clean up" a real spec constraint or trust placeholder catalog data.
 
 ## Decision
 
 The engineering constraints are **derived from the real PTS system specification and are
 authoritative**. They may not be loosened, rounded, re-derived, or removed without a cited source.
 
-The catalog's commercial data (`unitPrice`, `partNo`, `name`) is **placeholder** and carries no
-authority. See ADR-0003.
+The catalog's names and part numbers are **placeholder** and carry no authority. See ADR-0013.
 
 Where the two disagree, the spec wins. Concretely: `arcLength: 4.71` in the catalog currently drives
 the derived bend radius of 3.0 ft — the 3 ft radius is the spec fact, and the catalog value exists to
@@ -34,7 +33,7 @@ express it, not the other way round.
   the registry rather than repeating them.
 - Anything reading a spec-derived number from the catalog needs a validation guard, so a future
   catalog edit cannot silently contradict the spec. `loadPartRegistry` does this for the declared
-  `cells` count, and separately refuses any entry carrying a `unitPrice` (ADR-0003).
+  `cells` count, and separately refuses any entry carrying a `unitPrice` (ADR-0011).
 - Deriving spec numbers afresh from geometry is forbidden even where it looks equivalent; the sampled
   arc approximation in `computeBendFootprints` is a rendering/occupancy detail, not a source of truth.
 

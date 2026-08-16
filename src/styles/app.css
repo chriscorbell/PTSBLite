@@ -21,8 +21,6 @@
   /* No separate mono typeface — everything uses Geist. Kept as an alias so
      existing var(--font-mono) usages don't need to change. */
   --font-mono:  var(--font-sans);
-  --topbar-left-padding: 10px;
-  --topbar-right-padding: 10px;
 }
 
 * {
