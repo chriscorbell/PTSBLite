@@ -1,12 +1,10 @@
 # PTSBLite
 
-PTSBLite is Kelly Tube Systems' public, consumer-facing marketing tool. Visitors can lay out
+PTSBLite is a public, consumer-facing marketing tool for Kelly Tube Systems. Visitors can lay out
 a pneumatic tube system in a web browser, explore routing and validation, and export a bill of
 materials.
 
-It is a static web application with no backend. One design autosaves in the visitor's browser. The
-application contains no prices, quotes, customer details, or other commercial data. See
-[ADR-0014](docs/adr/0014-ptsblite-is-the-only-product.md).
+It is a static web application with no backend. One design autosaves in the visitor's browser.
 
 ## Development
 
@@ -33,10 +31,6 @@ Deployment settings are in [docs/deploying.md](docs/deploying.md).
 | `web-public/` | Production headers copied into the static build |
 | `docs/adr/` | Decisions with lasting consequences |
 
-Read [CONTEXT.md](CONTEXT.md) before changing domain code. It distinguishes authoritative
-engineering constraints from placeholder catalog data. [docs/baked-in-assumptions.md](docs/baked-in-assumptions.md)
-records what the current model cannot express.
-
 ## Controls
 
 | Input | Action |
@@ -49,8 +43,3 @@ records what the current model cannot express.
 | `[` / `]` | Lower / raise the placement elevation |
 | `Esc` | Cancel the active tool |
 | `Ctrl`/`Cmd`+`Z` | Undo; add `Shift` to redo |
-
-## License
-
-Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). The name “PTSBLite” is not
-licensed with the code under Apache-2.0 §6.
