@@ -8,13 +8,6 @@
   min-width: 0;
 }
 
-.name-fields__label {
-  font-size: 11px;
-  color: var(--text-mut);
-  margin-bottom: 4px;
-  display: block;
-}
-
 .name-fields__input {
   width: 100%;
   padding: 8px;

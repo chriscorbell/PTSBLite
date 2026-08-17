@@ -171,9 +171,14 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
               />
             </label>
           )}
-          <p className="welcome__note">
-            1 grid cell = 1 ft. Build area height is per-floor, including plenum. Structural
-            ceiling/floors for multi-floor systems are {FLOOR_SEPARATOR_FEET} ft thick.
+          <p className="welcome__callout">
+            <span className="welcome__callout-icon">
+              <Icons.Warn size={15} />
+            </span>
+            <span>
+              1 grid cell = 1 ft. Build area height is per-floor, including plenum. Structural
+              ceiling/floor thickness for multi-floor systems is {FLOOR_SEPARATOR_FEET} ft.
+            </span>
           </p>
         </div>
         <div className="welcome__footer">
@@ -210,7 +215,7 @@ function BuildAreaFields({
 
   return (
     <div>
-      <span className="welcome__label">Build area (feet)</span>
+      <span className="field-heading">Build area (feet)</span>
       <div className="welcome__axes">
         {BUILD_AREA_AXES.map(({ key, label }) => (
           <label key={key} className="welcome__axis">

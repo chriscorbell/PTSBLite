@@ -27,7 +27,7 @@ export function NameFields({
   return (
     <div className="name-fields">
       <label className="name-fields__field">
-        <span className="name-fields__label">Company name</span>
+        <span className="field-heading">Company name</span>
         <input
           value={companyName}
           onChange={(e) => onCompanyName(e.target.value)}
@@ -37,7 +37,7 @@ export function NameFields({
         />
       </label>
       <label className="name-fields__field">
-        <span className="name-fields__label">System name</span>
+        <span className="field-heading">System name</span>
         <input
           value={systemName}
           onChange={(e) => onSystemName(e.target.value)}
