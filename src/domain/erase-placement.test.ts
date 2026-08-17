@@ -157,3 +157,29 @@ describe("Erase placement", () => {
     expect(result.design.grid.query([4, 1, 5])).toBeUndefined();
   });
 });
+
+describe("erasing penetrable obstacles", () => {
+  it("finds a penetrable obstacle by containment, since it owns no grid cells", () => {
+    const design = emptyDesign();
+    design.obstacles.push({ id: "o1", min: [2, 0, 2], max: [4, 2, 4], penetrable: true });
+
+    const result = eraseAtCell(design, [3, 1, 3]);
+    expect(result.ok).toBe(true);
+    expect(result.design.obstacles).toEqual([]);
+    expectGridMatchesDesign(result.design);
+  });
+
+  it("erases the part on a shared cell, not the penetrable obstacle around it", () => {
+    const design = emptyDesign();
+    design.obstacles.push({ id: "o1", min: [0, 0, 0], max: [2, 0, 2], penetrable: true });
+    design.parts.push({ id: "b1", type: "blower", cell: [1, 0, 1], dir: [0, 1, 0] });
+    design.grid.place([1, 0, 1], "b1");
+
+    const result = eraseAtCell(design, [1, 0, 1]);
+    expect(result.ok).toBe(true);
+    expect(result.design.parts).toEqual([]);
+    // The obstacle survives, and the blower's cell is actually freed.
+    expect(result.design.obstacles.map((o) => o.id)).toEqual(["o1"]);
+    expect(result.design.grid.query([1, 0, 1])).toBeUndefined();
+  });
+});

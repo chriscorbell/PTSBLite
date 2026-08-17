@@ -209,7 +209,10 @@ function parseObstacle(
   if (typeof value.id !== "string") return fail(`obstacles[${index}].id must be a string.`);
   if (!isVec3(value.min)) return fail(`obstacles[${index}].min must be a 3-tuple.`);
   if (!isVec3(value.max)) return fail(`obstacles[${index}].max must be a 3-tuple.`);
-  return { ok: true, obstacle: { id: value.id, min: value.min, max: value.max } };
+  const obstacle: Obstacle = { id: value.id, min: value.min, max: value.max };
+  // Forgiving: anything but true reads as the impenetrable kind.
+  if (value.penetrable === true) obstacle.penetrable = true;
+  return { ok: true, obstacle };
 }
 
 function clonePart(part: Part): Part {
@@ -217,5 +220,7 @@ function clonePart(part: Part): Part {
 }
 
 function cloneObstacle(obs: Obstacle): Obstacle {
-  return { id: obs.id, min: [...obs.min] as Vec3, max: [...obs.max] as Vec3 };
+  const cloned: Obstacle = { id: obs.id, min: [...obs.min] as Vec3, max: [...obs.max] as Vec3 };
+  if (obs.penetrable) cloned.penetrable = true;
+  return cloned;
 }

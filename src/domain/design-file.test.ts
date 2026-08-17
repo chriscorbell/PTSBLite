@@ -98,6 +98,19 @@ describe("deserializeDesign", () => {
     expect(result.design.metadata.buildArea).toEqual({ width: 40, depth: 80, height: 12 });
   });
 
+  it("roundtrips a penetrable obstacle, whose cells stay free after restore", () => {
+    const original = designFromScene({
+      parts: [],
+      obstacles: [{ id: "o1", min: [2, 0, 2], max: [4, 2, 4], penetrable: true }]
+    });
+    const result = deserializeDesign(JSON.stringify(serializeDesign(original, TEST_APP_VERSION)));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.obstacles[0]).toMatchObject({ id: "o1", penetrable: true });
+    // Restored the same way it was placed: no grid claim, so tubes route through.
+    expect(result.design.grid.query([3, 1, 3])).toBeUndefined();
+  });
+
   it("roundtrips the Auto-Build mark and ignores any other source value", () => {
     const marked = JSON.parse(
       JSON.stringify(serializeDesign(designFromScene(FULL_SCENE), TEST_APP_VERSION))

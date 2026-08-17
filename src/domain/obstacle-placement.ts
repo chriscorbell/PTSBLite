@@ -1,6 +1,13 @@
 import { clampElevation, GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import type { BuildArea, DesignState, Ghost, Vec3 } from "@/types";
 
+/**
+ * Which kind of volume the obstacle tool draws. Impenetrable obstacles claim
+ * grid cells, so placement and routing must avoid them; penetrable ones claim
+ * none, so tubes pass through — see ADR-0016.
+ */
+export type ObstacleKind = "impenetrable" | "penetrable";
+
 export const OBSTACLE_PLACEMENT_MESSAGES = {
   occupied: "Place obstacle on open grid cells.",
   outOfBounds: "Place inside the build area."
@@ -21,12 +28,15 @@ export type StartObstaclePlacementResult =
 
 export function startObstaclePlacement(
   design: DesignState,
-  cornerA: Vec3
+  cornerA: Vec3,
+  kind: ObstacleKind = "impenetrable"
 ): StartObstaclePlacementResult {
   if (!design.grid.withinBounds(cornerA)) {
     return { ok: false, message: OBSTACLE_PLACEMENT_MESSAGES.outOfBounds };
   }
-  if (design.grid.query(cornerA)) {
+  // A penetrable volume may legitimately be drawn through existing parts, so
+  // only the impenetrable kind cares whether the corner cell is taken.
+  if (kind === "impenetrable" && design.grid.query(cornerA)) {
     return { ok: false, message: OBSTACLE_PLACEMENT_MESSAGES.occupied };
   }
   return { ok: true, draft: { cornerA } };
@@ -38,10 +48,13 @@ export function cancelObstaclePlacement(_draft: ObstaclePlacementDraft | null): 
 
 export function obstaclePlacementGhost(
   draft: ObstaclePlacementDraft | null,
-  currentCell: Vec3
+  currentCell: Vec3,
+  kind: ObstacleKind = "impenetrable"
 ): Ghost | null {
   if (!draft) return null;
   const { min, max } = obstaclePlacementDraftBounds(draft, currentCell);
+  // Same convention as Obstacle itself: the flag is present only when set.
+  if (kind === "penetrable") return { type: "obstacle", min, max, penetrable: true };
   return { type: "obstacle", min, max };
 }
 
@@ -155,33 +168,44 @@ export function placeObstacleVolume(
   {
     id,
     cornerA,
-    cornerB
+    cornerB,
+    kind = "impenetrable"
   }: {
     id: string;
     cornerA: Vec3;
     cornerB: Vec3;
+    kind?: ObstacleKind;
   }
 ): PlaceObstacleVolumeResult {
+  const penetrable = kind === "penetrable";
   const cells = obstacleVolumeCells(cornerA, cornerB);
   for (const cell of cells) {
     if (!design.grid.withinBounds(cell)) {
       return { ok: false, message: OBSTACLE_PLACEMENT_MESSAGES.outOfBounds, design };
     }
-    if (design.grid.query(cell)) {
+    if (!penetrable && design.grid.query(cell)) {
       return { ok: false, message: OBSTACLE_PLACEMENT_MESSAGES.occupied, design };
     }
   }
 
+  // A penetrable obstacle claims no cells: the grid is the one collision
+  // structure placement and routing consult, and staying out of it is what
+  // being penetrable means (ADR-0016).
   const grid = design.grid.clone();
-  for (const cell of cells) {
-    grid.place(cell, id);
+  if (!penetrable) {
+    for (const cell of cells) {
+      grid.place(cell, id);
+    }
   }
   const { min, max } = obstacleVolumeBounds(cornerA, cornerB);
   return {
     ok: true,
     design: {
       ...design,
-      obstacles: [...design.obstacles, { id, min, max }],
+      obstacles: [
+        ...design.obstacles,
+        penetrable ? { id, min, max, penetrable } : { id, min, max }
+      ],
       grid
     }
   };

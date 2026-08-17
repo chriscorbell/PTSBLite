@@ -48,6 +48,17 @@ export function expectGridMatchesDesign(design: DesignState): void {
   }
 
   for (const obstacle of obstacles) {
+    if (obstacle.penetrable) {
+      // A penetrable obstacle's cells must NOT be attributed to it: claiming
+      // them is exactly what would stop tubes routing through (ADR-0016).
+      for (const cell of obstacleCells(obstacle)) {
+        expect(
+          grid.query(cell),
+          `penetrable obstacle "${obstacle.id}" owns ${cellKey(cell)}, which would block routing`
+        ).not.toBe(obstacle.id);
+      }
+      continue;
+    }
     for (const cell of obstacleCells(obstacle)) {
       if (!grid.withinBounds(cell)) continue; // clipped to the build area
       expect(

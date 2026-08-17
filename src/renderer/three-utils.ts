@@ -28,6 +28,7 @@ export const VP = {
   tubeEdge: 0xb8bfcd,
   bend: 0x8e96a5,
   obstacle: 0xc23a48,
+  obstaclePenetrable: 0x5b8fd9,
   port: 0x5eead4
 };
 
