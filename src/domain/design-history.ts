@@ -26,12 +26,6 @@ export type DesignHistoryAction =
   /** Apply an edit as one undoable step. Discards the redo branch. */
   | { type: "commit"; design: DesignState }
   | { type: "undo" }
-  /**
-   * Swap the current design without touching either stack. For edits that are
-   * not worth an undo step of their own — renaming the system, bumping the
-   * revision — so the user's undo history is not diluted by cosmetic changes.
-   */
-  | { type: "replace-present"; design: DesignState }
   | { type: "redo" }
   /** Replace the design wholesale, such as restoring a session. Drops both stacks. */
   | { type: "reset"; design: DesignState };
@@ -59,9 +53,6 @@ export function designHistoryReducer(
         past: pushUndo(history.past, history.present),
         future: []
       };
-
-    case "replace-present":
-      return { ...history, present: action.design };
 
     case "undo": {
       const popped = popUndo(history.past);

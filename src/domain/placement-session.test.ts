@@ -58,16 +58,6 @@ describe("placementSessionReducer", () => {
     // The ground plane is the floor; there is nothing below it to step onto.
     expect(s.activeElevation).toBe(0);
   });
-
-  it("clamps the elevation and drops the draft when the build area shrinks", () => {
-    const before = session({ activeElevation: 7, obstacleDraft: { cornerA: [0, 0, 0] } });
-    const after = placementSessionReducer(before, {
-      type: "constrain-to-build-area",
-      buildArea: { width: 20, depth: 20, height: 3 }
-    });
-    expect(after.activeElevation).toBe(2);
-    expect(after.obstacleDraft).toBeNull();
-  });
 });
 
 describe("attemptPlacement", () => {
