@@ -173,6 +173,8 @@ function parsePart(
       if (!isVec3(value.to)) return fail(`parts[${index}] tube.to must be a 3-tuple.`);
       const part: TubePart = { id, type: "tube", from: value.from, to: value.to };
       if (typeof value.length === "number") part.length = value.length;
+      // Forgiving: any other value means a manual part to this build.
+      if (value.source === "auto-build") part.source = "auto-build";
       return { ok: true, part };
     }
     case "bend": {
@@ -191,6 +193,7 @@ function parsePart(
         outDir: value.outDir
       };
       if (typeof value.radius === "number") part.radius = value.radius;
+      if (value.source === "auto-build") part.source = "auto-build";
       return { ok: true, part };
     }
     default:

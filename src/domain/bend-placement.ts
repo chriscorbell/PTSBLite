@@ -120,8 +120,12 @@ export function bendLandingCells(design: DesignState): Vec3[] {
   return cells;
 }
 
-function bendPartFromOrientation(id: string, orientation: BendOrientation): BendPart {
-  return {
+function bendPartFromOrientation(
+  id: string,
+  orientation: BendOrientation,
+  source?: "auto-build"
+): BendPart {
+  const part: BendPart = {
     id,
     type: "bend",
     entry: cellCenter(orientation.cells[0]),
@@ -131,6 +135,8 @@ function bendPartFromOrientation(id: string, orientation: BendOrientation): Bend
     outDir: orientation.outDir,
     radius: orientation.radius
   };
+  if (source) part.source = source;
+  return part;
 }
 
 export function bendPlacementGhost(
@@ -163,8 +169,15 @@ export function placeBend(
     id,
     cell,
     sourcePartId,
-    rotationIndex = 0
-  }: { id: string; cell: Vec3; sourcePartId?: string; rotationIndex?: number }
+    rotationIndex = 0,
+    source
+  }: {
+    id: string;
+    cell: Vec3;
+    sourcePartId?: string;
+    rotationIndex?: number;
+    source?: "auto-build";
+  }
 ): PlaceBendResult {
   const port = selectPort(computeTopology(design), cell, { sourcePartId });
   if (!port) return { ok: false, message: BEND_PLACEMENT_MESSAGE };
@@ -173,7 +186,7 @@ export function placeBend(
   if (orientations.length === 0) return { ok: false, message: BEND_BLOCKED_MESSAGE };
 
   const orientation = orientations[rotationIndex % orientations.length];
-  const part = bendPartFromOrientation(id, orientation);
+  const part = bendPartFromOrientation(id, orientation, source);
   const grid = design.grid.clone();
   for (const footprintCell of bendFootprint(part)) {
     grid.place(footprintCell, id);

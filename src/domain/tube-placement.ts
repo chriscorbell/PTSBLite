@@ -75,14 +75,16 @@ function maxTubeLength(design: DesignState, port: Port, requested = 6): number {
   return length;
 }
 
-function tubePartFromPort(id: string, port: Port, length = 6): TubePart {
-  return {
+function tubePartFromPort(id: string, port: Port, length = 6, source?: "auto-build"): TubePart {
+  const part: TubePart = {
     id,
     type: "tube",
     from: cellCenter(port.cell),
     to: cellCenter(vAdd(port.cell, vScale(port.dir, length))),
     length
   };
+  if (source) part.source = source;
+  return part;
 }
 
 export function placeTube(
@@ -91,8 +93,9 @@ export function placeTube(
     id,
     cell,
     sourcePartId,
-    length = 6
-  }: { id: string; cell: Vec3; sourcePartId?: string; length?: number }
+    length = 6,
+    source
+  }: { id: string; cell: Vec3; sourcePartId?: string; length?: number; source?: "auto-build" }
 ): PlaceTubeResult {
   const port = selectPort(computeTopology(design), cell, { sourcePartId });
   if (!port) return { ok: false, message: TUBE_PLACEMENT_MESSAGE };
@@ -104,7 +107,7 @@ export function placeTube(
     return { ok: false, message: TUBE_BLOCKED_MESSAGE };
   }
 
-  const part = tubePartFromPort(id, port, placeLength);
+  const part = tubePartFromPort(id, port, placeLength, source);
   const grid = design.grid.clone();
   for (const footprintCell of tubeFootprint(port, placeLength)) {
     grid.place(footprintCell, id);
