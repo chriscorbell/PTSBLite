@@ -88,7 +88,9 @@ shortest path or fewest bends.
 the count of 6 ft sections to purchase (`ceil(total tube feet / 6)`), distinct from the tube *parts*
 placed in the design.
 
-**Elevation** — the Y level of the active placement plane, moved with `[` / `]`.
+**Elevation** — the Y level of the active placement plane, moved with `[` / `]` and shown beside
+the armed tool. Above the ground it is drawn as an accent-tinted plane in the viewport. In a
+two-floor design, the floor selector (or `1` / `2`) jumps it to a floor's base.
 
 **Free placement** — placement that does not require snapping to an open port (blower, and
 Terminal 2). Contrast with tube/bend/Terminal 1, which must land on a port.

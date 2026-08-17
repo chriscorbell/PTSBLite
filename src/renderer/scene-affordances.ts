@@ -28,12 +28,17 @@ function buildGroundLines(
   return lines;
 }
 
-export function buildGround(area: BuildArea): THREE.Group {
+/**
+ * `dimmed` fades a level's grid when the other floor is active, so the screen
+ * always says which floor placement happens on.
+ */
+export function buildGround(area: BuildArea, dimmed = false): THREE.Group {
   const g = new THREE.Group();
   const b = boundsFromBuildArea(area);
   // Footprint may be off-center for odd dimensions; center the plane on it.
   const cx = (b.xMin + b.xMax) / 2;
   const cz = (b.zMin + b.zMax) / 2;
+  const fade = dimmed ? 0.35 : 1;
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(area.width, area.depth),
@@ -56,8 +61,8 @@ export function buildGround(area: BuildArea): THREE.Group {
   for (let z = b.zMin; z <= b.zMax; z++) {
     (z % 5 === 0 ? major : minor).push(b.xMin, 0, z, b.xMax, 0, z);
   }
-  g.add(buildGroundLines(minor, VP.grid, 0.45, 0));
-  g.add(buildGroundLines(major, VP.gridStrong, 0.7, 0.001));
+  g.add(buildGroundLines(minor, VP.grid, 0.45 * fade, 0));
+  g.add(buildGroundLines(major, VP.gridStrong, 0.7 * fade, 0.001));
   return g;
 }
 
@@ -70,18 +75,23 @@ export function buildGround(area: BuildArea): THREE.Group {
  * it from above. Its top face carries the same grid as the ground, because it
  * is the second storey's floor and placement happens on it.
  */
-export function buildFloorSeparator(area: BuildArea, separatorY: number): THREE.Group {
+export function buildFloorSeparator(
+  area: BuildArea,
+  separatorY: number,
+  dimmed = false
+): THREE.Group {
   const g = new THREE.Group();
   const b = boundsFromBuildArea(area);
   const cx = (b.xMin + b.xMax) / 2;
   const cz = (b.zMin + b.zMax) / 2;
+  const fade = dimmed ? 0.45 : 1;
 
   const slab = new THREE.Mesh(
     new THREE.BoxGeometry(area.width, 1, area.depth),
     new THREE.MeshBasicMaterial({
       color: VP.gridStrong,
       transparent: true,
-      opacity: 0.28,
+      opacity: 0.28 * fade,
       depthWrite: false
     })
   );
@@ -90,7 +100,7 @@ export function buildFloorSeparator(area: BuildArea, separatorY: number): THREE.
 
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(slab.geometry),
-    new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.8 })
+    new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.8 * fade })
   );
   edges.position.copy(slab.position);
   g.add(edges);
@@ -103,8 +113,64 @@ export function buildFloorSeparator(area: BuildArea, separatorY: number): THREE.
   for (let z = b.zMin; z <= b.zMax; z++) {
     (z % 5 === 0 ? major : minor).push(b.xMin, 0, z, b.xMax, 0, z);
   }
-  g.add(buildGroundLines(minor, VP.grid, 0.3, separatorY + 1.001));
-  g.add(buildGroundLines(major, VP.gridStrong, 0.5, separatorY + 1.002));
+  g.add(buildGroundLines(minor, VP.grid, 0.3 * fade, separatorY + 1.001));
+  g.add(buildGroundLines(major, VP.gridStrong, 0.5 * fade, separatorY + 1.002));
+  return g;
+}
+
+/**
+ * A visible stand-in for the invisible placement plane, drawn while a tool
+ * that places on the plane is armed above the ground. Without it, moving the
+ * elevation changed nothing on screen, and an elevated ghost was
+ * indistinguishable from a grounded one a few cells away.
+ */
+export function buildElevationPlane(area: BuildArea, elevation: number): THREE.Group {
+  const g = new THREE.Group();
+  const b = boundsFromBuildArea(area);
+  const cx = (b.xMin + b.xMax) / 2;
+  const cz = (b.zMin + b.zMax) / 2;
+
+  const fill = new THREE.Mesh(
+    new THREE.PlaneGeometry(area.width, area.depth),
+    new THREE.MeshBasicMaterial({
+      color: VP.accent,
+      transparent: true,
+      opacity: 0.05,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    })
+  );
+  fill.rotation.x = -Math.PI / 2;
+  fill.position.set(cx, elevation + 0.003, cz);
+  g.add(fill);
+
+  const outline: number[] = [
+    b.xMin,
+    0,
+    b.zMin,
+    b.xMax,
+    0,
+    b.zMin,
+    b.xMax,
+    0,
+    b.zMin,
+    b.xMax,
+    0,
+    b.zMax,
+    b.xMax,
+    0,
+    b.zMax,
+    b.xMin,
+    0,
+    b.zMax,
+    b.xMin,
+    0,
+    b.zMax,
+    b.xMin,
+    0,
+    b.zMin
+  ];
+  g.add(buildGroundLines(outline, VP.accent, 0.55, elevation + 0.004));
   return g;
 }
 

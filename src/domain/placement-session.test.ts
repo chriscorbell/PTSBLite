@@ -58,6 +58,37 @@ describe("placementSessionReducer", () => {
     // The ground plane is the floor; there is nothing below it to step onto.
     expect(s.activeElevation).toBe(0);
   });
+
+  it("drags the hover cell along when the elevation moves", () => {
+    // The ghost derives from the hover cell, so this is what makes an elevation
+    // key visibly do something before the pointer moves again.
+    const before = session({ tool: "blower", hoverCell: [3, 0, 4] });
+    const s = placementSessionReducer(before, {
+      type: "nudge-elevation",
+      delta: 2,
+      buildArea: AREA
+    });
+    expect(s.activeElevation).toBe(2);
+    expect(s.hoverCell).toEqual([3, 2, 4]);
+  });
+
+  it("jumps the elevation with set-elevation, clamped to the build area", () => {
+    const before = session({ hoverCell: [1, 0, 1] });
+    const jumped = placementSessionReducer(before, {
+      type: "set-elevation",
+      elevation: 5,
+      buildArea: AREA
+    });
+    expect(jumped.activeElevation).toBe(5);
+    expect(jumped.hoverCell).toEqual([1, 5, 1]);
+
+    const clamped = placementSessionReducer(before, {
+      type: "set-elevation",
+      elevation: 99,
+      buildArea: AREA
+    });
+    expect(clamped.activeElevation).toBe(AREA.height - 1);
+  });
 });
 
 describe("attemptPlacement", () => {

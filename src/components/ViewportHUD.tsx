@@ -12,6 +12,9 @@ export type ViewportHUDProps = {
   tool: ToolId;
   autoBuilding: boolean;
   errorFlash: string | null;
+  /** Which floor the placement plane is on; null hides the floor selector. */
+  activeFloor: 1 | 2 | null;
+  onSelectFloor: (floor: 1 | 2) => void;
   obstacleDraft: ObstaclePlacementDraft | null;
   /** Bounds the base/height steppers, so they cannot offer a rejected value. */
   buildArea: BuildArea;
@@ -24,6 +27,8 @@ export type ViewportHUDProps = {
 export function ViewportHUD({
   scene,
   errorFlash,
+  activeFloor,
+  onSelectFloor,
   obstacleDraft,
   buildArea,
   onObstacleBaseYChange,
@@ -37,6 +42,22 @@ export function ViewportHUD({
   const atCeiling = obstacleReady && obstacleDraft.baseY + obstacleDraft.height >= buildArea.height;
   return (
     <div className="hud nosel">
+      {activeFloor !== null && (
+        <div className="hud__floors" role="group" aria-label="Active floor">
+          {([1, 2] as const).map((floor) => (
+            <button
+              key={floor}
+              type="button"
+              className="hud__floor"
+              aria-pressed={activeFloor === floor}
+              title={`Place on floor ${floor} (${floor})`}
+              onClick={() => onSelectFloor(floor)}
+            >
+              Floor {floor}
+            </button>
+          ))}
+        </div>
+      )}
       {obstacleReady && (
         <div className="hud__obstacle-controls">
           <Icons.Obstacle size={12} className="hud__obstacle-icon" />

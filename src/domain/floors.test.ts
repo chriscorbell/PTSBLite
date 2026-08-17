@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { emptyDesign } from "@/domain/design-state";
-import { effectiveBuildArea, floorSeparatorY } from "@/domain/floors";
+import {
+  effectiveBuildArea,
+  floorAtElevation,
+  floorBaseElevation,
+  floorSeparatorY
+} from "@/domain/floors";
 
 describe("effectiveBuildArea", () => {
   it("is the stored build area for a single-floor design", () => {
@@ -61,5 +66,27 @@ describe("the two-floor grid", () => {
     });
     expect(design.grid.query([0, 30, 0])).toBeUndefined();
     expect(design.grid.withinBounds([0, 30, 0])).toBe(true);
+  });
+});
+
+describe("floor elevations", () => {
+  const twoFloor = emptyDesign({
+    buildArea: { width: 20, depth: 20, height: 30 },
+    multiFloor: true
+  }).metadata;
+
+  it("places each floor's base at its own floor level", () => {
+    expect(floorBaseElevation(twoFloor, 1)).toBe(0);
+    // Above the 30 ft first floor and its 1 ft slab.
+    expect(floorBaseElevation(twoFloor, 2)).toBe(31);
+  });
+
+  it("assigns elevations to floors, counting the slab as floor 1", () => {
+    expect(floorAtElevation(twoFloor, 0)).toBe(1);
+    expect(floorAtElevation(twoFloor, 29)).toBe(1);
+    // The slab layer is the first floor's ceiling.
+    expect(floorAtElevation(twoFloor, 30)).toBe(1);
+    expect(floorAtElevation(twoFloor, 31)).toBe(2);
+    expect(floorAtElevation(twoFloor, 60)).toBe(2);
   });
 });
