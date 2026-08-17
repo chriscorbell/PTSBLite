@@ -148,6 +148,17 @@ body {
   font-weight: 600;
 }
 
+/* Names the group of inputs under it, at the weight of the dialog title it sits
+   below. Shared because the setup form and the rename dialog both use it, and a
+   heading that matched in only one of them would read as a mistake. */
+.field-heading {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* The close affordance in a dialog header. Was defined identically as an
    `iconBtn` constant in four separate components. */
 .icon-btn {
