@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_FILENAME,
+  DEFAULT_COMPANY_NAME,
+  DEFAULT_SYSTEM_NAME,
   DEFAULT_REVISION,
   designFromScene,
   emptyDesign,
@@ -16,7 +17,8 @@ describe("DesignState", () => {
     expect(d.parts).toEqual([]);
     expect(d.obstacles).toEqual([]);
     expect(d.metadata).toEqual({
-      filename: DEFAULT_FILENAME,
+      companyName: DEFAULT_COMPANY_NAME,
+      systemName: DEFAULT_SYSTEM_NAME,
       revision: DEFAULT_REVISION,
       buildArea: DEFAULT_BUILD_AREA,
       multiFloor: false,
@@ -25,8 +27,8 @@ describe("DesignState", () => {
   });
 
   it("emptyDesign accepts metadata overrides", () => {
-    const d = emptyDesign({ filename: "Main loop", revision: "1.2" });
-    expect(d.metadata.filename).toBe("Main loop");
+    const d = emptyDesign({ systemName: "Main loop", revision: "1.2" });
+    expect(d.metadata.systemName).toBe("Main loop");
     expect(d.metadata.revision).toBe("1.2");
   });
 
@@ -54,8 +56,8 @@ describe("DesignState", () => {
 
   it("designFromScene applies metadata overrides", () => {
     const scene: Scene = { parts: [], obstacles: [] };
-    const d = designFromScene(scene, { filename: "Warehouse" });
-    expect(d.metadata.filename).toBe("Warehouse");
+    const d = designFromScene(scene, { systemName: "Warehouse" });
+    expect(d.metadata.systemName).toBe("Warehouse");
     expect(d.metadata.revision).toBe(DEFAULT_REVISION);
   });
 });

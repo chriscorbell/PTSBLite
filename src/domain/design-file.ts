@@ -1,3 +1,4 @@
+import { DEFAULT_COMPANY_NAME, DEFAULT_REVISION, DEFAULT_SYSTEM_NAME } from "@/domain/design-state";
 import { reconstructDesign } from "@/domain/design-reconstruction";
 import { clampBuildArea } from "@/domain/sparse-grid";
 import type {
@@ -114,13 +115,15 @@ function parseMetadata(
   value: unknown
 ): { ok: true; metadata: DesignMetadata } | { ok: false; message: string } {
   if (!isRecord(value)) return fail("Missing metadata object.");
-  if (typeof value.filename !== "string") return fail("metadata.filename must be a string.");
-  if (typeof value.revision !== "string") return fail("metadata.revision must be a string.");
   return {
     ok: true,
     metadata: {
-      filename: value.filename,
-      revision: value.revision,
+      // Names are forgiving like every other metadata field below. `filename`
+      // is what the system name was called before the company name joined it,
+      // and is still read so designs saved under the old key keep their name.
+      companyName: typeof value.companyName === "string" ? value.companyName : DEFAULT_COMPANY_NAME,
+      systemName: parseName(value.systemName) ?? parseName(value.filename) ?? DEFAULT_SYSTEM_NAME,
+      revision: typeof value.revision === "string" ? value.revision : DEFAULT_REVISION,
       // Forgiving migration: designs saved before the build area was configurable
       // (or with a malformed area) fall back to the default, clamped to limits.
       buildArea: parseBuildArea(value.buildArea),
@@ -135,6 +138,11 @@ function parseMetadata(
           : null
     }
   };
+}
+
+/** A stored name, or null when absent or blank so a fallback can take over. */
+function parseName(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
 }
 
 function parseBuildArea(value: unknown): BuildArea {

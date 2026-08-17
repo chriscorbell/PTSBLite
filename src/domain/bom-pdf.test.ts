@@ -45,8 +45,16 @@ describe("generateBomPdf", () => {
   it("carries the design's own identity", async () => {
     const design = designWith(sampleParts);
     const text = extractText(await generateBomPdf(design));
-    expect(text).toContain(design.metadata.filename);
+    expect(text).toContain(design.metadata.systemName);
     expect(text).toContain(design.metadata.revision);
+  });
+
+  it("names the company the system is for, when one was given", async () => {
+    const design = designWith(sampleParts);
+    design.metadata = { ...design.metadata, companyName: "Acme Health", systemName: "West Wing" };
+    const text = extractText(await generateBomPdf(design));
+    expect(text).toContain("Acme Health");
+    expect(text).toContain("West Wing");
   });
 
   it("names the product that generated it", async () => {

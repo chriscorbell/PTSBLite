@@ -359,6 +359,77 @@ describe("a two-floor design", () => {
   });
 });
 
+describe("naming a system", () => {
+  /** Render past the welcome screen, filling in the names it now collects. */
+  async function renderNamed(companyName: string, systemName: string) {
+    const App = (await import("@/App")).default;
+    const utils = render(<App platform={stubPlatform()} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    fireEvent.change(screen.getByLabelText("Company name"), {
+      target: { value: companyName }
+    });
+    fireEvent.change(screen.getByLabelText("System name"), { target: { value: systemName } });
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+    return utils;
+  }
+
+  const documentButton = () => screen.getByTitle("Edit system details");
+
+  it("shows company and system name together in the top bar", async () => {
+    await renderNamed("Acme Health", "West Wing");
+
+    expect(documentButton().textContent).toBe("Acme Health: West Wing");
+  });
+
+  it("shows the system name alone when no company was given", async () => {
+    await renderNamed("", "West Wing");
+
+    // No dangling separator: the label is built from what was actually typed.
+    expect(documentButton().textContent).toBe("West Wing");
+  });
+
+  it("falls back to the default name when the field is left blank", async () => {
+    await renderNamed("", "   ");
+
+    expect(documentButton().textContent).toBe("Untitled system");
+  });
+
+  it("renames from the top bar, undoably", async () => {
+    await renderNamed("Acme Health", "West Wing");
+
+    fireEvent.click(documentButton());
+    const dialog = screen.getByRole("dialog", { name: "System details" });
+    fireEvent.change(within(dialog).getByLabelText("Company name"), {
+      target: { value: "Beta Clinic" }
+    });
+    fireEvent.change(within(dialog).getByLabelText("System name"), {
+      target: { value: "East Wing" }
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    expect(screen.queryByRole("dialog", { name: "System details" })).toBeNull();
+    expect(documentButton().textContent).toBe("Beta Clinic: East Wing");
+
+    act(() => undoButton().click());
+    expect(documentButton().textContent).toBe("Acme Health: West Wing");
+  });
+
+  it("discards edits when the rename dialog is cancelled", async () => {
+    await renderNamed("Acme Health", "West Wing");
+
+    fireEvent.click(documentButton());
+    const dialog = screen.getByRole("dialog", { name: "System details" });
+    fireEvent.change(within(dialog).getByLabelText("System name"), {
+      target: { value: "Discarded" }
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(documentButton().textContent).toBe("Acme Health: West Wing");
+  });
+});
+
 describe("Auto-Build", () => {
   it("paints the routing state before the search blocks the thread", async () => {
     await renderApp();

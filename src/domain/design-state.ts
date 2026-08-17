@@ -8,7 +8,8 @@ import { reconstructDesign } from "@/domain/design-reconstruction";
 import { effectiveBuildArea } from "@/domain/floors";
 import type { DesignMetadata, DesignState, Scene } from "@/types";
 
-export const DEFAULT_FILENAME = "Untitled system";
+export const DEFAULT_SYSTEM_NAME = "Untitled system";
+export const DEFAULT_COMPANY_NAME = "";
 export const DEFAULT_REVISION = "0.1";
 
 /** `p` for a part, `o` for an obstacle. Both are grid occupants. */
@@ -43,7 +44,8 @@ export function newOccupantId(
 
 function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
   return {
-    filename: meta?.filename ?? DEFAULT_FILENAME,
+    companyName: meta?.companyName ?? DEFAULT_COMPANY_NAME,
+    systemName: meta?.systemName ?? DEFAULT_SYSTEM_NAME,
     revision: meta?.revision ?? DEFAULT_REVISION,
     buildArea: meta?.buildArea ? clampBuildArea(meta.buildArea) : { ...DEFAULT_BUILD_AREA },
     multiFloor: meta?.multiFloor ?? false,

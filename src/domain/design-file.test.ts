@@ -40,12 +40,13 @@ describe("serializeDesign", () => {
   });
 
   it("serializes parts, obstacles, and metadata", () => {
-    const design = designFromScene(FULL_SCENE, { filename: "House", revision: "0.3" });
+    const design = designFromScene(FULL_SCENE, { systemName: "House", revision: "0.3" });
     const payload = serializeDesign(design, TEST_APP_VERSION);
     expect(payload.parts).toHaveLength(4);
     expect(payload.obstacles).toHaveLength(1);
     expect(payload.metadata).toEqual({
-      filename: "House",
+      companyName: "",
+      systemName: "House",
       revision: "0.3",
       buildArea: DEFAULT_BUILD_AREA,
       multiFloor: false,
@@ -65,7 +66,7 @@ describe("serializeDesign", () => {
 
 describe("deserializeDesign", () => {
   it("roundtrips a full design preserving parts, obstacles, and metadata", () => {
-    const original = designFromScene(FULL_SCENE, { filename: "House", revision: "0.3" });
+    const original = designFromScene(FULL_SCENE, { systemName: "House", revision: "0.3" });
     const text = JSON.stringify(serializeDesign(original, TEST_APP_VERSION));
     const result = deserializeDesign(text);
     expect(result.ok).toBe(true);
@@ -88,7 +89,7 @@ describe("deserializeDesign", () => {
 
   it("roundtrips a custom build area", () => {
     const original = designFromScene(FULL_SCENE, {
-      filename: "House",
+      systemName: "House",
       revision: "0.3",
       buildArea: { width: 40, depth: 80, height: 12 }
     });
@@ -160,7 +161,7 @@ describe("deserializeDesign", () => {
     const legacy = {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       appVersion: "0.1.0",
-      metadata: { filename: "old.ptsb", revision: "0.1" },
+      metadata: { systemName: "old.ptsb", revision: "0.1" },
       parts: [],
       obstacles: []
     };
@@ -181,7 +182,7 @@ describe("deserializeDesign", () => {
 
   it("rejects missing schemaVersion", () => {
     const result = deserializeDesign(
-      JSON.stringify({ parts: [], obstacles: [], metadata: { filename: "x", revision: "1" } })
+      JSON.stringify({ parts: [], obstacles: [], metadata: { systemName: "x", revision: "1" } })
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -195,7 +196,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [],
         obstacles: [],
-        metadata: { filename: "x", revision: "1" }
+        metadata: { systemName: "x", revision: "1" }
       })
     );
     expect(result.ok).toBe(false);
@@ -209,7 +210,7 @@ describe("deserializeDesign", () => {
         schemaVersion: CURRENT_SCHEMA_VERSION,
         appVersion: "0.1.0",
         obstacles: [],
-        metadata: { filename: "x", revision: "1" }
+        metadata: { systemName: "x", revision: "1" }
       })
     );
     expect(result.ok).toBe(false);
@@ -224,7 +225,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [{ id: "x1", type: "wormhole", cell: [0, 0, 0] }],
         obstacles: [],
-        metadata: { filename: "x", revision: "1" }
+        metadata: { systemName: "x", revision: "1" }
       })
     );
     expect(result.ok).toBe(false);
@@ -239,7 +240,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [{ id: "b1", type: "blower", cell: [0, 0], dir: [1, 0, 0] }],
         obstacles: [],
-        metadata: { filename: "x", revision: "1" }
+        metadata: { systemName: "x", revision: "1" }
       })
     );
     expect(result.ok).toBe(false);
@@ -254,7 +255,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [],
         obstacles: [{ id: "o1", min: [0, 0, 0] }],
-        metadata: { filename: "x", revision: "1" }
+        metadata: { systemName: "x", revision: "1" }
       })
     );
     expect(result.ok).toBe(false);
@@ -262,7 +263,9 @@ describe("deserializeDesign", () => {
     expect(result.message).toMatch(/obstacle|max/i);
   });
 
-  it("rejects metadata missing filename", () => {
+  it("falls back to the default name when metadata carries none", () => {
+    // Names are forgiving like the rest of the metadata: a payload missing them
+    // restores under the defaults rather than refusing to open at all.
     const result = deserializeDesign(
       JSON.stringify({
         schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -272,8 +275,26 @@ describe("deserializeDesign", () => {
         metadata: { revision: "1" }
       })
     );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.message).toMatch(/filename|metadata/i);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.metadata.systemName).toBe("Untitled system");
+    expect(result.design.metadata.companyName).toBe("");
+  });
+
+  it("reads a system name stored under the old filename key", () => {
+    // What the field was called before the company name joined it. Designs
+    // saved then keep their name rather than reverting to the default.
+    const result = deserializeDesign(
+      JSON.stringify({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        appVersion: "0.1.0",
+        parts: [],
+        obstacles: [],
+        metadata: { filename: "House", revision: "1" }
+      })
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.metadata.systemName).toBe("House");
   });
 });

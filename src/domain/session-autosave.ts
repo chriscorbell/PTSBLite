@@ -1,6 +1,6 @@
 import { deserializeDesign } from "@/domain/design-file";
 import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
-import { DEFAULT_FILENAME, DEFAULT_REVISION } from "@/domain/design-state";
+import { DEFAULT_COMPANY_NAME, DEFAULT_REVISION, DEFAULT_SYSTEM_NAME } from "@/domain/design-state";
 import type { DesignState } from "@/types";
 
 /**
@@ -23,9 +23,11 @@ import type { DesignState } from "@/types";
  */
 export function isWorthKeeping(design: DesignState): boolean {
   if (design.parts.length > 0 || design.obstacles.length > 0) return true;
-  const { filename, revision, buildArea, multiFloor, plenumHeightFeet } = design.metadata;
+  const { companyName, systemName, revision, buildArea, multiFloor, plenumHeightFeet } =
+    design.metadata;
   return (
-    filename !== DEFAULT_FILENAME ||
+    companyName !== DEFAULT_COMPANY_NAME ||
+    systemName !== DEFAULT_SYSTEM_NAME ||
     revision !== DEFAULT_REVISION ||
     multiFloor ||
     plenumHeightFeet !== null ||
