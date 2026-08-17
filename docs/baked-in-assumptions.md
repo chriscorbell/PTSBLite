@@ -59,6 +59,12 @@ ADR-0001 — a spec requirement, not a workflow convenience.*
 **Nothing below Y = 0.** The ground plane is the floor. Basements or below-grade runs would need the
 build area to describe a Y origin rather than assuming zero.
 
+**A design's setup answers are fixed once it is created.** The build area, and the multi-floor and
+plenum answers, are collected on the welcome screen and cannot be changed afterwards — there is no
+settings screen, and the system name and revision are no longer editable either. Changing one means
+starting a new design. `DesignMetadata` would hold an edit fine; what was deliberately removed is
+the UI and the resize path that dropped parts no longer fitting a shrunken area.
+
 ---
 
 ## Provisional
@@ -99,10 +105,13 @@ and probably multi-select.
 
 **Copy, duplicate, array, mirror.** No bulk operations of any kind.
 
-**Multi-floor and plenum behavior.** The welcome screen asks whether the project spans multiple
-floors and whether the space has a plenum (drop ceiling, with an approximate height in feet), and
-stores the answers in the design's metadata. Nothing reads them yet: routing and validation are
-single-floor and ignore the plenum.
+**Multi-floor and plenum behavior.** The welcome screen asks whether the project has a second floor
+and whether the space has a plenum (drop ceiling, with an approximate height in feet), and stores
+the answers in the design's metadata. Nothing reads them yet: routing and validation are
+single-floor and ignore the plenum. The welcome copy already states the intended semantics — the
+build area height is per-floor including the plenum, and structural ceiling/floors between floors
+are 1 ft thick — so implementing the feature should turn those into enforced constants rather than
+prose.
 
 **Any collaboration, cloud, account, or telemetry surface.** Deliberately. PTSBuilderLite is
 served as static files with a `connect-src 'none'` policy: nothing it does reaches the network

@@ -4,12 +4,11 @@ import {
   DEFAULT_REVISION,
   designFromScene,
   emptyDesign,
-  newOccupantId,
-  partsWithinBuildArea
+  newOccupantId
 } from "@/domain/design-state";
 import { bendFootprint } from "@/domain/bend-placement";
 import { DEFAULT_BUILD_AREA, SparseGrid } from "@/domain/sparse-grid";
-import type { BendPart, Part, Scene } from "@/types";
+import type { BendPart, Scene } from "@/types";
 
 describe("DesignState", () => {
   it("emptyDesign returns an empty design with default metadata", () => {
@@ -134,25 +133,6 @@ describe("DesignState grid", () => {
     expect(d.grid.query([4, 1, 5])).toBe("o1");
     expect(d.grid.query([3, 0, 4])).toBe("o1");
     expect(d.grid.query([5, 0, 3])).toBeUndefined();
-  });
-});
-
-describe("partsWithinBuildArea", () => {
-  it("keeps parts inside the area and drops those outside", () => {
-    const parts: Part[] = [
-      { id: "in", type: "blower", cell: [2, 0, 2], dir: [1, 0, 0] },
-      { id: "outX", type: "blower", cell: [20, 0, 0], dir: [1, 0, 0] },
-      { id: "outY", type: "terminal", cell: [0, 9, 0], axis: [1, 0, 0] }
-    ];
-    // width/depth 10 → X/Z in [-5, 5); height 4 → Y in [0, 4).
-    const kept = partsWithinBuildArea(parts, { width: 10, depth: 10, height: 4 });
-    expect(kept.map((p) => p.id)).toEqual(["in"]);
-  });
-
-  it("drops a tube whose footprint extends past the bounds", () => {
-    const parts: Part[] = [{ id: "t", type: "tube", from: [0, 0, 0], to: [8, 0, 0] }];
-    // The tube occupies cells x = 0..7, which exceed the [-5, 5) X bound.
-    expect(partsWithinBuildArea(parts, { width: 10, depth: 10, height: 4 })).toEqual([]);
   });
 });
 

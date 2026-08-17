@@ -91,20 +91,16 @@ describe("picking up where you left off", () => {
   it("autosaves a changed design to localStorage without downloading a file", async () => {
     const download = vi.spyOn(HTMLAnchorElement.prototype, "click");
     await renderApp();
-    createFirstDesign();
 
-    fireEvent.click(screen.getByRole("button", { name: /^Edit/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Design Settings…" }));
-    fireEvent.change(screen.getByLabelText("System name"), {
-      target: { value: "Visitor layout" }
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBuilderLite/ });
+    fireEvent.change(within(dialog).getByLabelText("Width (X)"), { target: { value: "40" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: /Create design/ }));
 
     await waitFor(() => {
       const saved = window.localStorage.getItem(SESSION_KEY);
       expect(saved).not.toBeNull();
-      const parsed = JSON.parse(saved ?? "") as { metadata: { filename: string } };
-      expect(parsed.metadata.filename).toBe("Visitor layout");
+      const parsed = JSON.parse(saved ?? "") as { metadata: { buildArea: { width: number } } };
+      expect(parsed.metadata.buildArea.width).toBe(40);
     });
     expect(download).not.toHaveBeenCalled();
   });
@@ -170,7 +166,7 @@ describe("the welcome setup form", () => {
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBuilderLite/ });
     expect(within(dialog).getByLabelText("Width (X)")).toBeTruthy();
-    expect(within(dialog).getByLabelText("Multi-floor project")).toBeTruthy();
+    expect(within(dialog).getByLabelText("Add 2nd floor")).toBeTruthy();
     expect(within(dialog).getByLabelText("Plenum (drop ceiling)")).toBeTruthy();
     // The height input only appears once a plenum is declared.
     expect(within(dialog).queryByLabelText(/plenum height/i)).toBeNull();
@@ -181,7 +177,7 @@ describe("the welcome setup form", () => {
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBuilderLite/ });
     fireEvent.change(within(dialog).getByLabelText("Width (X)"), { target: { value: "40" } });
-    fireEvent.click(within(dialog).getByLabelText("Multi-floor project"));
+    fireEvent.click(within(dialog).getByLabelText("Add 2nd floor"));
     fireEvent.click(within(dialog).getByLabelText("Plenum (drop ceiling)"));
     fireEvent.change(within(dialog).getByLabelText(/plenum height/i), { target: { value: "4" } });
     fireEvent.click(within(dialog).getByRole("button", { name: /Create design/ }));
