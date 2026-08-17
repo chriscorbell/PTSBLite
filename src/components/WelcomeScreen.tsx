@@ -112,7 +112,7 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
     );
   }
 
-  const title = greeting && !stored ? "Welcome to PTSBuilderLite" : "New design";
+  const title = greeting && !stored ? "Welcome to PTSBLite" : "New design";
   const plenumHeightValid = Number.isFinite(plenumHeightFeet) && plenumHeightFeet > 0;
 
   return (

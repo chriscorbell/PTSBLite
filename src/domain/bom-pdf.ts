@@ -34,7 +34,7 @@ export async function generateBomPdf(
   options: BomPdfOptions = {}
 ): Promise<Uint8Array> {
   const date = options.date ?? formatDocumentDate();
-  const productName = options.productName ?? "PTSBuilderLite";
+  const productName = options.productName ?? "PTSBLite";
   const rows = bomRows(design).filter((row) => row.qty > 0);
 
   const doc = await PDFDocument.create();

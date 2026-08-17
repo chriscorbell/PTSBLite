@@ -2,14 +2,14 @@
 Plain-English rendering of the open `question` issues, written to be sent to the client.
 Keep in sync when those change:
   1 -> #92   2 -> #48   3 -> #94   4 -> #93
-Question #95 (what computers this runs on) is answered and has been removed: PTSBuilderLite
+Question #95 (what computers this runs on) is answered and has been removed: PTSBLite
 runs in supported desktop browsers and has no installable version.
 No jargon, no issue numbers, no file paths. The reader runs the business, not the build.
 -->
 
 # Questions about how you work
 
-**PTSBuilderLite** is Kelly Tube Systems' public marketing tool. Anybody can open it in a web
+**PTSBLite** is Kelly Tube Systems' public marketing tool. Anybody can open it in a web
 browser, draw a system, and download a parts list. It shows no prices.
 
 Before it goes much further, there are a few things about your systems and catalog I've had to

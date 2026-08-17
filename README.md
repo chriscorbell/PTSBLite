@@ -1,12 +1,12 @@
-# PTSBuilderLite
+# PTSBLite
 
-PTSBuilderLite is Kelly Tube Systems' public, consumer-facing marketing tool. Visitors can lay out
+PTSBLite is Kelly Tube Systems' public, consumer-facing marketing tool. Visitors can lay out
 a pneumatic tube system in a web browser, explore routing and validation, and export a bill of
 materials.
 
 It is a static web application with no backend. One design autosaves in the visitor's browser. The
 application contains no prices, quotes, customer details, or other commercial data. See
-[ADR-0014](docs/adr/0014-ptsbuilderlite-is-the-only-product.md).
+[ADR-0014](docs/adr/0014-ptsblite-is-the-only-product.md).
 
 ## Development
 
@@ -52,5 +52,5 @@ records what the current model cannot express.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). The name “PTSBuilderLite” is not
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). The name “PTSBLite” is not
 licensed with the code under Apache-2.0 §6.

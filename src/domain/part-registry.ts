@@ -61,7 +61,7 @@ export function loadPartRegistry(entries: Record<string, PartCatalogEntry>): Par
       // The public product has no commercial data path. Rejecting a price here
       // prevents a catalog edit from silently creating one.
       throw new Error(
-        `PartRegistry: entry "${key}" carries a unitPrice. PTSBuilderLite has no prices (ADR-0011).`
+        `PartRegistry: entry "${key}" carries a unitPrice. PTSBLite has no prices (ADR-0011).`
       );
     }
     if (entry.type === "bend") {

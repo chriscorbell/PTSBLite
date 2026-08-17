@@ -1,6 +1,6 @@
-# Deploying PTSBuilderLite
+# Deploying PTSBLite
 
-PTSBuilderLite is a static site. It has no backend, makes no network request after load, and stores
+PTSBLite is a static site. It has no backend, makes no network request after load, and stores
 nothing outside the visitor's own browser.
 
 ## Cloudflare Pages project

@@ -5,7 +5,7 @@ export type BomExportFooterProps = {
   onExport: () => Promise<void>;
 };
 
-/** PTSBuilderLite's BOM panel export. */
+/** PTSBLite's BOM panel export. */
 export function BomExportFooter({ onExport }: BomExportFooterProps) {
   const [busy, setBusy] = useState(false);
 

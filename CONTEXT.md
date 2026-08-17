@@ -1,15 +1,15 @@
-# PTSBuilderLite — Domain Context
+# PTSBLite — Domain Context
 
 A 3D builder for **pneumatic tube systems (PTS)**: lay a system out in a 3D grid, have it validated
 against the system's engineering rules, and get a bill of materials out.
 
 ## Product
 
-**PTSBuilderLite** — the repository's only product; the [README](README.md) says what it is and
-[ADR-0014](docs/adr/0014-ptsbuilderlite-is-the-only-product.md) why. It shows **no prices, costs
+**PTSBLite** — the repository's only product; the [README](README.md) says what it is and
+[ADR-0014](docs/adr/0014-ptsblite-is-the-only-product.md) why. It shows **no prices, costs
 or dollar amounts of any kind** ([ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md)).
 
-*Avoid:* "PTSBuilder", "full version", "desktop app".
+*Avoid:* "PTSBuilder", "PTSBuilderLite" (the pre-rename name), "full version", "desktop app".
 
 ## Authoritative vs. placeholder data
 
