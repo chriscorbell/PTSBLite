@@ -29,7 +29,7 @@ Deployment settings are in [docs/deploying.md](docs/deploying.md).
 | `src/domain/` | Pure geometry, placement, routing, validation, serialization, and BOM logic |
 | `src/renderer/` | Three.js viewport and interaction helpers |
 | `src/components/` | React UI and colocated stylesheets |
-| `src/platform/` | Browser storage, downloads, and safe external links |
+| `src/platform/` | Browser storage and downloads |
 | `web-public/` | Production headers copied into the static build |
 | `docs/adr/` | Decisions with lasting consequences |
 

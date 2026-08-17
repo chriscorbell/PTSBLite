@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Vec3 } from "@/types";
-import type { ViewportHandle, ViewportProps } from "@/renderer/Viewport";
+import type { ViewportProps } from "@/renderer/Viewport";
 import type { Platform } from "@/platform/types";
 
 // The real Viewport builds a WebGLRenderer, which happy-dom cannot provide. It
@@ -10,27 +10,18 @@ import type { Platform } from "@/platform/types";
 // component leaves every other piece of the app under test for real. The mock
 // captures its props so tests can drive placement the way the 3D canvas would.
 const viewport = vi.hoisted(() => ({
-  props: null as ViewportProps | null,
-  handle: { zoomBy: vi.fn(), resetView: vi.fn() } satisfies ViewportHandle
+  props: null as ViewportProps | null
 }));
 
 vi.mock("@/renderer/Viewport", () => ({
   Viewport: (props: ViewportProps) => {
     viewport.props = props;
-    // React 19 passes `ref` as an ordinary prop. Fulfilling it is what lets a
-    // test observe the camera commands at all: they used to travel over an
-    // untyped window CustomEvent that nothing could see (issue #19).
-    if (props.ref && typeof props.ref === "object") {
-      (props.ref as { current: ViewportHandle | null }).current = viewport.handle;
-    }
     return null;
   }
 }));
 
 afterEach(() => {
   viewport.props = null;
-  viewport.handle.zoomBy.mockClear();
-  viewport.handle.resetView.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -54,8 +45,7 @@ function stubPlatform(): Platform {
       clear: () => undefined,
       preserveUnreadable: () => undefined
     },
-    savePdf: vi.fn().mockResolvedValue({}),
-    openExternal: vi.fn()
+    savePdf: vi.fn().mockResolvedValue({})
   };
 }
 
@@ -268,19 +258,49 @@ describe("the placement ghost", () => {
   });
 });
 
-describe("auto-build feedback", () => {
-  it("paints the routing state before the search blocks the thread", async () => {
+describe("Auto-Build", () => {
+  /** Open the modal and pick a routing mode, as a visitor must before it runs. */
+  function chooseMode(label: RegExp) {
+    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+    fireEvent.click(screen.getByLabelText(label));
+  }
+
+  it("requires a routing mode to be chosen before it will run", async () => {
     await renderApp();
 
-    fireEvent.click(screen.getByRole("button", { name: /^Auto-build$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+
+    // Nothing is preselected, so the run button cannot be used yet.
+    const run = () => screen.getByRole<HTMLButtonElement>("button", { name: /Run Auto-Build/ });
+    expect(run().disabled).toBe(true);
+
+    fireEvent.click(screen.getByLabelText(/Fewest bends/));
+    expect(run().disabled).toBe(false);
+  });
+
+  it("paints the routing state before the search blocks the thread", async () => {
+    await renderApp();
+    chooseMode(/Shortest path/);
+
+    fireEvent.click(screen.getByRole("button", { name: /Run Auto-Build/ }));
 
     // The regression this guards: the search used to run synchronously in the
     // same tick, so React batched the pending state away and it never rendered.
     expect(screen.getByRole("button", { name: /^Routing/ })).toBeTruthy();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /^Auto-build$/ })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /^Auto-Build$/ })).toBeTruthy();
     });
+  });
+
+  it("closes without routing when cancelled", async () => {
+    await renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog", { name: "Auto-Build" })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Auto-Build$/ })).toBeTruthy();
   });
 });
 
@@ -317,32 +337,5 @@ describe("left rail accessibility", () => {
     expect(drawer).toBeTruthy();
     expect(drawer?.hasAttribute("inert")).toBe(true);
     expect(drawer?.hasAttribute("aria-hidden")).toBe(false);
-  });
-});
-
-describe("camera controls", () => {
-  it("reaches the viewport through its typed handle", async () => {
-    await renderApp();
-
-    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
-    expect(viewport.handle.zoomBy).toHaveBeenCalledWith(-0.2);
-
-    fireEvent.click(screen.getByRole("button", { name: "Zoom out" }));
-    expect(viewport.handle.zoomBy).toHaveBeenCalledWith(0.25);
-
-    fireEvent.click(screen.getByRole("button", { name: "Reset view" }));
-    expect(viewport.handle.resetView).toHaveBeenCalledTimes(1);
-  });
-
-  it("dispatches nothing on window", async () => {
-    // The regression: these commands were global CustomEvents, invisible to
-    // TypeScript and to this suite, between two components that are siblings.
-    const dispatch = vi.spyOn(window, "dispatchEvent");
-    await renderApp();
-
-    fireEvent.click(screen.getByRole("button", { name: "Reset view" }));
-
-    const custom = dispatch.mock.calls.filter(([event]) => event.type.startsWith("ptsb-"));
-    expect(custom).toEqual([]);
   });
 });

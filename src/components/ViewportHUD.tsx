@@ -80,7 +80,7 @@ export function ViewportHUD({
       {scene.autoBuildJustRan && scene.autoBuildSummary && (
         <div className="hud__banner hud__banner--summary">
           <div className="hud__banner-title">
-            Auto-build complete · {scene.autoBuildSummary.lengthFeet.toFixed(1)}ft ·{" "}
+            Auto-Build complete · {scene.autoBuildSummary.lengthFeet.toFixed(1)}ft ·{" "}
             {pluralize(scene.autoBuildSummary.bends, "bend")}
           </div>
           <div className="hud__banner-detail">

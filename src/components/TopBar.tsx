@@ -14,9 +14,6 @@ export type TopBarProps = {
   canRedo: boolean;
   bomOpen: boolean;
   onToggleBom: () => void;
-  showLabels: boolean;
-  onShowLabelsChange: (next: boolean) => void;
-  onAbout: () => void;
 };
 
 export function TopBar({
@@ -28,10 +25,7 @@ export function TopBar({
   canUndo,
   canRedo,
   bomOpen,
-  onToggleBom,
-  showLabels,
-  onShowLabelsChange,
-  onAbout
+  onToggleBom
 }: TopBarProps) {
   return (
     <div className="topbar nosel">
@@ -62,28 +56,12 @@ export function TopBar({
       </button>
       <div className="topbar__spacer" />
       <button
-        className={"topbtn topbar-no-drag" + (showLabels ? " active" : "")}
-        title={showLabels ? "Hide part labels" : "Show part labels"}
-        onClick={() => onShowLabelsChange(!showLabels)}
-        aria-pressed={showLabels}
-      >
-        <Icons.Tag size={14} /> {showLabels ? "Hide Labels" : "Show Labels"}
-      </button>
-      <button
         className={"topbtn topbar-no-drag" + (bomOpen ? " active" : "")}
         title={bomOpen ? "Hide BOM" : "Show BOM"}
         onClick={onToggleBom}
         aria-pressed={bomOpen}
       >
         <Icons.Bom size={14} /> BOM
-      </button>
-      <button
-        className="topbtn icon topbar-no-drag"
-        title="About"
-        aria-label="About"
-        onClick={onAbout}
-      >
-        <Icons.Info size={15} />
       </button>
     </div>
   );

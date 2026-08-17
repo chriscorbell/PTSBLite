@@ -11,14 +11,4 @@ export type SessionStore = {
 export type Platform = {
   session: SessionStore;
   savePdf: (bytes: Uint8Array, suggestedName: string) => Promise<{ error?: string }>;
-  openExternal: (url: string) => void;
 };
-
-export function isSafeExternalUrl(url: string): boolean {
-  try {
-    const { protocol } = new URL(url);
-    return protocol === "https:" || protocol === "http:";
-  } catch {
-    return false;
-  }
-}

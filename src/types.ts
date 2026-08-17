@@ -93,7 +93,7 @@ export type DesignState = {
 export type Hint = { title: string; body: string };
 
 export type AutoBuildSummary = {
-  /** Centerline feet of the parts auto-build placed. */
+  /** Centerline feet of the parts Auto-Build placed. */
   lengthFeet: number;
   /** Number of bend parts placed. */
   bends: number;
@@ -101,7 +101,7 @@ export type AutoBuildSummary = {
   obstacles: number;
   /** Human-readable optimization mode, e.g. "Fewest bends". */
   modeLabel: string;
-  /** Port pairs auto-build could not route. */
+  /** Port pairs Auto-Build could not route. */
   unrouted: number;
 };
 

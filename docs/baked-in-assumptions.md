@@ -105,6 +105,11 @@ and probably multi-select.
 
 **Copy, duplicate, array, mirror.** No bulk operations of any kind.
 
+**Part labels, camera buttons, and an About screen.** All three existed and were removed. The
+camera is still driven by dragging and the scroll wheel; there are no zoom or reset-view buttons.
+Nothing on screen names the running build, so `appVersion` on a stored design is the only way to
+identify it.
+
 **Multi-floor and plenum behavior.** The welcome screen asks whether the project has a second floor
 and whether the space has a plenum (drop ceiling, with an approximate height in feet), and stores
 the answers in the design's metadata. Nothing reads them yet: routing and validation are

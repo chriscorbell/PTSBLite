@@ -8,19 +8,15 @@ import {
   Eraser,
   FileText,
   Hammer,
-  Info,
   Layers,
   MousePointer2,
   Redo2,
   RefreshCw,
   RotateCw,
-  Tag,
   Trash2,
   TriangleAlert,
   Undo2,
   X,
-  ZoomIn,
-  ZoomOut,
   type LucideIcon
 } from "lucide-react";
 import type { ReactNode, SVGProps } from "react";
@@ -105,15 +101,11 @@ export const Icons = {
   Close: fromLucide(X),
   Undo: fromLucide(Undo2),
   Redo: fromLucide(Redo2),
-  ZoomIn: fromLucide(ZoomIn),
-  ZoomOut: fromLucide(ZoomOut),
   Layers: fromLucide(Layers),
   Download: fromLucide(Download),
-  Tag: fromLucide(Tag),
   Bom: fromLucide(ClipboardList),
   Trash: fromLucide(Trash2),
   Hammer: fromLucide(Hammer),
-  Info: fromLucide(Info),
   Refresh: fromLucide(RotateCw),
 
   // --- domain glyphs, drawn here because lucide has no equivalent ----------
