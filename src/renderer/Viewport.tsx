@@ -18,6 +18,7 @@ import {
   partIdForObject
 } from "@/renderer/interaction";
 import {
+  buildFloorSeparator,
   buildGround,
   buildLandingCellHighlight,
   buildPortGlow
@@ -91,6 +92,8 @@ export type ViewportProps = {
   landingCells?: Vec3[];
   activeElevation?: number;
   portMarkers?: PortMarker[];
+  /** Y level of a two-floor design's separator slab, or null for one floor. */
+  separatorY?: number | null;
 };
 
 export function Viewport({
@@ -102,7 +105,8 @@ export function Viewport({
   onHover,
   landingCells = [],
   activeElevation = 0,
-  portMarkers = []
+  portMarkers = [],
+  separatorY = null
 }: ViewportProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<ViewportState>({});
@@ -318,7 +322,10 @@ export function Viewport({
     }
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      cam.distance = Math.max(8, Math.min(80, cam.distance * (1 + e.deltaY * 0.0015)));
+      // The far limit must fit a two-floor design in frame: the largest volume
+      // is 200 ft wide but only ~140 of camera distance is ever needed to see
+      // a 60 x 60 x 61 build whole, and beyond that the grid dissolves into moiré.
+      cam.distance = Math.max(8, Math.min(140, cam.distance * (1 + e.deltaY * 0.0015)));
       applyCamera();
     };
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
@@ -410,11 +417,13 @@ export function Viewport({
       s.scene3.remove(s.groundGroup);
       disposeObject(s.groundGroup);
     }
-    const ground = buildGround({ width: areaWidth, depth: areaDepth, height: areaHeight });
+    const area = { width: areaWidth, depth: areaDepth, height: areaHeight };
+    const ground = buildGround(area);
+    if (separatorY !== null) ground.add(buildFloorSeparator(area, separatorY));
     s.scene3.add(ground);
     s.groundGroup = ground;
     s.requestRender?.();
-  }, [areaWidth, areaDepth, areaHeight]);
+  }, [areaWidth, areaDepth, areaHeight, separatorY]);
 
   useEffect(() => {
     const s = stateRef.current;

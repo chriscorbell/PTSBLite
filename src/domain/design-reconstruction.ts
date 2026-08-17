@@ -1,4 +1,5 @@
 import { bendFootprint } from "@/domain/bend-placement";
+import { effectiveBuildArea } from "@/domain/floors";
 import { obstacleVolumeCells } from "@/domain/obstacle-placement";
 import { boundsFromBuildArea, SparseGrid } from "@/domain/sparse-grid";
 import { cellKey, tubeCells } from "@/domain/vec3";
@@ -88,7 +89,7 @@ export function reconstructDesign(
 ): ReconstructResult {
   const parts = scene.parts ?? [];
   const obstacles = scene.obstacles ?? [];
-  const grid = new SparseGrid(boundsFromBuildArea(metadata.buildArea));
+  const grid = new SparseGrid(boundsFromBuildArea(effectiveBuildArea(metadata)));
   const issues: ReconstructionIssue[] = [];
 
   // Parts first, and all-or-nothing: a part is only registered once its entire

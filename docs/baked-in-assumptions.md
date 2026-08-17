@@ -34,7 +34,9 @@ Diagonal or free-angle runs are not expressible.
 new footprint generation. See [ADR-0005](adr/0005-defer-the-bend-geometry-model.md).
 
 **One build area per design.** A single width × depth × height box centred on the origin, rising
-from Y = 0. No rooms, floors, zones, or non-rectangular sites.
+from Y = 0. A two-floor design doubles the height of that box and draws a separator slab
+([ADR-0015](adr/0015-two-floor-volume-is-derived-not-stored.md)); it is still one box — no rooms,
+zones, non-rectangular sites, or per-floor footprints, and no third floor.
 
 **One design per browser profile.** A single design
 autosaves to `localStorage` and is offered back on return
@@ -110,13 +112,11 @@ camera is still driven by dragging and the scroll wheel; there are no zoom or re
 Nothing on screen names the running build, so `appVersion` on a stored design is the only way to
 identify it.
 
-**Multi-floor and plenum behavior.** The welcome screen asks whether the project has a second floor
-and whether the space has a plenum (drop ceiling, with an approximate height in feet), and stores
-the answers in the design's metadata. Nothing reads them yet: routing and validation are
-single-floor and ignore the plenum. The welcome copy already states the intended semantics — the
-build area height is per-floor including the plenum, and structural ceiling/floors between floors
-are 1 ft thick — so implementing the feature should turn those into enforced constants rather than
-prose.
+**Plenum behavior.** The welcome screen asks whether the space has a plenum (drop ceiling, with an
+approximate height in feet) and stores the answer in the design's metadata, but nothing reads it
+yet: placement and validation ignore the plenum. The second-floor answer, by contrast, is now
+implemented — it doubles the buildable volume and draws the separator slab
+([ADR-0015](adr/0015-two-floor-volume-is-derived-not-stored.md)).
 
 **Any collaboration, cloud, account, or telemetry surface.** Deliberately. PTSBuilderLite is
 served as static files with a `connect-src 'none'` policy: nothing it does reaches the network
