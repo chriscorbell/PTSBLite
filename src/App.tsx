@@ -28,7 +28,8 @@ import {
   effectiveBuildArea,
   floorAtElevation,
   floorBaseElevation,
-  floorSeparatorY
+  floorSeparatorY,
+  plenumBands
 } from "@/domain/floors";
 import { totalPathLength } from "@/domain/parts";
 import {
@@ -547,6 +548,9 @@ export default function App({ platform }: AppProps) {
   );
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
+  // Memoized for identity: the viewport rebuilds its ground group when this
+  // prop changes, and the bands only actually change with the metadata.
+  const plenum = useMemo(() => plenumBands(design.metadata), [design.metadata]);
 
   return (
     <div className="app-shell">
@@ -583,6 +587,7 @@ export default function App({ platform }: AppProps) {
             activeElevation={activeElevation}
             activeFloor={activeFloor}
             focusY={focusY}
+            plenumBands={plenum}
             portMarkers={portMarkers}
           />
           <ViewportHUD
