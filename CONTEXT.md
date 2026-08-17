@@ -57,7 +57,8 @@ cells, so tubes pass through it (ADR-0016). Either kind costs nothing and appear
 `cellCenter` offsets by 0.5 for rendering and for the endpoints stored on tubes and bends.
 
 **Build area** — the buildable volume of a design, in feet: `width` (X) × `depth` (Z) footprint
-centered on the origin, rising `height` (Y) from the ground plane. `height` is per-floor; a
+centered on the origin, rising `height` (Y) from the ground plane. The welcome form labels `depth`
+**Length**, the word someone measuring a room uses; the code keeps `depth` throughout. `height` is per-floor; a
 two-floor design builds in twice that plus the floor separator, derived by `effectiveBuildArea`
 and never stored (ADR-0015). Set on the welcome screen when the design is created, and fixed for
 its lifetime: there is no way to resize an existing design.
