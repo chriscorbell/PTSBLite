@@ -32,3 +32,17 @@ export function effectiveBuildArea(metadata: DesignMetadata): BuildArea {
 export function floorSeparatorY(metadata: DesignMetadata): number | null {
   return metadata.multiFloor ? metadata.buildArea.height : null;
 }
+
+/** The elevation of a floor's own floor: the ground for 1, above the slab for 2. */
+export function floorBaseElevation(metadata: DesignMetadata, floor: 1 | 2): number {
+  return floor === 1 ? 0 : metadata.buildArea.height + FLOOR_SEPARATOR_FEET;
+}
+
+/**
+ * Which floor an elevation belongs to. The separator layer counts as floor 1:
+ * it is the first floor's ceiling, and a tube crossing it is still leaving
+ * that floor.
+ */
+export function floorAtElevation(metadata: DesignMetadata, elevation: number): 1 | 2 {
+  return elevation >= floorBaseElevation(metadata, 2) ? 2 : 1;
+}

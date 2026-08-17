@@ -27,16 +27,37 @@ function catalogLabel(registryKey: string): string {
   return `${name} · ${partNo}`;
 }
 
-export function ActiveToolBar({ tool }: { tool: ToolId }) {
+export function ActiveToolBar({
+  tool,
+  elevation,
+  floor
+}: {
+  tool: ToolId;
+  /** Y of the active placement plane, shown so the elevation keys are not blind. */
+  elevation: number;
+  /** Which floor that plane is on, or null for a single-floor design. */
+  floor: 1 | 2 | null;
+}) {
   if (tool === "cursor") return null;
   const placesPart = tool === "blower" || tool === "terminal" || tool === "tube" || tool === "bend";
+  const usesElevation = placesPart || tool === "obstacle";
   return (
     <div className="active-tool-bar">
       <span className="active-tool-bar__dot" />
       <span className="active-tool-bar__label">Tool</span>
       <span className="active-tool-bar__tool">{TOOL_LABELS[tool]}</span>
-      {(placesPart || tool === "obstacle") && (
+      {usesElevation && (
         <>
+          <span className="active-tool-bar__sep" />
+          <span className="active-tool-bar__elevation">
+            EL {elevation} ft{floor !== null && ` · Floor ${floor}`}
+          </span>
+          <span className="active-tool-bar__hint">
+            <kbd>[</kbd>
+            <span>/</span>
+            <kbd>]</kbd>
+            <span>elevation</span>
+          </span>
           <span className="active-tool-bar__sep" />
           {placesPart && (
             <span className="active-tool-bar__hint">
