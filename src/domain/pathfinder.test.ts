@@ -23,7 +23,7 @@ function basicParts(targetCell: Vec3, targetAxis: Vec3 = [1, 0, 0]): Part[] {
 }
 
 describe("Pathfinder MVP", () => {
-  it("auto-builds a straight-shot route between the open system port and Terminal 2", () => {
+  it("Auto-Builds a straight-shot route between the open system port and Terminal 2", () => {
     const result = autoBuildOpenPortPair(designWith(basicParts([8, 0, 0])));
 
     expect(result.ok).toBe(true);
@@ -38,7 +38,7 @@ describe("Pathfinder MVP", () => {
     expect(validate(result.design)).toEqual([]);
   });
 
-  it("auto-builds a single-bend L route", () => {
+  it("Auto-Builds a single-bend L route", () => {
     const result = autoBuildOpenPortPair(designWith(basicParts([5, 0, 4], [0, 0, 1])));
 
     expect(result.ok).toBe(true);
@@ -179,7 +179,7 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     expect(validate(result.design)).toEqual([]);
   });
 
-  // Explicit timeout, not the 5s default. This one runs a full auto-build twice
+  // Explicit timeout, not the 5s default. This one runs a full Auto-Build twice
   // over a 40x22 area with a floor-to-ceiling obstacle in the way, and takes
   // ~2.2s locally against ~5.1s on a CI runner — close enough to the default to
   // fail on a loaded machine, which it did. Raising it here rather than
@@ -285,7 +285,7 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
   });
 });
 
-describe("why auto-build failed", () => {
+describe("why Auto-Build failed", () => {
   const farApart: Part[] = [
     { id: "b1", type: "blower", cell: [-25, 0, -25], dir: [1, 0, 0] },
     { id: "t1", type: "terminal", cell: [-24, 0, -25], axis: [1, 0, 0] },

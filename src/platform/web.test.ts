@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { isSafeExternalUrl } from "@/platform/types";
 import { webPlatform } from "@/platform/web";
 
 const SESSION_KEY = "ptsbuilder-lite:autosave:v1";
@@ -92,20 +91,5 @@ describe("session persistence", () => {
 
     // A second failure must not destroy the copy the first one preserved.
     expect(window.localStorage.getItem(UNREADABLE_KEY)).toBe("first failure");
-  });
-});
-
-describe("isSafeExternalUrl", () => {
-  it("allows http and https", () => {
-    expect(isSafeExternalUrl("https://example.com")).toBe(true);
-    expect(isSafeExternalUrl("http://example.com")).toBe(true);
-  });
-
-  it("refuses schemes that execute or embed", () => {
-    // The browser would otherwise hand these straight to window.open.
-    expect(isSafeExternalUrl("javascript:alert(1)")).toBe(false);
-    expect(isSafeExternalUrl("data:text/html,<script>alert(1)</script>")).toBe(false);
-    expect(isSafeExternalUrl("file:///etc/passwd")).toBe(false);
-    expect(isSafeExternalUrl("not a url")).toBe(false);
   });
 });

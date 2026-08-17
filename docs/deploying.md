@@ -56,8 +56,9 @@ origin simply has nothing in it. There is no migration path and there is nothing
 
 ## What the deployed build calls itself
 
-The About modal shows the short commit SHA, taken from `CF_PAGES_COMMIT_SHA` on Cloudflare and from
-`git rev-parse` locally. That identifies the exact static build being served.
+The short commit SHA — taken from `CF_PAGES_COMMIT_SHA` on Cloudflare and from `git rev-parse`
+locally — is stamped onto every autosaved design as its `appVersion`. Nothing on screen shows it, so
+identifying the build a stored design came from means reading the payload in `localStorage`.
 
 ## Running the same build locally
 

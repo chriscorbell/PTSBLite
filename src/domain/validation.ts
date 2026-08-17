@@ -71,7 +71,7 @@ export const checkConnectivity: ValidationRule = (design) => {
       level: "warn",
       title: "System not fully connected",
       detail:
-        "There is a gap between endpoints. Connect the open port pairs or use Auto-build to complete the route."
+        "There is a gap between endpoints. Connect the open port pairs or use Auto-Build to complete the route."
     }
   ];
 };

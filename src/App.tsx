@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { AboutModal } from "@/components/AboutModal";
 import { ActiveToolBar } from "@/components/ActiveToolBar";
+import { AutoBuildModal } from "@/components/AutoBuildModal";
 import { BomExportFooter } from "@/components/BomExportFooter";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LeftRail } from "@/components/LeftRail";
@@ -40,18 +40,16 @@ import {
   type UnroutedPair
 } from "@/domain/pathfinder";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
-import { openPortMarkers, partLabels } from "@/domain/renderer-affordances";
+import { openPortMarkers } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
-import { Viewport, type ViewportHandle } from "@/renderer/Viewport";
+import { Viewport } from "@/renderer/Viewport";
 import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
 
 const OPTIMIZATION_MODE_LABELS: Record<OptimizationMode, string> = {
   shortest: "Shortest path",
   "fewest-bends": "Fewest bends"
 };
-
-const DEFAULT_AUTO_BUILD_MODE: OptimizationMode = "fewest-bends";
 
 const STARTER_HINT: Hint = {
   title: "Start by placing a blower",
@@ -86,7 +84,7 @@ function nextPaint(): Promise<void> {
   });
 }
 
-/** Explain what auto-build could not route, or null when it routed everything. */
+/** Explain what Auto-Build could not route, or null when it routed everything. */
 function unroutedMessage(unrouted: UnroutedPair[]): string | null {
   if (unrouted.length === 0) return null;
   const count = `${unrouted.length} pair(s)`;
@@ -126,8 +124,6 @@ export default function App({ platform }: AppProps) {
   const undoAvailable = canUndo(history);
   const redoAvailable = canRedo(history);
 
-  const viewportRef = useRef<ViewportHandle>(null);
-
   // One value, not seven: the placement rules that tie them together live in
   // the domain module, where they can be tested without a renderer.
   const [placement, dispatchPlacement] = useReducer(
@@ -155,7 +151,6 @@ export default function App({ platform }: AppProps) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [rightOpen, setRightOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
   const [confirm, setConfirm] = useState<{
     title: string;
     message: string;
@@ -165,9 +160,7 @@ export default function App({ platform }: AppProps) {
   const [autoBuilding, setAutoBuilding] = useState(false);
   const [autoBuildJustRan, setAutoBuildJustRan] = useState(false);
   const [autoBuildSummary, setAutoBuildSummary] = useState<AutoBuildSummary | null>(null);
-  const [optimizationMode, setOptimizationMode] =
-    useState<OptimizationMode>(DEFAULT_AUTO_BUILD_MODE);
-  const [showLabels, setShowLabels] = useState(false);
+  const [autoBuildOpen, setAutoBuildOpen] = useState(false);
   const [errorFlash, setErrorFlashRaw] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -257,7 +250,7 @@ export default function App({ platform }: AppProps) {
 
   /**
    * Drop the transient bits tied to the design we just moved away from: an
-   * in-flight obstacle draft, and a stale auto-build toast describing a route
+   * in-flight obstacle draft, and a stale Auto-Build toast describing a route
    * that is no longer on screen.
    */
   const clearTransientAfterHistoryMove = useCallback(() => {
@@ -433,39 +426,43 @@ export default function App({ platform }: AppProps) {
     [resetForNewDesign, sessionStore]
   );
 
-  const runAutoBuild = useCallback(async () => {
-    setAutoBuilding(true);
-    setAutoBuildJustRan(false);
-    // The search is synchronous and blocks the thread. Without yielding first,
-    // React batches this state change with the one after it and the pending
-    // indicator never reaches the screen. Routing typically takes under 40ms,
-    // but an unroutable pair exhausts the search space and can take ~1.7s --
-    // exactly when the user most needs to see that something is happening.
-    await nextPaint();
+  const runAutoBuild = useCallback(
+    async (mode: OptimizationMode) => {
+      setAutoBuildOpen(false);
+      setAutoBuilding(true);
+      setAutoBuildJustRan(false);
+      // The search is synchronous and blocks the thread. Without yielding first,
+      // React batches this state change with the one after it and the pending
+      // indicator never reaches the screen. Routing typically takes under 40ms,
+      // but an unroutable pair exhausts the search space and can take ~1.7s --
+      // exactly when the user most needs to see that something is happening.
+      await nextPaint();
 
-    let result;
-    try {
-      result = autoBuildOpenPortPair(design, { mode: optimizationMode });
-    } finally {
-      setAutoBuilding(false);
-    }
+      let result;
+      try {
+        result = autoBuildOpenPortPair(design, { mode });
+      } finally {
+        setAutoBuilding(false);
+      }
 
-    if (!result.ok) {
-      setErrorFlash(result.message);
-      return;
-    }
-    setAutoBuildSummary({
-      lengthFeet: totalPathLength(result.parts),
-      bends: result.parts.filter((part) => part.type === "bend").length,
-      obstacles: design.obstacles.length,
-      modeLabel: OPTIMIZATION_MODE_LABELS[optimizationMode],
-      unrouted: result.unroutedPairs.length
-    });
-    setAutoBuildJustRan(true);
-    selectTool("cursor");
-    commitDesign(result.design);
-    setErrorFlash(unroutedMessage(result.unroutedPairs));
-  }, [commitDesign, design, optimizationMode, selectTool, setErrorFlash]);
+      if (!result.ok) {
+        setErrorFlash(result.message);
+        return;
+      }
+      setAutoBuildSummary({
+        lengthFeet: totalPathLength(result.parts),
+        bends: result.parts.filter((part) => part.type === "bend").length,
+        obstacles: design.obstacles.length,
+        modeLabel: OPTIMIZATION_MODE_LABELS[mode],
+        unrouted: result.unroutedPairs.length
+      });
+      setAutoBuildJustRan(true);
+      selectTool("cursor");
+      commitDesign(result.design);
+      setErrorFlash(unroutedMessage(result.unroutedPairs));
+    },
+    [commitDesign, design, selectTool, setErrorFlash]
+  );
 
   const resetActiveInteraction = useCallback(() => {
     selectTool("cursor");
@@ -516,7 +513,6 @@ export default function App({ platform }: AppProps) {
   const landingCells = useMemo(() => placementLandingCells(placement, design), [placement, design]);
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
-  const labels = useMemo(() => partLabels(design), [design]);
 
   return (
     <div className="app-shell">
@@ -530,9 +526,6 @@ export default function App({ platform }: AppProps) {
         canRedo={redoAvailable}
         bomOpen={rightOpen}
         onToggleBom={() => setRightOpen((o) => !o)}
-        showLabels={showLabels}
-        onShowLabelsChange={setShowLabels}
-        onAbout={() => setAboutOpen(true)}
       />
       <div className="app-main">
         <LeftRail
@@ -545,7 +538,6 @@ export default function App({ platform }: AppProps) {
         />
         <div className="viewport-area">
           <Viewport
-            ref={viewportRef}
             scene={viewportScene}
             buildArea={design.metadata.buildArea}
             ghost={ghostState}
@@ -555,8 +547,6 @@ export default function App({ platform }: AppProps) {
             landingCells={landingCells}
             activeElevation={activeElevation}
             portMarkers={portMarkers}
-            labels={labels}
-            showLabels={showLabels}
           />
           <ViewportHUD
             scene={viewportScene}
@@ -584,18 +574,13 @@ export default function App({ platform }: AppProps) {
         warnings={warnings}
         expanded={statusOpen}
         onToggle={() => setStatusOpen((s) => !s)}
-        onAutoBuild={() => void runAutoBuild()}
+        onAutoBuild={() => setAutoBuildOpen(true)}
         autoBuilding={autoBuilding}
-        optimizationMode={optimizationMode}
-        onOptimizationModeChange={setOptimizationMode}
-        onZoom={(delta) => viewportRef.current?.zoomBy(delta)}
-        onResetView={() => viewportRef.current?.resetView()}
       />
-      {aboutOpen && (
-        <AboutModal
-          productName={PRODUCT_NAME}
-          openExternal={platform.openExternal}
-          onClose={() => setAboutOpen(false)}
+      {autoBuildOpen && (
+        <AutoBuildModal
+          onRun={(mode) => void runAutoBuild(mode)}
+          onClose={() => setAutoBuildOpen(false)}
         />
       )}
       {welcome && (

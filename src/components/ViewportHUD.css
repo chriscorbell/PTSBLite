@@ -91,7 +91,7 @@
   cursor: default;
 }
 
-/* The hint, the auto-build summary and the error flash are one banner in three
+/* The hint, the Auto-Build summary and the error flash are one banner in three
    colours, centred at the top of the viewport. */
 .hud__banner {
   position: absolute;

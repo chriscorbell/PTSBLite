@@ -1,6 +1,6 @@
 /**
  * A bounded undo stack. The app keeps one snapshot of {@link DesignState} per
- * discrete user action (part/obstacle placement, erase, auto-build, clear) and
+ * discrete user action (part/obstacle placement, erase, Auto-Build, clear) and
  * restores the previous snapshot on Ctrl/Cmd+Z. The stack is capped so a long
  * editing session can't grow memory without bound.
  */
