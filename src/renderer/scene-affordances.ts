@@ -119,6 +119,66 @@ export function buildFloorSeparator(
 }
 
 /**
+ * A floor's plenum: the space between its drop ceiling and its top, tinted so
+ * it reads differently from the room below while remaining fully buildable.
+ * The line along the bottom face marks the drop ceiling itself. Amber rather
+ * than the accent teal, which is reserved for placement affordances.
+ */
+export function buildPlenumBand(
+  area: BuildArea,
+  band: { base: number; top: number },
+  dimmed = false
+): THREE.Group {
+  const g = new THREE.Group();
+  const b = boundsFromBuildArea(area);
+  const cx = (b.xMin + b.xMax) / 2;
+  const cz = (b.zMin + b.zMax) / 2;
+  const height = band.top - band.base;
+  const fade = dimmed ? 0.4 : 1;
+
+  const fill = new THREE.Mesh(
+    new THREE.BoxGeometry(area.width, height, area.depth),
+    new THREE.MeshBasicMaterial({
+      color: VP.warn,
+      transparent: true,
+      opacity: 0.05 * fade,
+      depthWrite: false
+    })
+  );
+  fill.position.set(cx, band.base + height / 2, cz);
+  g.add(fill);
+
+  const ceiling: number[] = [
+    b.xMin,
+    0,
+    b.zMin,
+    b.xMax,
+    0,
+    b.zMin,
+    b.xMax,
+    0,
+    b.zMin,
+    b.xMax,
+    0,
+    b.zMax,
+    b.xMax,
+    0,
+    b.zMax,
+    b.xMin,
+    0,
+    b.zMax,
+    b.xMin,
+    0,
+    b.zMax,
+    b.xMin,
+    0,
+    b.zMin
+  ];
+  g.add(buildGroundLines(ceiling, VP.warn, 0.4 * fade, band.base));
+  return g;
+}
+
+/**
  * A visible stand-in for the invisible placement plane, drawn while a tool
  * that places on the plane is armed above the ground. Without it, moving the
  * elevation changed nothing on screen, and an elevated ghost was
