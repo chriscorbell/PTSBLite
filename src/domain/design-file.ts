@@ -123,7 +123,16 @@ function parseMetadata(
       revision: value.revision,
       // Forgiving migration: designs saved before the build area was configurable
       // (or with a malformed area) fall back to the default, clamped to limits.
-      buildArea: parseBuildArea(value.buildArea)
+      buildArea: parseBuildArea(value.buildArea),
+      // Same forgiveness for the setup answers, which designs saved before the
+      // welcome screen do not carry.
+      multiFloor: value.multiFloor === true,
+      plenumHeightFeet:
+        typeof value.plenumHeightFeet === "number" &&
+        Number.isFinite(value.plenumHeightFeet) &&
+        value.plenumHeightFeet > 0
+          ? value.plenumHeightFeet
+          : null
     }
   };
 }

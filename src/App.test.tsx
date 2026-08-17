@@ -40,6 +40,9 @@ async function renderApp() {
   await act(async () => {
     await Promise.resolve();
   });
+  // Every visit opens on the welcome setup form; these tests are about the
+  // editor behind it, so accept the defaults.
+  fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
   return utils;
 }
 
