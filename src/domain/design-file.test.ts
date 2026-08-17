@@ -40,14 +40,13 @@ describe("serializeDesign", () => {
   });
 
   it("serializes parts, obstacles, and metadata", () => {
-    const design = designFromScene(FULL_SCENE, { systemName: "House", revision: "0.3" });
+    const design = designFromScene(FULL_SCENE, { systemName: "House" });
     const payload = serializeDesign(design, TEST_APP_VERSION);
     expect(payload.parts).toHaveLength(4);
     expect(payload.obstacles).toHaveLength(1);
     expect(payload.metadata).toEqual({
       companyName: "",
       systemName: "House",
-      revision: "0.3",
       buildArea: DEFAULT_BUILD_AREA,
       multiFloor: false,
       plenumHeightFeet: null
@@ -66,7 +65,7 @@ describe("serializeDesign", () => {
 
 describe("deserializeDesign", () => {
   it("roundtrips a full design preserving parts, obstacles, and metadata", () => {
-    const original = designFromScene(FULL_SCENE, { systemName: "House", revision: "0.3" });
+    const original = designFromScene(FULL_SCENE, { systemName: "House" });
     const text = JSON.stringify(serializeDesign(original, TEST_APP_VERSION));
     const result = deserializeDesign(text);
     expect(result.ok).toBe(true);
@@ -90,7 +89,6 @@ describe("deserializeDesign", () => {
   it("roundtrips a custom build area", () => {
     const original = designFromScene(FULL_SCENE, {
       systemName: "House",
-      revision: "0.3",
       buildArea: { width: 40, depth: 80, height: 12 }
     });
     const result = deserializeDesign(JSON.stringify(serializeDesign(original, TEST_APP_VERSION)));
@@ -161,7 +159,7 @@ describe("deserializeDesign", () => {
     const legacy = {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       appVersion: "0.1.0",
-      metadata: { systemName: "old.ptsb", revision: "0.1" },
+      metadata: { systemName: "old.ptsb" },
       parts: [],
       obstacles: []
     };
@@ -182,7 +180,7 @@ describe("deserializeDesign", () => {
 
   it("rejects missing schemaVersion", () => {
     const result = deserializeDesign(
-      JSON.stringify({ parts: [], obstacles: [], metadata: { systemName: "x", revision: "1" } })
+      JSON.stringify({ parts: [], obstacles: [], metadata: { systemName: "x" } })
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -196,7 +194,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [],
         obstacles: [],
-        metadata: { systemName: "x", revision: "1" }
+        metadata: { systemName: "x" }
       })
     );
     expect(result.ok).toBe(false);
@@ -210,7 +208,7 @@ describe("deserializeDesign", () => {
         schemaVersion: CURRENT_SCHEMA_VERSION,
         appVersion: "0.1.0",
         obstacles: [],
-        metadata: { systemName: "x", revision: "1" }
+        metadata: { systemName: "x" }
       })
     );
     expect(result.ok).toBe(false);
@@ -225,7 +223,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [{ id: "x1", type: "wormhole", cell: [0, 0, 0] }],
         obstacles: [],
-        metadata: { systemName: "x", revision: "1" }
+        metadata: { systemName: "x" }
       })
     );
     expect(result.ok).toBe(false);
@@ -240,7 +238,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [{ id: "b1", type: "blower", cell: [0, 0], dir: [1, 0, 0] }],
         obstacles: [],
-        metadata: { systemName: "x", revision: "1" }
+        metadata: { systemName: "x" }
       })
     );
     expect(result.ok).toBe(false);
@@ -255,7 +253,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [],
         obstacles: [{ id: "o1", min: [0, 0, 0] }],
-        metadata: { systemName: "x", revision: "1" }
+        metadata: { systemName: "x" }
       })
     );
     expect(result.ok).toBe(false);
@@ -272,7 +270,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [],
         obstacles: [],
-        metadata: { revision: "1" }
+        metadata: {}
       })
     );
     expect(result.ok).toBe(true);
@@ -290,7 +288,7 @@ describe("deserializeDesign", () => {
         appVersion: "0.1.0",
         parts: [],
         obstacles: [],
-        metadata: { filename: "House", revision: "1" }
+        metadata: { filename: "House" }
       })
     );
     expect(result.ok).toBe(true);

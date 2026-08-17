@@ -11,7 +11,7 @@ import type { DesignState } from "@/types";
 
 /** Distinguishable stand-ins; the reducer never inspects the design itself. */
 function design(systemName: string): DesignState {
-  return emptyDesign({ systemName, revision: "1" });
+  return emptyDesign({ systemName });
 }
 
 const reduce = (history: DesignHistory, ...actions: Parameters<typeof designHistoryReducer>[1][]) =>

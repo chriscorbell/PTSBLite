@@ -18,7 +18,6 @@ import {
 } from "@/domain/session-autosave";
 import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
 import {
-  DEFAULT_REVISION,
   DEFAULT_SYSTEM_NAME,
   designFromScene,
   emptyDesign,
@@ -70,7 +69,7 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
 };
 
 const PRODUCT_NAME = "PTSBLite";
-const DESIGN_METADATA = { systemName: DEFAULT_SYSTEM_NAME, revision: DEFAULT_REVISION };
+const DESIGN_METADATA = { systemName: DEFAULT_SYSTEM_NAME };
 
 /** "Acme: Main Loop", or just the system name when no company was given. */
 function documentLabelFor(metadata: DesignMetadata): string {

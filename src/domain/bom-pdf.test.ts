@@ -46,7 +46,6 @@ describe("generateBomPdf", () => {
     const design = designWith(sampleParts);
     const text = extractText(await generateBomPdf(design));
     expect(text).toContain(design.metadata.systemName);
-    expect(text).toContain(design.metadata.revision);
   });
 
   it("names the company the system is for, when one was given", async () => {

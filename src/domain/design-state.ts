@@ -10,7 +10,6 @@ import type { DesignMetadata, DesignState, Scene } from "@/types";
 
 export const DEFAULT_SYSTEM_NAME = "Untitled system";
 export const DEFAULT_COMPANY_NAME = "";
-export const DEFAULT_REVISION = "0.1";
 
 /** `p` for a part, `o` for an obstacle. Both are grid occupants. */
 export type OccupantPrefix = "p" | "o";
@@ -46,7 +45,6 @@ function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
   return {
     companyName: meta?.companyName ?? DEFAULT_COMPANY_NAME,
     systemName: meta?.systemName ?? DEFAULT_SYSTEM_NAME,
-    revision: meta?.revision ?? DEFAULT_REVISION,
     buildArea: meta?.buildArea ? clampBuildArea(meta.buildArea) : { ...DEFAULT_BUILD_AREA },
     multiFloor: meta?.multiFloor ?? false,
     plenumHeightFeet: meta?.plenumHeightFeet ?? null

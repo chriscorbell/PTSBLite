@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_COMPANY_NAME,
   DEFAULT_SYSTEM_NAME,
-  DEFAULT_REVISION,
   designFromScene,
   emptyDesign,
   newOccupantId
@@ -19,7 +18,6 @@ describe("DesignState", () => {
     expect(d.metadata).toEqual({
       companyName: DEFAULT_COMPANY_NAME,
       systemName: DEFAULT_SYSTEM_NAME,
-      revision: DEFAULT_REVISION,
       buildArea: DEFAULT_BUILD_AREA,
       multiFloor: false,
       plenumHeightFeet: null
@@ -27,9 +25,9 @@ describe("DesignState", () => {
   });
 
   it("emptyDesign accepts metadata overrides", () => {
-    const d = emptyDesign({ systemName: "Main loop", revision: "1.2" });
+    const d = emptyDesign({ systemName: "Main loop", companyName: "Acme" });
     expect(d.metadata.systemName).toBe("Main loop");
-    expect(d.metadata.revision).toBe("1.2");
+    expect(d.metadata.companyName).toBe("Acme");
   });
 
   it("designFromScene clones parts and obstacles", () => {
@@ -58,7 +56,7 @@ describe("DesignState", () => {
     const scene: Scene = { parts: [], obstacles: [] };
     const d = designFromScene(scene, { systemName: "Warehouse" });
     expect(d.metadata.systemName).toBe("Warehouse");
-    expect(d.metadata.revision).toBe(DEFAULT_REVISION);
+    expect(d.metadata.companyName).toBe(DEFAULT_COMPANY_NAME);
   });
 });
 

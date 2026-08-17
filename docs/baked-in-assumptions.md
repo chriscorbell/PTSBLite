@@ -67,8 +67,12 @@ one means starting a new design. `DesignMetadata` would hold an edit fine; what 
 removed is the UI and the resize path that dropped parts no longer fitting a shrunken area.
 
 The names are the exception, because nothing is placed relative to them: company and system name
-are collected on the same form and can be changed at any time from the top-bar label. The revision
-is still fixed at `0.1` with no way to set it.
+are collected on the same form and can be changed at any time from the top-bar label.
+
+**No revision or version on a design.** `DesignMetadata` carried a `revision` string that printed
+on the PDF, but nothing could ever set it, so every export claimed "Revision 0.1". Tracking which
+revision a printed BOM belongs to is real work — history, comparison, a way to say what changed —
+and a field nobody can edit is not the start of it. Removed rather than left as furniture.
 
 ---
 

@@ -1,4 +1,4 @@
-import { DEFAULT_COMPANY_NAME, DEFAULT_REVISION, DEFAULT_SYSTEM_NAME } from "@/domain/design-state";
+import { DEFAULT_COMPANY_NAME, DEFAULT_SYSTEM_NAME } from "@/domain/design-state";
 import { reconstructDesign } from "@/domain/design-reconstruction";
 import { clampBuildArea } from "@/domain/sparse-grid";
 import type {
@@ -123,7 +123,6 @@ function parseMetadata(
       // and is still read so designs saved under the old key keep their name.
       companyName: typeof value.companyName === "string" ? value.companyName : DEFAULT_COMPANY_NAME,
       systemName: parseName(value.systemName) ?? parseName(value.filename) ?? DEFAULT_SYSTEM_NAME,
-      revision: typeof value.revision === "string" ? value.revision : DEFAULT_REVISION,
       // Forgiving migration: designs saved before the build area was configurable
       // (or with a malformed area) fall back to the default, clamped to limits.
       buildArea: parseBuildArea(value.buildArea),
