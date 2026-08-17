@@ -75,7 +75,6 @@ export type PlacementAction =
   /** `[` and `]` — move the active placement plane. */
   | { type: "nudge-elevation"; delta: number; buildArea: BuildArea }
   /** The build area changed: re-derive what no longer fits inside it. */
-  | { type: "constrain-to-build-area"; buildArea: BuildArea }
   | { type: "set-obstacle-base"; baseY: number; buildArea: BuildArea }
   | { type: "set-obstacle-height"; height: number; buildArea: BuildArea }
   | { type: "cancel-obstacle-draft" }
@@ -128,14 +127,6 @@ export function placementSessionReducer(
       return {
         ...session,
         activeElevation: clampElevation(session.activeElevation + action.delta, action.buildArea)
-      };
-
-    case "constrain-to-build-area":
-      // The plane and any half-drawn obstacle may now sit above the ceiling.
-      return {
-        ...session,
-        activeElevation: clampElevation(session.activeElevation, action.buildArea),
-        obstacleDraft: null
       };
 
     case "set-obstacle-base":

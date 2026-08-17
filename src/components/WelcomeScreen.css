@@ -12,6 +12,44 @@
   padding: 18px;
 }
 
+.welcome__note {
+  font-size: 11px;
+  color: var(--text-mut);
+  margin: 0;
+}
+
+.welcome__label {
+  font-size: 11px;
+  color: var(--text-mut);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.welcome__input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.welcome__input--narrow {
+  width: 140px;
+}
+
+.welcome__axes {
+  display: flex;
+  gap: 10px;
+}
+
+.welcome__axis {
+  flex: 1;
+}
+
 .welcome__toggle {
   display: flex;
   align-items: center;
@@ -23,4 +61,12 @@
 .welcome__plenum {
   display: block;
   margin-left: 21px;
+}
+
+.welcome__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
 }

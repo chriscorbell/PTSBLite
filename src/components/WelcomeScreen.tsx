@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
-import { BuildAreaFields } from "@/components/SystemDetailsFields";
-import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
+import { BUILD_AREA_LIMITS, clampBuildArea, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, DesignState } from "@/types";
 import "@/components/WelcomeScreen.css";
+
+// Build-area axes, labeled with their world-space axis.
+const BUILD_AREA_AXES: { key: keyof BuildArea; label: string }[] = [
+  { key: "width", label: "Width (X)" },
+  { key: "depth", label: "Depth (Z)" },
+  { key: "height", label: "Height (Y)" }
+];
 
 /** What the setup form collects before a design exists. */
 export type DesignSetup = {
@@ -94,7 +100,7 @@ export function WelcomeScreen({
           <div className="modal__title">{title}</div>
         </div>
         <div className="welcome__body">
-          <p className="settings__note">
+          <p className="welcome__note">
             Provide details about the area this system will be built in.
           </p>
           <BuildAreaFields value={buildArea} onChange={setBuildArea} />
@@ -116,23 +122,23 @@ export function WelcomeScreen({
           </label>
           {hasPlenum && (
             <label className="welcome__plenum">
-              <span className="settings__label">Approximate plenum height (feet)</span>
+              <span className="welcome__label">Approximate plenum height (feet)</span>
               <input
                 type="number"
                 min={1}
                 step={1}
                 value={plenumHeightFeet}
                 onChange={(e) => setPlenumHeightFeet(Number(e.target.value))}
-                className="settings__input settings__input--narrow"
+                className="welcome__input welcome__input--narrow"
               />
             </label>
           )}
-          <p className="settings__note">
+          <p className="welcome__note">
             1 grid cell = 1 ft. Build area height is per-floor, including plenum. Structural
             ceiling/floors for multi-floor systems are 1 ft thick.
           </p>
         </div>
-        <div className="settings__footer">
+        <div className="welcome__footer">
           <button
             className="topbtn primary"
             disabled={hasPlenum && !plenumHeightValid}
@@ -149,5 +155,38 @@ export function WelcomeScreen({
         </div>
       </>
     </Modal>
+  );
+}
+
+/** The three build-area dimensions. Clamps to `BUILD_AREA_LIMITS` on every change. */
+function BuildAreaFields({
+  value,
+  onChange
+}: {
+  value: BuildArea;
+  onChange: (next: BuildArea) => void;
+}) {
+  const setAxis = (patch: Partial<BuildArea>) => onChange(clampBuildArea({ ...value, ...patch }));
+
+  return (
+    <div>
+      <span className="welcome__label">Build area (feet)</span>
+      <div className="welcome__axes">
+        {BUILD_AREA_AXES.map(({ key, label }) => (
+          <label key={key} className="welcome__axis">
+            <span className="welcome__label">{label}</span>
+            <input
+              type="number"
+              min={BUILD_AREA_LIMITS[key].min}
+              max={BUILD_AREA_LIMITS[key].max}
+              step={1}
+              value={value[key]}
+              onChange={(e) => setAxis({ [key]: Number(e.target.value) })}
+              className="welcome__input"
+            />
+          </label>
+        ))}
+      </div>
+    </div>
   );
 }

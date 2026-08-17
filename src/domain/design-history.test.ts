@@ -93,29 +93,3 @@ describe("designHistoryReducer", () => {
     expect(reduce(history, { type: "undo" }, { type: "undo" }).present.metadata.filename).toBe("a");
   });
 });
-
-describe("replace-present", () => {
-  it("swaps the design without adding an undo step", () => {
-    const history = reduce(
-      initDesignHistory(design("a")),
-      { type: "commit", design: design("b") },
-      { type: "replace-present", design: design("b-renamed") }
-    );
-
-    // Cosmetic edits should not dilute the user's undo history.
-    expect(history.present.metadata.filename).toBe("b-renamed");
-    expect(names(history.past)).toEqual(["a"]);
-    expect(canRedo(history)).toBe(false);
-  });
-
-  it("leaves an existing redo branch intact", () => {
-    const history = reduce(
-      initDesignHistory(design("a")),
-      { type: "commit", design: design("b") },
-      { type: "undo" },
-      { type: "replace-present", design: design("a-renamed") }
-    );
-
-    expect(canRedo(history)).toBe(true);
-  });
-});

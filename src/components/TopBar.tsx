@@ -2,24 +2,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import "@/components/TopBar.css";
 import { Icons } from "@/components/Icons";
 
-export type SettingsMenuItem = {
-  id: string;
-  label: string;
-  icon?: ReactNode;
-};
-
 export type TopBarProps = {
   onNew: () => void;
   /** Shown beside the File menu. */
   documentLabel?: string;
-  /**
-   * The Settings screens this product offers. Empty hides the Edit menu — a
-   * menu that opens nothing is worse than no menu.
-   */
   /** The product name shown in the brand slot. */
   productName: string;
-  settingsMenu: SettingsMenuItem[];
-  onEdit: (tab: string) => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -35,8 +23,6 @@ export function TopBar({
   onNew,
   documentLabel,
   productName,
-  settingsMenu,
-  onEdit,
   onUndo,
   onRedo,
   canUndo,
@@ -56,7 +42,6 @@ export function TopBar({
           {documentLabel}
         </span>
       )}
-      <EditMenu items={settingsMenu} onEdit={onEdit} />
       <button
         className="topbtn icon topbar-no-drag"
         title="Undo (⌘Z)"
@@ -143,60 +128,6 @@ function FileMenu({ onNew }: { onNew: () => void }) {
       {open && (
         <div role="menu" className="topbar-menu__panel topbar-menu__panel--file topbar-no-drag">
           <MenuItem onSelect={() => choose(onNew)} icon={<Icons.New size={14} />} label="New" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function EditMenu({ items, onEdit }: { items: SettingsMenuItem[]; onEdit: (tab: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  if (items.length === 0) return null;
-
-  const choose = (tab: string) => {
-    setOpen(false);
-    onEdit(tab);
-  };
-
-  return (
-    <div ref={rootRef} className="topbar-menu">
-      <button
-        className={"topbtn topbar-no-drag" + (open ? " active" : "")}
-        aria-haspopup="true"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
-        Edit {open ? <Icons.ChevU size={12} /> : <Icons.ChevD size={12} />}
-      </button>
-      {open && (
-        <div role="menu" className="topbar-menu__panel topbar-menu__panel--edit topbar-no-drag">
-          {items.map((item) => (
-            <MenuItem
-              key={item.id}
-              onSelect={() => choose(item.id)}
-              icon={item.icon}
-              label={item.label}
-            />
-          ))}
         </div>
       )}
     </div>

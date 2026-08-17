@@ -3,8 +3,6 @@ import { AboutModal } from "@/components/AboutModal";
 import { ActiveToolBar } from "@/components/ActiveToolBar";
 import { BomExportFooter } from "@/components/BomExportFooter";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { DesignSettingsModal } from "@/components/DesignSettingsModal";
-import { Icons } from "@/components/Icons";
 import { LeftRail } from "@/components/LeftRail";
 import { RightPanel } from "@/components/RightPanel";
 import { StatusBar } from "@/components/StatusBar";
@@ -24,9 +22,7 @@ import {
   DEFAULT_REVISION,
   designFromScene,
   emptyDesign,
-  newOccupantId,
-  obstaclesWithinBuildArea,
-  partsWithinBuildArea
+  newOccupantId
 } from "@/domain/design-state";
 import { totalPathLength } from "@/domain/parts";
 import {
@@ -70,9 +66,6 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
 
 const PRODUCT_NAME = "PTSBuilderLite";
 const DESIGN_METADATA = { filename: DEFAULT_FILENAME, revision: DEFAULT_REVISION };
-const SETTINGS_MENU = [
-  { id: "system", label: "Design Settings…", icon: <Icons.Layers size={14} /> }
-];
 
 /**
  * How long to wait after a change before autosaving.
@@ -106,15 +99,6 @@ function unroutedMessage(unrouted: UnroutedPair[]): string | null {
     return `${count} were too complex to route. Try moving the endpoints closer or clearing obstacles.`;
   }
   return `${count} had no route and were skipped.`;
-}
-
-/** "2 parts and 1 obstacle", for the shrink confirmation. */
-function describeLoss(parts: number, obstacles: number): string {
-  const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
-  if (parts > 0 && obstacles > 0) {
-    return `${plural(parts, "part")} and ${plural(obstacles, "obstacle")}`;
-  }
-  return parts > 0 ? plural(parts, "part") : plural(obstacles, "obstacle");
 }
 
 export type AppProps = {
@@ -178,7 +162,6 @@ export default function App({ platform }: AppProps) {
     confirmLabel: string;
     onConfirm: () => void;
   } | null>(null);
-  const [settingsTab, setSettingsTab] = useState<string | null>(null);
   const [autoBuilding, setAutoBuilding] = useState(false);
   const [autoBuildJustRan, setAutoBuildJustRan] = useState(false);
   const [autoBuildSummary, setAutoBuildSummary] = useState<AutoBuildSummary | null>(null);
@@ -314,48 +297,6 @@ export default function App({ platform }: AppProps) {
     dispatchDocument({ type: "redo" });
     clearTransientAfterHistoryMove();
   }, [redoAvailable, clearTransientAfterHistoryMove]);
-
-  const updateMetadata = useCallback(
-    (metadata: DesignState["metadata"]) => {
-      const d = design;
-      const prev = d.metadata.buildArea;
-      const next = metadata.buildArea;
-      const areaChanged =
-        prev.width !== next.width || prev.depth !== next.depth || prev.height !== next.height;
-      if (!areaChanged) {
-        // Cosmetic metadata (name/revision): swap in place, not an undoable edit.
-        dispatchDocument({ type: "replace-present", design: { ...d, metadata } });
-        return;
-      }
-      // Build area changed: parts that no longer fit are removed, and obstacles
-      // are clipped to the new bounds. Both are destructive, so say what will be
-      // lost first — it was previously silent, and only discoverable by noticing
-      // the design had fewer parts in it than before (issue #12).
-      const keptParts = partsWithinBuildArea(d.parts, next);
-      const droppedParts = d.parts.length - keptParts.length;
-      const droppedObstacles =
-        d.obstacles.length - obstaclesWithinBuildArea(d.obstacles, next).length;
-
-      const apply = () => {
-        commitDesign(designFromScene({ parts: keptParts, obstacles: d.obstacles }, metadata));
-        // The active plane and any half-built obstacle may now sit above the
-        // ceiling; both are re-derived from the area rather than left stale.
-        dispatchPlacement({ type: "constrain-to-build-area", buildArea: next });
-      };
-
-      if (droppedParts === 0 && droppedObstacles === 0) {
-        apply();
-        return;
-      }
-      setConfirm({
-        title: "Shrink build area",
-        message: `${describeLoss(droppedParts, droppedObstacles)} will no longer fit and will be removed. This can be undone.`,
-        confirmLabel: "Shrink and remove",
-        onConfirm: apply
-      });
-    },
-    [commitDesign, design]
-  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -583,8 +524,6 @@ export default function App({ platform }: AppProps) {
         onNew={handleNew}
         documentLabel={documentLabel}
         productName={PRODUCT_NAME}
-        settingsMenu={SETTINGS_MENU}
-        onEdit={setSettingsTab}
         onUndo={undo}
         onRedo={redo}
         canUndo={undoAvailable}
@@ -652,13 +591,6 @@ export default function App({ platform }: AppProps) {
         onZoom={(delta) => viewportRef.current?.zoomBy(delta)}
         onResetView={() => viewportRef.current?.resetView()}
       />
-      {settingsTab && (
-        <DesignSettingsModal
-          metadata={design.metadata}
-          onMetadataChange={updateMetadata}
-          onClose={() => setSettingsTab(null)}
-        />
-      )}
       {aboutOpen && (
         <AboutModal
           productName={PRODUCT_NAME}

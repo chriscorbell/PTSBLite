@@ -4,8 +4,8 @@ import {
   clampBuildArea,
   DEFAULT_BUILD_AREA
 } from "@/domain/sparse-grid";
-import { obstacleCells, partCells, reconstructDesign } from "@/domain/design-reconstruction";
-import type { BuildArea, DesignMetadata, DesignState, Obstacle, Part, Scene } from "@/types";
+import { reconstructDesign } from "@/domain/design-reconstruction";
+import type { DesignMetadata, DesignState, Scene } from "@/types";
 
 export const DEFAULT_FILENAME = "Untitled system";
 export const DEFAULT_REVISION = "0.1";
@@ -48,25 +48,6 @@ function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
     multiFloor: meta?.multiFloor ?? false,
     plenumHeightFeet: meta?.plenumHeightFeet ?? null
   };
-}
-
-/**
- * Keep only the parts whose entire footprint fits within `buildArea`. Used when
- * the user shrinks the build area: anything now outside the bounds is dropped.
- */
-export function partsWithinBuildArea(parts: Part[], buildArea: BuildArea): Part[] {
-  const grid = new SparseGrid(boundsFromBuildArea(buildArea));
-  return parts.filter((part) => partCells(part).every((cell) => grid.withinBounds(cell)));
-}
-
-/**
- * Obstacles that keep at least one cell inside `buildArea`. One that keeps none
- * disappears entirely when the area shrinks; one that keeps some is clipped by
- * `reconstructDesign`. Used to tell the user what a shrink will cost them.
- */
-export function obstaclesWithinBuildArea(obstacles: Obstacle[], buildArea: BuildArea): Obstacle[] {
-  const grid = new SparseGrid(boundsFromBuildArea(buildArea));
-  return obstacles.filter((obstacle) => obstacleCells(obstacle).some((c) => grid.withinBounds(c)));
 }
 
 export function emptyDesign(meta?: Partial<DesignMetadata>): DesignState {
