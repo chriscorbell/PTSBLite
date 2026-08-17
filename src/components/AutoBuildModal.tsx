@@ -11,6 +11,10 @@ const OPTIMIZATION_OPTIONS: Array<{ value: OptimizationMode; label: string; deta
 
 export type AutoBuildModalProps = {
   onRun: (mode: OptimizationMode) => void;
+  /** How many parts in the design Auto-Build placed; 0 disables clearing. */
+  clearablePartCount: number;
+  /** Remove every part Auto-Build placed. Undoable, like any other edit. */
+  onClear: () => void;
   onClose: () => void;
 };
 
@@ -22,7 +26,12 @@ export type AutoBuildModalProps = {
  * make rather than a default to accept. It replaces a split button whose mode
  * dropdown carried a remembered setting most visitors never opened.
  */
-export function AutoBuildModal({ onRun, onClose }: AutoBuildModalProps) {
+export function AutoBuildModal({
+  onRun,
+  clearablePartCount,
+  onClear,
+  onClose
+}: AutoBuildModalProps) {
   const [mode, setMode] = useState<OptimizationMode | null>(null);
 
   return (
@@ -52,6 +61,19 @@ export function AutoBuildModal({ onRun, onClose }: AutoBuildModalProps) {
           </div>
         </div>
         <div className="modal__actions">
+          <button
+            className="topbtn"
+            disabled={clearablePartCount === 0}
+            title={
+              clearablePartCount === 0
+                ? "No Auto-Build parts to remove"
+                : "Remove every part Auto-Build placed. This can be undone."
+            }
+            onClick={onClear}
+          >
+            Clear Auto-Build
+          </button>
+          <div className="modal__spacer" />
           <button className="topbtn" onClick={onClose}>
             Cancel
           </button>

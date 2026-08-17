@@ -377,6 +377,46 @@ describe("Auto-Build", () => {
     expect(screen.queryByRole("dialog", { name: "Auto-Build" })).toBeNull();
     expect(screen.getByRole("button", { name: /^Auto-Build$/ })).toBeTruthy();
   });
+
+  it("clears exactly the parts a run added, and only offers to when there are some", async () => {
+    await renderApp();
+    const partCount = () =>
+      (document.querySelector(".status-bar")?.textContent ?? "").match(/PARTS(\d+)/)?.[1];
+    const clearButton = () =>
+      screen.getByRole<HTMLButtonElement>("button", { name: "Clear Auto-Build" });
+
+    // Nothing routed yet: the button is present but cannot be used.
+    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+    expect(clearButton().disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // A blower and its two terminals, placed the way the 3D canvas would.
+    fireEvent.click(screen.getByRole("button", { name: "Build" }));
+    fireEvent.click(screen.getByRole("button", { name: "Blower Unit" }));
+    clickCell([0, 0, 0]);
+    fireEvent.click(screen.getByRole("button", { name: "Terminal Station" }));
+    clickCell([0, 1, 0]); // Terminal 1, flush on the blower's upward outlet.
+    clickCell([6, 0, 0]); // Terminal 2, free-placed down the run.
+    expect(partCount()).toBe("3");
+
+    chooseMode(/Shortest path/);
+    fireEvent.click(screen.getByRole("button", { name: /Run Auto-Build/ }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /^Auto-Build$/ })).toBeTruthy();
+    });
+    const routed = Number(partCount());
+    expect(routed).toBeGreaterThan(3);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+    expect(clearButton().disabled).toBe(false);
+    fireEvent.click(clearButton());
+
+    // The manual parts survive; the routed tubes and bends are gone, undoably.
+    expect(screen.queryByRole("dialog", { name: "Auto-Build" })).toBeNull();
+    expect(partCount()).toBe("3");
+    act(() => undoButton().click());
+    expect(Number(partCount())).toBe(routed);
+  });
 });
 
 describe("left rail accessibility", () => {
