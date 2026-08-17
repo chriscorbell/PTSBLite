@@ -170,7 +170,7 @@ describe("the welcome setup form", () => {
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBuilderLite/ });
     expect(within(dialog).getByLabelText("Width (X)")).toBeTruthy();
-    expect(within(dialog).getByLabelText("Multi-floor project")).toBeTruthy();
+    expect(within(dialog).getByLabelText("Add 2nd floor")).toBeTruthy();
     expect(within(dialog).getByLabelText("Plenum (drop ceiling)")).toBeTruthy();
     // The height input only appears once a plenum is declared.
     expect(within(dialog).queryByLabelText(/plenum height/i)).toBeNull();
@@ -181,7 +181,7 @@ describe("the welcome setup form", () => {
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBuilderLite/ });
     fireEvent.change(within(dialog).getByLabelText("Width (X)"), { target: { value: "40" } });
-    fireEvent.click(within(dialog).getByLabelText("Multi-floor project"));
+    fireEvent.click(within(dialog).getByLabelText("Add 2nd floor"));
     fireEvent.click(within(dialog).getByLabelText("Plenum (drop ceiling)"));
     fireEvent.change(within(dialog).getByLabelText(/plenum height/i), { target: { value: "4" } });
     fireEvent.click(within(dialog).getByRole("button", { name: /Create design/ }));

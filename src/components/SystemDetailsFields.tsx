@@ -35,16 +35,23 @@ export function SystemDetailsFields({ value, onChange }: SystemDetailsFieldsProp
         />
       </Field>
 
-      <BuildAreaFields
-        value={value.buildArea}
-        onChange={(buildArea) => onChange({ ...value, buildArea })}
-      />
+      <div>
+        <BuildAreaFields
+          value={value.buildArea}
+          onChange={(buildArea) => onChange({ ...value, buildArea })}
+        />
+        <p className="settings__note settings__note--build-area">
+          The buildable volume and the ground-plane grid (1 ft = 1 cell). The footprint is centered
+          on the origin; height rises from the floor.
+        </p>
+      </div>
     </div>
   );
 }
 
 /** The three build-area dimensions, shared by design settings and the welcome
- * screen's setup form. Clamps to `BUILD_AREA_LIMITS` on every change. */
+ * screen's setup form. Clamps to `BUILD_AREA_LIMITS` on every change. Each
+ * caller explains the dimensions in its own note beside these fields. */
 export function BuildAreaFields({
   value,
   onChange
@@ -73,10 +80,6 @@ export function BuildAreaFields({
           </label>
         ))}
       </div>
-      <p className="settings__note settings__note--build-area">
-        The buildable volume and the ground-plane grid (1 ft = 1 cell). The footprint is centered on
-        the origin; height rises from the floor.
-      </p>
     </div>
   );
 }

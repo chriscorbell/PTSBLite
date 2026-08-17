@@ -94,7 +94,9 @@ export function WelcomeScreen({
           <div className="modal__title">{title}</div>
         </div>
         <div className="welcome__body">
-          <p className="settings__note">A few details about the space this system is built in.</p>
+          <p className="settings__note">
+            Provide details about the area this system will be built in.
+          </p>
           <BuildAreaFields value={buildArea} onChange={setBuildArea} />
           <label className="welcome__toggle">
             <input
@@ -102,7 +104,7 @@ export function WelcomeScreen({
               checked={multiFloor}
               onChange={(e) => setMultiFloor(e.target.checked)}
             />
-            <span>Multi-floor project</span>
+            <span>Add 2nd floor</span>
           </label>
           <label className="welcome__toggle">
             <input
@@ -125,6 +127,10 @@ export function WelcomeScreen({
               />
             </label>
           )}
+          <p className="settings__note">
+            1 grid cell = 1 ft. Build area height is per-floor, including plenum. Structural
+            ceiling/floors for multi-floor systems are 1 ft thick.
+          </p>
         </div>
         <div className="settings__footer">
           <button
