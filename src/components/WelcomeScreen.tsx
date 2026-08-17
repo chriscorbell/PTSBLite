@@ -12,6 +12,13 @@ const BUILD_AREA_AXES: { key: keyof BuildArea; label: string }[] = [
   { key: "height", label: "Height (Y)" }
 ];
 
+/**
+ * Which screen the visitor is on: the continue-or-start-over choice, the
+ * confirmation guarding the saved design, then the setup form. A visit with
+ * nothing stored starts at the form and never sees the first two.
+ */
+type Stage = "choice" | "confirm-new" | "setup";
+
 /** What the setup form collects before a design exists. */
 export type DesignSetup = {
   buildArea: BuildArea;
@@ -26,29 +33,22 @@ export type WelcomeScreenProps = {
    * was reopened mid-session via "New", which does not. */
   greeting: boolean;
   onContinue: (design: DesignState) => void;
-  /** Remove the stored design from the browser immediately. */
-  onDeleteStored: () => void;
   onCreate: (setup: DesignSetup) => void;
 };
 
 /**
  * The screen every visit starts on. With a design in storage it asks whether to
- * continue, start over, or delete it; otherwise (and after choosing to start
- * over) it collects the details a new design needs. It cannot be dismissed —
- * there is nothing to fall back to until one of its answers is given.
+ * continue it or start a new one; otherwise (and after choosing to start over)
+ * it collects the details a new design needs. It cannot be dismissed — there is
+ * nothing to fall back to until one of its answers is given.
  *
- * "New design" does not delete the stored design; that happens when the new one
- * is actually created, so closing the tab mid-setup loses nothing. The explicit
- * delete button is the immediate one.
+ * Choosing "New design" asks for confirmation first, and even then discards
+ * nothing: the stored design is replaced when the new one is actually created,
+ * so abandoning the setup form — by closing the tab, or reloading — leaves it
+ * exactly where it was.
  */
-export function WelcomeScreen({
-  stored,
-  greeting,
-  onContinue,
-  onDeleteStored,
-  onCreate
-}: WelcomeScreenProps) {
-  const [stage, setStage] = useState<"choice" | "setup">(stored ? "choice" : "setup");
+export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: WelcomeScreenProps) {
+  const [stage, setStage] = useState<Stage>(stored ? "choice" : "setup");
   const [buildArea, setBuildArea] = useState<BuildArea>({ ...DEFAULT_BUILD_AREA });
   const [multiFloor, setMultiFloor] = useState(false);
   const [hasPlenum, setHasPlenum] = useState(false);
@@ -67,21 +67,43 @@ export function WelcomeScreen({
             design is kept at a time, so creating a new design replaces the saved one.
           </div>
           <div className="modal__actions">
-            <button
-              className="topbtn danger"
-              onClick={() => {
-                onDeleteStored();
-                setStage("setup");
-              }}
-            >
-              Delete saved design
-            </button>
-            <div className="modal__spacer" />
-            <button className="topbtn" onClick={() => setStage("setup")}>
+            <button className="topbtn" onClick={() => setStage("confirm-new")}>
               New design
             </button>
             <button className="topbtn primary" autoFocus onClick={() => onContinue(stored)}>
               Continue design
+            </button>
+          </div>
+        </>
+      </Modal>
+    );
+  }
+
+  if (stage === "confirm-new" && stored) {
+    return (
+      <Modal
+        label="Start a new design?"
+        onClose={() => setStage("choice")}
+        dismissOnBackdrop={false}
+        size="sm"
+      >
+        <>
+          <div className="modal__header">
+            <span className="welcome__warn">
+              <Icons.Warn size={15} />
+            </span>
+            <div className="modal__title">Start a new design?</div>
+          </div>
+          <div className="welcome__message">
+            The design saved in this browser will be replaced once the new one is created. There is
+            no way to get it back.
+          </div>
+          <div className="modal__actions">
+            <button className="topbtn" autoFocus onClick={() => setStage("choice")}>
+              Keep saved design
+            </button>
+            <button className="topbtn danger" onClick={() => setStage("setup")}>
+              Start new design
             </button>
           </div>
         </>
