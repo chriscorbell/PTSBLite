@@ -60,7 +60,7 @@ describe("PTSBuilderLite", () => {
     createFirstDesign();
     fireEvent.click(screen.getByRole("button", { name: "BOM" }));
 
-    expect(screen.getByRole("button", { name: /Export BOM PDF/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Export PDF/ })).toBeTruthy();
   });
 
   it("uses the PTSBuilderLite name", async () => {
@@ -111,17 +111,6 @@ describe("picking up where you left off", () => {
 
     createFirstDesign();
     expect(window.localStorage.getItem(SESSION_KEY)).toBeNull();
-  });
-
-  it("deletes the saved design from the welcome screen", async () => {
-    window.localStorage.setItem(SESSION_KEY, storedDesign());
-    await renderApp();
-
-    fireEvent.click(screen.getByRole("button", { name: "Delete saved design" }));
-
-    expect(window.localStorage.getItem(SESSION_KEY)).toBeNull();
-    // With nothing left to continue, the setup form is what remains.
-    expect(screen.getByRole("button", { name: /Create design/ })).toBeTruthy();
   });
 
   it("does not offer a stored design that holds no work", async () => {

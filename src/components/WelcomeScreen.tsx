@@ -26,28 +26,20 @@ export type WelcomeScreenProps = {
    * was reopened mid-session via "New", which does not. */
   greeting: boolean;
   onContinue: (design: DesignState) => void;
-  /** Remove the stored design from the browser immediately. */
-  onDeleteStored: () => void;
   onCreate: (setup: DesignSetup) => void;
 };
 
 /**
  * The screen every visit starts on. With a design in storage it asks whether to
- * continue, start over, or delete it; otherwise (and after choosing to start
- * over) it collects the details a new design needs. It cannot be dismissed —
- * there is nothing to fall back to until one of its answers is given.
+ * continue it or start a new one; otherwise (and after choosing to start over)
+ * it collects the details a new design needs. It cannot be dismissed — there is
+ * nothing to fall back to until one of its answers is given.
  *
- * "New design" does not delete the stored design; that happens when the new one
- * is actually created, so closing the tab mid-setup loses nothing. The explicit
- * delete button is the immediate one.
+ * Choosing "New design" does not discard the stored one. That happens when the
+ * new design is actually created, so abandoning the setup form — by closing the
+ * tab, or reloading — leaves the saved design exactly where it was.
  */
-export function WelcomeScreen({
-  stored,
-  greeting,
-  onContinue,
-  onDeleteStored,
-  onCreate
-}: WelcomeScreenProps) {
+export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: WelcomeScreenProps) {
   const [stage, setStage] = useState<"choice" | "setup">(stored ? "choice" : "setup");
   const [buildArea, setBuildArea] = useState<BuildArea>({ ...DEFAULT_BUILD_AREA });
   const [multiFloor, setMultiFloor] = useState(false);
@@ -67,16 +59,6 @@ export function WelcomeScreen({
             design is kept at a time, so creating a new design replaces the saved one.
           </div>
           <div className="modal__actions">
-            <button
-              className="topbtn danger"
-              onClick={() => {
-                onDeleteStored();
-                setStage("setup");
-              }}
-            >
-              Delete saved design
-            </button>
-            <div className="modal__spacer" />
             <button className="topbtn" onClick={() => setStage("setup")}>
               New design
             </button>

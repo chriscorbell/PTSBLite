@@ -413,8 +413,6 @@ export default function App({ platform }: AppProps) {
     [resetForNewDesign]
   );
 
-  const deleteStored = useCallback(() => sessionStore.clear(), [sessionStore]);
-
   /** Create the design the setup form described. Replaces whatever was stored. */
   const createDesign = useCallback(
     (setup: DesignSetup) => {
@@ -588,7 +586,6 @@ export default function App({ platform }: AppProps) {
           stored={welcome.stored}
           greeting={welcome.greeting}
           onContinue={continueStored}
-          onDeleteStored={deleteStored}
           onCreate={createDesign}
         />
       )}
