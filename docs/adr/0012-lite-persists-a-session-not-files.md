@@ -15,9 +15,7 @@ their work.
 
 **One design, autosaved to `localStorage`, offered back on return.**
 
-The value stored under `ptsbuilder-lite:autosave:v1` (a pre-rename prefix kept deliberately — see
-[ADR-0017](0017-storage-keys-keep-the-pre-rename-prefix.md)) is exactly what `serializeDesign`
-produces.
+The value stored under `ptsblite:autosave:v1` is exactly what `serializeDesign` produces.
 No wrapper, no second version number: a timestamp and an
 independent autosave format version would both be things to maintain with no use the UI has asked
 for.
@@ -38,7 +36,7 @@ second validator exists.
 
 **An unreadable payload is set aside, not deleted.** An unsupported schema means a rollback or a
 missed migration, and a later deployment may manage what this one could not. It moves to
-`ptsbuilder-lite:autosave:unreadable`, which a second failure will not overwrite. The visitor is
+`ptsblite:autosave:unreadable`, which a second failure will not overwrite. The visitor is
 told "Your previous design could not be reopened" and nothing else; schema versions and parse
 errors go to `console.warn`.
 

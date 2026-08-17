@@ -9,9 +9,7 @@ against the system's engineering rules, and get a bill of materials out.
 [ADR-0014](docs/adr/0014-ptsblite-is-the-only-product.md) why. It shows **no prices, costs
 or dollar amounts of any kind** ([ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md)).
 
-*Avoid:* "PTSBuilder", "PTSBuilderLite" (the pre-rename name), "full version", "desktop app". The
-`ptsbuilder-lite` prefix on the `localStorage` keys is the one deliberate survivor of the old name;
-[ADR-0017](docs/adr/0017-storage-keys-keep-the-pre-rename-prefix.md) says why it stays.
+*Avoid:* "PTSBuilder", "PTSBuilderLite" (the pre-rename name), "full version", "desktop app".
 
 ## Authoritative vs. placeholder data
 
