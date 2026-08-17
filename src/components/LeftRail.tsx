@@ -36,8 +36,11 @@ export type LeftRailProps = {
   onTool: (t: ToolId) => void;
   partCount: number;
   obstacleCount: number;
+  /** How many parts in the design Auto-Build placed; 0 disables clearing them. */
+  autoBuildPartCount: number;
   onClearParts: () => void;
   onClearObstacles: () => void;
+  onClearAutoBuild: () => void;
 };
 
 export function LeftRail({
@@ -45,8 +48,10 @@ export function LeftRail({
   onTool,
   partCount,
   obstacleCount,
+  autoBuildPartCount,
   onClearParts,
-  onClearObstacles
+  onClearObstacles,
+  onClearAutoBuild
 }: LeftRailProps) {
   const [buildOpen, setBuildOpen] = useState(false);
   const railRef = useRef<HTMLDivElement | null>(null);
@@ -104,6 +109,12 @@ export function LeftRail({
           tooltip="Clear All Obstacles"
           disabled={obstacleCount === 0}
           onClick={onClearObstacles}
+        />
+        <ClearActionButton
+          icon={Icons.TrashAutoBuild}
+          tooltip="Clear Auto-Build"
+          disabled={autoBuildPartCount === 0}
+          onClick={onClearAutoBuild}
         />
       </div>
       <BuildDrawer open={buildOpen} tool={tool} onSelect={selectTool} />

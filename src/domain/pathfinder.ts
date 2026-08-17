@@ -1,4 +1,5 @@
 import { placeBend, validBendOrientations } from "@/domain/bend-placement";
+import { plenumBands, type PlenumBand } from "@/domain/floors";
 import { partRegistry, type BendFootprint } from "@/domain/part-registry";
 import { totalPathLength } from "@/domain/parts";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
@@ -12,11 +13,28 @@ export const PATHFINDER_NO_ROUTE_MESSAGE = "No route exists between the open por
 export const PATHFINDER_SEARCH_LIMIT_MESSAGE =
   "Routing gave up before finding a path. Try moving the endpoints closer or clearing obstacles.";
 
-export type OptimizationMode = "shortest" | "fewest-bends";
+/**
+ * Search-cost penalties. They decide which route wins, but never touch the
+ * geometric cost: what counts against the centerline budget is always the real
+ * feet of tube and bend arc actually placed.
+ *
+ * A bend costs its arc length plus {@link BEND_SEARCH_PENALTY}, so a route only
+ * turns when turning genuinely pays. This replaced a user-facing choice between
+ * a "shortest path" mode (no penalty) and a "fewest bends" mode (penalty 12)
+ * with one behavior between the two.
+ */
+const BEND_SEARCH_PENALTY = 6;
 
-export const DEFAULT_OPTIMIZATION_MODE: OptimizationMode = "shortest";
-
-const FEWEST_BENDS_PENALTY = 12;
+/**
+ * The soft plenum bias. When the design has a plenum, each horizontal foot
+ * outside it counts triple and a bend clear of it costs roughly two extra arc
+ * lengths, while vertical feet stay uncharged so the riser into the plenum is
+ * free to the search. The intended balance: a horizontal run longer than about
+ * the riser height plus ten feet routes through the plenum, and a short hop
+ * between nearby ports stays direct instead of detouring absurdly.
+ */
+const OUT_OF_PLENUM_STRAIGHT_PENALTY = 2;
+const OUT_OF_PLENUM_BEND_PENALTY = 9;
 
 export type UnroutedPair = {
   source: Port;
@@ -31,7 +49,6 @@ export type UnroutedPair = {
 
 export type AutoBuildOptions = {
   maxBudgetFeet?: number;
-  mode?: OptimizationMode;
   /**
    * Cap on A* expansions per search. Exposed mainly so tests can drive the
    * give-up path deterministically instead of building a layout large enough to
@@ -161,11 +178,15 @@ function cellIsOpenForRoute(design: DesignState, cell: Vec3, goalCell: Vec3): bo
   return !design.grid.query(cell);
 }
 
-function bendFits(design: DesignState, entryCell: Vec3, footprint: BendFootprint): boolean {
-  return bendCells(entryCell, footprint).every(
+function bendFits(design: DesignState, cells: Vec3[]): boolean {
+  return cells.every(
     (cell) =>
       design.grid.withinBounds(cell) && cell[1] >= GROUND_PLANE_Y && !design.grid.query(cell)
   );
+}
+
+function inPlenum(bands: PlenumBand[], y: number): boolean {
+  return bands.some((band) => y >= band.base && y < band.top);
 }
 
 function arcCost(): number {
@@ -177,7 +198,7 @@ function neighbors(
   state: RouteState,
   source: Port,
   target: Port,
-  mode: OptimizationMode
+  plenum: PlenumBand[]
 ): Array<{ state: RouteState; edge: RouteEdge; cost: number; searchCost: number }> {
   const goalCell = target.from;
   if (!cellIsOpenForRoute(design, state.cell, goalCell) && !vEq(state.cell, source.cell)) {
@@ -193,33 +214,39 @@ function neighbors(
     cellIsOpenForRoute(design, straightCell, goalCell) &&
     inSearchBounds(straightCell, source, target)
   ) {
+    const horizontal = state.dir[1] === 0;
+    const penalized = plenum.length > 0 && horizontal && !inPlenum(plenum, straightCell[1]);
     const to = { cell: straightCell, dir: state.dir };
     result.push({
       state: to,
       edge: { kind: "straight", from: state, to },
       cost: 1,
-      searchCost: 1
+      searchCost: 1 + (penalized ? OUT_OF_PLENUM_STRAIGHT_PENALTY : 0)
     });
   }
 
   const arc = arcCost();
-  const bendSearchCost = mode === "fewest-bends" ? arc + FEWEST_BENDS_PENALTY : arc;
   for (const footprint of bendEntries()) {
     if (!vEq(footprint.inDir, state.dir)) continue;
     if (!isTurn(state.dir, footprint.outDir)) continue;
-    if (!bendFits(design, state.cell, footprint)) continue;
+    const cells = bendCells(state.cell, footprint);
+    if (!bendFits(design, cells)) continue;
 
     const exitCell = vAdd(state.cell, footprint.exit);
     const exitPortCell = vAdd(exitCell, footprint.outDir);
     if (!cellIsOpenForRoute(design, exitPortCell, goalCell)) continue;
     if (!inSearchBounds(exitPortCell, source, target)) continue;
 
+    // A bend counts as in the plenum when any of its cells is: the bend that
+    // climbs out of a riser into the band straddles the boundary, and charging
+    // it would tax exactly the turn the bias exists to encourage.
+    const penalized = plenum.length > 0 && !cells.some((cell) => inPlenum(plenum, cell[1]));
     const to = { cell: exitPortCell, dir: footprint.outDir };
     result.push({
       state: to,
       edge: { kind: "bend", from: state, to, outDir: footprint.outDir },
       cost: arc,
-      searchCost: bendSearchCost
+      searchCost: arc + BEND_SEARCH_PENALTY + (penalized ? OUT_OF_PLENUM_BEND_PENALTY : 0)
     });
   }
   return result;
@@ -233,7 +260,7 @@ function routeBetween(
   design: DesignState,
   source: Port,
   target: Port,
-  mode: OptimizationMode,
+  plenum: PlenumBand[],
   maxExpansions: number
 ): RouteOutcome {
   const goal: RouteState = { cell: target.from, dir: vNeg(target.dir) };
@@ -274,7 +301,7 @@ function routeBetween(
       };
     }
 
-    for (const next of neighbors(design, current.state, source, target, mode)) {
+    for (const next of neighbors(design, current.state, source, target, plenum)) {
       const nextKey = stateKey(next.state);
       const nextSearchCost = currentSearchCost + next.searchCost;
       if (nextSearchCost >= (searchCostByKey.get(nextKey) ?? Number.POSITIVE_INFINITY)) continue;
@@ -351,7 +378,7 @@ function planBestRoute(
   design: DesignState,
   oriented: { source: Port; target: Port },
   pool: Port[],
-  mode: OptimizationMode,
+  plenum: PlenumBand[],
   maxExpansions: number
 ): { best: PlannedBest | null; hitSearchLimit: boolean } {
   const sourceOptions = pool.filter((p) => p.partId === oriented.source.partId);
@@ -366,8 +393,8 @@ function planBestRoute(
       if (s.partId === t.partId) continue;
       const candidates: PlannedBest[] = [];
       for (const [from, to, outcome] of [
-        [s, t, routeBetween(design, s, t, mode, maxExpansions)] as const,
-        [t, s, routeBetween(design, t, s, mode, maxExpansions)] as const
+        [s, t, routeBetween(design, s, t, plenum, maxExpansions)] as const,
+        [t, s, routeBetween(design, t, s, plenum, maxExpansions)] as const
       ]) {
         if (outcome.kind === "route")
           candidates.push({ route: outcome.route, source: from, target: to });
@@ -466,8 +493,8 @@ export function autoBuildOpenPortPair(
   options: AutoBuildOptions = {}
 ): AutoBuildPathResult {
   const budget = options.maxBudgetFeet ?? MAX_CENTERLINE_FEET;
-  const mode = options.mode ?? DEFAULT_OPTIMIZATION_MODE;
   const maxExpansions = options.maxExpansions ?? MAX_ROUTE_EXPANSIONS;
+  const plenum = plenumBands(design.metadata);
   const existingLength = totalPathLength(design);
 
   let currentDesign = design;
@@ -484,7 +511,7 @@ export function autoBuildOpenPortPair(
       currentDesign,
       oriented,
       pool,
-      mode,
+      plenum,
       maxExpansions
     );
     if (!best) {

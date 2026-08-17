@@ -108,8 +108,6 @@ export type AutoBuildSummary = {
   bends: number;
   /** Obstacles in the design the route had to avoid. */
   obstacles: number;
-  /** Human-readable optimization mode, e.g. "Fewest bends". */
-  modeLabel: string;
   /** Port pairs Auto-Build could not route. */
   unrouted: number;
 };

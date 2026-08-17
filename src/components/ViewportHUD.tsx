@@ -131,15 +131,20 @@ export function ViewportHUD({
             Auto-Build complete · {scene.autoBuildSummary.lengthFeet.toFixed(1)}ft ·{" "}
             {pluralize(scene.autoBuildSummary.bends, "bend")}
           </div>
-          <div className="hud__banner-detail">
-            {scene.autoBuildSummary.obstacles > 0
-              ? `Routed around ${pluralize(scene.autoBuildSummary.obstacles, "obstacle")} · `
-              : ""}
-            {scene.autoBuildSummary.modeLabel.toLowerCase()}
-            {scene.autoBuildSummary.unrouted > 0
-              ? ` · ${pluralize(scene.autoBuildSummary.unrouted, "pair")} unrouted`
-              : ""}
-          </div>
+          {(scene.autoBuildSummary.obstacles > 0 || scene.autoBuildSummary.unrouted > 0) && (
+            <div className="hud__banner-detail">
+              {[
+                scene.autoBuildSummary.obstacles > 0
+                  ? `Routed around ${pluralize(scene.autoBuildSummary.obstacles, "obstacle")}`
+                  : null,
+                scene.autoBuildSummary.unrouted > 0
+                  ? `${pluralize(scene.autoBuildSummary.unrouted, "pair")} unrouted`
+                  : null
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
         </div>
       )}
 
