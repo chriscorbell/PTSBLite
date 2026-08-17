@@ -98,6 +98,28 @@ describe("deserializeDesign", () => {
     expect(result.design.metadata.buildArea).toEqual({ width: 40, depth: 80, height: 12 });
   });
 
+  it("roundtrips the Auto-Build mark and ignores any other source value", () => {
+    const marked = JSON.parse(
+      JSON.stringify(serializeDesign(designFromScene(FULL_SCENE), TEST_APP_VERSION))
+    ) as { parts: Array<Record<string, unknown>> };
+    marked.parts.find((p) => p.type === "tube")!.source = "auto-build";
+    marked.parts.find((p) => p.type === "bend")!.source = "wormhole";
+
+    const result = deserializeDesign(JSON.stringify(marked));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const tube = result.design.parts.find((p) => p.type === "tube");
+    const bend = result.design.parts.find((p) => p.type === "bend");
+    expect(tube).toMatchObject({ source: "auto-build" });
+    // An unrecognized provenance is dropped, not preserved as a mystery value.
+    expect(bend && "source" in bend).toBe(false);
+
+    const reserialized = serializeDesign(result.design, TEST_APP_VERSION);
+    expect(reserialized.parts.find((p) => p.type === "tube")).toMatchObject({
+      source: "auto-build"
+    });
+  });
+
   it("restores a two-floor design with a part on the second floor", () => {
     // The part sits above the single-floor ceiling; only the doubled volume
     // that multiFloor implies can hold it, so the restore path must derive it.

@@ -6,7 +6,7 @@ import {
   PATHFINDER_SEARCH_LIMIT_MESSAGE
 } from "@/domain/pathfinder";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
-import { totalPathLength } from "@/domain/parts";
+import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
 import { validate } from "@/domain/validation";
 import type { DesignState, Obstacle, Part, Vec3 } from "@/types";
 
@@ -33,9 +33,26 @@ describe("Pathfinder MVP", () => {
       type: "tube",
       from: [2.5, 0.5, 0.5],
       to: [8.5, 0.5, 0.5],
-      length: 6
+      length: 6,
+      source: "auto-build"
     });
     expect(validate(result.design)).toEqual([]);
+  });
+
+  it("marks every part it places, so Clear Auto-Build can find them again", () => {
+    const result = autoBuildOpenPortPair(designWith(basicParts([5, 0, 4], [0, 0, 1])));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Bends as well as tubes; the manually placed blower and terminals are not.
+    expect(result.parts.length).toBeGreaterThan(0);
+    expect(result.parts.some((part) => part.type === "bend")).toBe(true);
+    expect(result.parts.every((part) => isAutoBuildPart(part))).toBe(true);
+    const manual = result.design.parts.filter(
+      (part) => part.type === "blower" || part.type === "terminal"
+    );
+    expect(manual.length).toBe(3);
+    expect(manual.some((part) => isAutoBuildPart(part))).toBe(false);
   });
 
   it("Auto-Builds a single-bend L route", () => {

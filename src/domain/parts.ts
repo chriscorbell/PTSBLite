@@ -3,6 +3,11 @@ import type { DesignState, Part } from "@/types";
 
 export type { PartCatalogEntry } from "@/domain/part-registry";
 
+/** Whether Auto-Build placed this part. What "Clear Auto-Build" removes. */
+export function isAutoBuildPart(p: Part): boolean {
+  return (p.type === "tube" || p.type === "bend") && p.source === "auto-build";
+}
+
 export function partLength(p: Part): number {
   if (p.type === "tube") {
     const dx = p.to[0] - p.from[0];

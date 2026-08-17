@@ -22,6 +22,9 @@ export type TubePart = {
   from: Vec3;
   to: Vec3;
   length?: number;
+  /** Set when Auto-Build placed this part; absent on manual placement. What
+   * "Clear Auto-Build" filters on, so it is serialized with the design. */
+  source?: "auto-build";
 };
 
 export type BendPart = {
@@ -33,6 +36,8 @@ export type BendPart = {
   inDir: Vec3;
   outDir: Vec3;
   radius?: number;
+  /** Set when Auto-Build placed this part; absent on manual placement. */
+  source?: "auto-build";
 };
 
 export type Part = BlowerPart | TerminalPart | TubePart | BendPart;

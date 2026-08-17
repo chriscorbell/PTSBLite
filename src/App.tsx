@@ -31,7 +31,7 @@ import {
   floorSeparatorY,
   plenumBands
 } from "@/domain/floors";
-import { totalPathLength } from "@/domain/parts";
+import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
 import {
   attemptPlacement,
   commitObstacleDraft,
@@ -485,6 +485,17 @@ export default function App({ platform }: AppProps) {
     setAutoBuildJustRan(false);
   }, [selectTool]);
 
+  /** Remove every part Auto-Build placed, as one undoable step. */
+  const clearAutoBuild = useCallback(() => {
+    setAutoBuildOpen(false);
+    const kept = design.parts.filter((part) => !isAutoBuildPart(part));
+    if (kept.length === design.parts.length) return;
+    commitDesign(designFromScene({ parts: kept, obstacles: design.obstacles }, design.metadata));
+    resetActiveInteraction();
+    setAutoBuildSummary(null);
+    setErrorFlash(null);
+  }, [commitDesign, design, resetActiveInteraction, setErrorFlash]);
+
   const clearAllParts = useCallback(() => {
     if (design.parts.length === 0) return;
     setConfirm({
@@ -624,6 +635,8 @@ export default function App({ platform }: AppProps) {
       {autoBuildOpen && (
         <AutoBuildModal
           onRun={(mode) => void runAutoBuild(mode)}
+          clearablePartCount={design.parts.filter(isAutoBuildPart).length}
+          onClear={clearAutoBuild}
           onClose={() => setAutoBuildOpen(false)}
         />
       )}

@@ -420,7 +420,8 @@ function commitRoute(design: DesignState, route: PlannedRoute): CommitRouteResul
           id: nextRouteId(existingIds),
           cell: currentCell,
           sourcePartId: currentPartId,
-          length
+          length,
+          source: "auto-build"
         });
         if (!result.ok) return { ok: false };
         currentDesign = result.design;
@@ -447,7 +448,8 @@ function commitRoute(design: DesignState, route: PlannedRoute): CommitRouteResul
       id: nextRouteId(existingIds),
       cell: currentCell,
       sourcePartId: currentPartId,
-      rotationIndex
+      rotationIndex,
+      source: "auto-build"
     });
     if (!result.ok) return { ok: false };
     currentDesign = result.design;
