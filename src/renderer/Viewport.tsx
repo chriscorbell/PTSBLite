@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import {
   buildBendMesh,
@@ -19,7 +19,6 @@ import {
 } from "@/renderer/interaction";
 import {
   buildGround,
-  buildLabelSprite,
   buildLandingCellHighlight,
   buildPortGlow
 } from "@/renderer/scene-affordances";
@@ -31,7 +30,7 @@ import {
   updateLineResolutions,
   VP
 } from "@/renderer/three-utils";
-import { type PartLabel, type PortMarker } from "@/domain/renderer-affordances";
+import { type PortMarker } from "@/domain/renderer-affordances";
 import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, Ghost, Scene, ToolId, Vec3 } from "@/types";
 import "@/renderer/Viewport.css";
@@ -72,12 +71,9 @@ type ViewportState = {
   overlayGroup?: THREE.Group;
   planeGroup?: THREE.Group;
   portsGroup?: THREE.Group;
-  labelsGroup?: THREE.Group;
   groundGroup?: THREE.Group;
   hoverPlane?: THREE.Mesh;
   requestRender?: () => void;
-  zoomBy?: (delta: number) => void;
-  resetView?: () => void;
   cleanup?: () => void;
 };
 
@@ -85,23 +81,7 @@ export type ViewportPlaceTarget = {
   partId?: string;
 };
 
-/**
- * What another component may ask the camera to do.
- *
- * These were previously `window.dispatchEvent(new CustomEvent("ptsb-zoom"))`
- * from the status bar, with a matching listener here — an untyped global side
- * channel between two components that are already siblings under `App`, which
- * neither TypeScript nor the test suite could see (issue #19).
- */
-export type ViewportHandle = {
-  /** Multiply the camera distance. Positive pulls back, negative moves in. */
-  zoomBy: (delta: number) => void;
-  /** Return to the framing the app opens with. */
-  resetView: () => void;
-};
-
 export type ViewportProps = {
-  ref?: Ref<ViewportHandle>;
   scene: Scene;
   buildArea?: BuildArea;
   ghost: Ghost | null;
@@ -111,12 +91,9 @@ export type ViewportProps = {
   landingCells?: Vec3[];
   activeElevation?: number;
   portMarkers?: PortMarker[];
-  labels?: PartLabel[];
-  showLabels?: boolean;
 };
 
 export function Viewport({
-  ref,
   scene,
   buildArea = DEFAULT_BUILD_AREA,
   ghost,
@@ -125,23 +102,12 @@ export function Viewport({
   onHover,
   landingCells = [],
   activeElevation = 0,
-  portMarkers = [],
-  labels = [],
-  showLabels = false
+  portMarkers = []
 }: ViewportProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<ViewportState>({});
   const toolRef = useRef<ToolId>(tool);
   const callbacksRef = useRef<Pick<ViewportProps, "onPlace" | "onHover">>({ onPlace, onHover });
-
-  useImperativeHandle(
-    ref,
-    (): ViewportHandle => ({
-      zoomBy: (delta) => stateRef.current.zoomBy?.(delta),
-      resetView: () => stateRef.current.resetView?.()
-    }),
-    []
-  );
 
   useEffect(() => {
     toolRef.current = tool;
@@ -179,9 +145,8 @@ export function Viewport({
      * redrew an identical image forever, for the whole time the app was open
      * (issue #14). In exchange, anything that changes what is on screen now has
      * to say so. That includes the paths that *remove* something and return
-     * early — clearing the ghost group when there is no ghost, or the label
-     * group when labels are off, changes the picture exactly as much as adding
-     * to it does.
+     * early — clearing the ghost group when there is no ghost changes the
+     * picture exactly as much as adding to it does.
      */
     let raf = 0;
     const requestRender = () => {
@@ -228,8 +193,6 @@ export function Viewport({
     scene3.add(planeGroup);
     const portsGroup = new THREE.Group();
     scene3.add(portsGroup);
-    const labelsGroup = new THREE.Group();
-    scene3.add(labelsGroup);
 
     const ray = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
@@ -252,7 +215,6 @@ export function Viewport({
       overlayGroup,
       planeGroup,
       portsGroup,
-      labelsGroup,
       hoverPlane,
       requestRender
     };
@@ -366,18 +328,6 @@ export function Viewport({
     window.addEventListener("mouseup", onUp);
     dom.addEventListener("wheel", onWheel, { passive: false });
     dom.addEventListener("contextmenu", onContextMenu);
-
-    stateRef.current.zoomBy = (delta: number) => {
-      cam.distance = Math.max(8, Math.min(80, cam.distance * (1 + delta)));
-      applyCamera();
-    };
-    stateRef.current.resetView = () => {
-      cam.yaw = DEFAULT_CAMERA_FRAMING.yaw;
-      cam.pitch = DEFAULT_CAMERA_FRAMING.pitch;
-      cam.distance = DEFAULT_CAMERA_FRAMING.distance;
-      cam.target.set(...DEFAULT_CAMERA_FRAMING.target);
-      applyCamera();
-    };
 
     const onResize = () => {
       const W = mount.clientWidth;
@@ -533,21 +483,6 @@ export function Viewport({
     }
     s.requestRender?.();
   }, [portMarkers]);
-
-  useEffect(() => {
-    const s = stateRef.current;
-    if (!s.labelsGroup) return;
-    const group = s.labelsGroup;
-    // As with the ghost: switching labels off empties the group, and that has to
-    // reach the screen too.
-    clearGroup(group);
-    if (showLabels) {
-      for (const label of labels) {
-        group.add(buildLabelSprite(label));
-      }
-    }
-    s.requestRender?.();
-  }, [labels, showLabels]);
 
   return (
     <div

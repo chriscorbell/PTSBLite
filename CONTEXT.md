@@ -65,7 +65,7 @@ lengths. The quantity capped at 300 ft.
 
 **Port** — a connection point on a part: a cell it would connect *into*, plus the direction it
 faces. **Open port** — a port not currently mated to another part's port. Open ports are what the
-tube/bend tools snap to and what auto-build routes between.
+tube/bend tools snap to and what Auto-Build routes between.
 
 **Topology** — the derived graph of every part's ports and which of them are mated. Recomputed from
 the parts list; not stored.
@@ -75,7 +75,7 @@ tool. Derived from open ports.
 
 **Ghost** — the translucent preview of the part that would be placed at the hovered cell.
 
-**Auto-build** — the routing pass that connects open port pairs automatically, optimising for either
+**Auto-Build** — the routing pass that connects open port pairs automatically, optimising for either
 shortest path or fewest bends.
 
 **BOM** — bill of materials: catalog rows with quantities derived from the design. **Stock tube** is
@@ -94,12 +94,12 @@ Layers separated by kind, not by subject:
 - `src/domain/` — pure logic: geometry, placement rules, topology, routing, validation, design
   serialization, and the autosaved session. No React, no Three.js. This is where most tests live.
 - `src/renderer/` — the Three.js viewport, split by responsibility: `design-meshes` for the parts,
-  `scene-affordances` for ground, highlights, ports and labels, `interaction` for pure pointer maths,
+  `scene-affordances` for ground, highlights and ports, `interaction` for pure pointer maths,
   `three-utils` for the palette and GPU disposal, and `Viewport.tsx` for the React lifecycle.
 - `src/components/` — React UI. Each component's styling sits in a colocated `.css` file beside it;
   see ADR-0009 for the rule and the few runtime-value exceptions.
-- `src/platform/` — browser services kept behind a testable boundary: session storage, PDF
-  downloads, and safe external links.
+- `src/platform/` — browser services kept behind a testable boundary: session storage and PDF
+  downloads.
 
 The repository contains no pricing, quote, seller, customer, tax, or other commercial model.
 `BomRow` cannot hold a price, the catalog loader rejects price data, and the application exports a

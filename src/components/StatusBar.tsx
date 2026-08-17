@@ -1,27 +1,17 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icons } from "@/components/Icons";
 import { totalPathLength } from "@/domain/parts";
-import type { OptimizationMode } from "@/domain/pathfinder";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { DesignState, Warning } from "@/types";
 import "@/components/StatusBar.css";
-
-const OPTIMIZATION_OPTIONS: Array<{ value: OptimizationMode; label: string; title: string }> = [
-  { value: "shortest", label: "Shortest path", title: "Minimize total centerline length" },
-  { value: "fewest-bends", label: "Fewest bends", title: "Penalize direction changes" }
-];
 
 export type StatusBarProps = {
   design: DesignState;
   warnings: Warning[];
   expanded: boolean;
   onToggle: () => void;
+  /** Opens the modal that asks which way to route. */
   onAutoBuild: () => void;
   autoBuilding: boolean;
-  optimizationMode: OptimizationMode;
-  onOptimizationModeChange: (mode: OptimizationMode) => void;
-  onZoom: (delta: number) => void;
-  onResetView: () => void;
 };
 
 export function StatusBar({
@@ -30,11 +20,7 @@ export function StatusBar({
   expanded,
   onToggle,
   onAutoBuild,
-  autoBuilding,
-  optimizationMode,
-  onOptimizationModeChange,
-  onZoom,
-  onResetView
+  autoBuilding
 }: StatusBarProps) {
   const errors = warnings.filter((w) => w.level === "error").length;
   const warns = warnings.filter((w) => w.level === "warn").length;
@@ -93,154 +79,15 @@ export function StatusBar({
         <Meta label="PARTS" value={`${design.parts.length}`} />
 
         <div className="status-bar__spacer" />
-        <ViewControls onZoom={onZoom} onResetView={onResetView} />
-        <Sep />
-        <AutoBuildControl
-          onAutoBuild={onAutoBuild}
-          autoBuilding={autoBuilding}
-          mode={optimizationMode}
-          onModeChange={onOptimizationModeChange}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ViewControls({
-  onZoom,
-  onResetView
-}: {
-  onZoom: (delta: number) => void;
-  onResetView: () => void;
-}) {
-  return (
-    <div className="view-controls">
-      <ViewButton title="Zoom out" onClick={() => onZoom(0.25)} iconOnly>
-        <Icons.ZoomOut size={13} />
-      </ViewButton>
-      <ViewButton title="Zoom in" onClick={() => onZoom(-0.2)} iconOnly>
-        <Icons.ZoomIn size={13} />
-      </ViewButton>
-      <ViewButton title="Reset view" onClick={onResetView}>
-        Reset view
-      </ViewButton>
-    </div>
-  );
-}
-
-function ViewButton({
-  title,
-  onClick,
-  iconOnly = false,
-  children
-}: {
-  title: string;
-  onClick: () => void;
-  iconOnly?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      className={`view-controls__button${iconOnly ? " view-controls__button--icon" : ""}`}
-      onClick={onClick}
-      title={title}
-      aria-label={title}
-    >
-      {children}
-    </button>
-  );
-}
-
-function AutoBuildControl({
-  onAutoBuild,
-  autoBuilding,
-  mode,
-  onModeChange
-}: {
-  onAutoBuild: () => void;
-  autoBuilding: boolean;
-  mode: OptimizationMode;
-  onModeChange: (next: OptimizationMode) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const activeLabel =
-    OPTIMIZATION_OPTIONS.find((opt) => opt.value === mode)?.label ?? "Shortest path";
-  // The menu is closed while a build runs. Deriving that beats an effect that
-  // calls setOpen, which cost an extra render pass to reach the same state.
-  const expanded = open && !autoBuilding;
-
-  useEffect(() => {
-    if (!expanded) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [expanded]);
-
-  return (
-    <div ref={rootRef} className="auto-build">
-      {expanded && (
-        <div
-          className="auto-build__menu"
-          role="radiogroup"
-          aria-label="Auto-build optimization mode"
+        <button
+          type="button"
+          className="auto-build__run"
+          onClick={onAutoBuild}
+          disabled={autoBuilding}
         >
-          {OPTIMIZATION_OPTIONS.map((opt) => {
-            const active = opt.value === mode;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                className="auto-build__option"
-                role="radio"
-                aria-checked={active}
-                title={opt.title}
-                onClick={() => {
-                  onModeChange(opt.value);
-                  setOpen(false);
-                }}
-              >
-                <span>{opt.label}</span>
-                {active && <Icons.Check size={12} />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      <button
-        type="button"
-        className="auto-build__run"
-        onClick={() => {
-          setOpen(false);
-          onAutoBuild();
-        }}
-        disabled={autoBuilding}
-      >
-        <Icons.Auto size={13} /> {autoBuilding ? "Routing…" : "Auto-build"}
-      </button>
-      <button
-        type="button"
-        className="auto-build__mode"
-        aria-label="Choose Auto-build routing mode"
-        aria-haspopup="true"
-        aria-expanded={expanded}
-        disabled={autoBuilding}
-        onClick={() => setOpen((next) => !next)}
-      >
-        <span>{activeLabel}</span>
-        {expanded ? <Icons.ChevD size={11} /> : <Icons.ChevU size={11} />}
-      </button>
+          <Icons.Auto size={13} /> {autoBuilding ? "Routing…" : "Auto-Build"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -5,19 +5,10 @@ import App from "@/App";
 import { serializeDesign } from "@/domain/design-file";
 import { emptyDesign } from "@/domain/design-state";
 import { webPlatform } from "@/platform/web";
-import type { ViewportHandle, ViewportProps } from "@/renderer/Viewport";
 import type { Part } from "@/types";
 
 vi.mock("@/renderer/Viewport", () => ({
-  Viewport: (props: ViewportProps) => {
-    if (props.ref && typeof props.ref === "object") {
-      (props.ref as { current: ViewportHandle | null }).current = {
-        zoomBy: vi.fn(),
-        resetView: vi.fn()
-      };
-    }
-    return null;
-  }
+  Viewport: () => null
 }));
 
 const SESSION_KEY = "ptsbuilder-lite:autosave:v1";
@@ -75,15 +66,6 @@ describe("PTSBuilderLite", () => {
   it("uses the PTSBuilderLite name", async () => {
     await renderApp();
     expect(document.body.textContent).toContain("PTSBuilderLite");
-  });
-
-  it("identifies Kelly Tube Systems in the product description", async () => {
-    await renderApp();
-    createFirstDesign();
-    fireEvent.click(screen.getByRole("button", { name: "About" }));
-    expect(screen.getByRole("dialog", { name: /About PTSBuilderLite/ }).textContent).toContain(
-      "Kelly Tube Systems"
-    );
   });
 });
 

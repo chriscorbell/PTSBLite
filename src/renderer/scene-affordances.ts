@@ -1,17 +1,17 @@
 import * as THREE from "three";
 import { TUBE_R, VP } from "@/renderer/three-utils";
 import { boundsFromBuildArea } from "@/domain/sparse-grid";
-import type { PartLabel, PortMarker } from "@/domain/renderer-affordances";
+import type { PortMarker } from "@/domain/renderer-affordances";
 import type { BuildArea, ToolId, Vec3 } from "@/types";
 
 /**
  * Everything the viewport draws that is not part of the design: the ground and
- * its grid, the highlighted cells a tool can land on, the glowing open ports,
- * and the floating part labels.
+ * its grid, the highlighted cells a tool can land on, and the glowing open
+ * ports.
  *
  * Separate from design-meshes.ts because these live in their own scene groups
  * and are rebuilt on different triggers — the ground on a build-area change,
- * highlights on a tool change, labels on a toggle — rather than with the design.
+ * highlights on a tool change — rather than with the design.
  */
 
 function buildGroundLines(
@@ -191,60 +191,4 @@ export function buildPortGlow(marker: PortMarker): THREE.Group {
   halo.position.copy(ring.position);
   g.add(halo);
   return g;
-}
-
-export function buildLabelSprite(label: PartLabel): THREE.Sprite {
-  const text = label.text;
-  const padX = 12;
-  const padY = 6;
-  const fontPx = 22;
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    return new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffffff }));
-  }
-  ctx.font = `600 ${fontPx}px 'Geist Variable', system-ui, -apple-system, sans-serif`;
-  const metrics = ctx.measureText(text);
-  const w = Math.ceil(metrics.width) + padX * 2;
-  const h = fontPx + padY * 2;
-  canvas.width = w;
-  canvas.height = h;
-  ctx.font = `600 ${fontPx}px 'Geist Variable', system-ui, -apple-system, sans-serif`;
-  ctx.fillStyle = "rgba(11,14,19,0.85)";
-  const r = 6;
-  ctx.beginPath();
-  ctx.moveTo(r, 0);
-  ctx.lineTo(w - r, 0);
-  ctx.quadraticCurveTo(w, 0, w, r);
-  ctx.lineTo(w, h - r);
-  ctx.quadraticCurveTo(w, h, w - r, h);
-  ctx.lineTo(r, h);
-  ctx.quadraticCurveTo(0, h, 0, h - r);
-  ctx.lineTo(0, r);
-  ctx.quadraticCurveTo(0, 0, r, 0);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = "rgba(94,234,212,0.55)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.fillStyle = "#e6ecf5";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, padX, h / 2);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.needsUpdate = true;
-  const mat = new THREE.SpriteMaterial({
-    map: tex,
-    transparent: true,
-    depthWrite: false,
-    depthTest: false
-  });
-  const sprite = new THREE.Sprite(mat);
-  const worldH = 0.46;
-  sprite.scale.set((w / h) * worldH, worldH, 1);
-  sprite.position.set(label.anchor[0], label.anchor[1], label.anchor[2]);
-  sprite.renderOrder = 999;
-  return sprite;
 }

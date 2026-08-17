@@ -1,4 +1,4 @@
-import { isSafeExternalUrl, type Platform } from "@/platform/types";
+import type { Platform } from "@/platform/types";
 
 /** One design, one origin. See ADR-0012. */
 const SESSION_KEY = "ptsbuilder-lite:autosave:v1";
@@ -64,11 +64,6 @@ export function webPlatform(): Platform {
         // download if the object URL disappears in the same one.
         setTimeout(() => URL.revokeObjectURL(url), 30_000);
       }
-    },
-
-    openExternal: (url) => {
-      if (!isSafeExternalUrl(url)) return;
-      window.open(url, "_blank", "noopener,noreferrer");
     }
   };
 }
