@@ -98,6 +98,19 @@ describe("deserializeDesign", () => {
     expect(result.design.metadata.buildArea).toEqual({ width: 40, depth: 80, height: 12 });
   });
 
+  it("restores a two-floor design with a part on the second floor", () => {
+    // The part sits above the single-floor ceiling; only the doubled volume
+    // that multiFloor implies can hold it, so the restore path must derive it.
+    const original = designFromScene(
+      { parts: [{ id: "b1", type: "blower", cell: [0, 35, 0], dir: [1, 0, 0] }], obstacles: [] },
+      { multiFloor: true }
+    );
+    const result = deserializeDesign(JSON.stringify(serializeDesign(original, TEST_APP_VERSION)));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.grid.query([0, 35, 0])).toBe("b1");
+  });
+
   it("roundtrips the welcome screen's setup answers", () => {
     const original = designFromScene(FULL_SCENE, { multiFloor: true, plenumHeightFeet: 2.5 });
     const result = deserializeDesign(JSON.stringify(serializeDesign(original, TEST_APP_VERSION)));

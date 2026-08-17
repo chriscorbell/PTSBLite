@@ -55,8 +55,14 @@ occupies grid cells so nothing can be placed inside it.
 `cellCenter` offsets by 0.5 for rendering and for the endpoints stored on tubes and bends.
 
 **Build area** — the buildable volume of a design, in feet: `width` (X) × `depth` (Z) footprint
-centered on the origin, rising `height` (Y) from the ground plane. Set on the welcome screen when
-the design is created, and fixed for its lifetime: there is no way to resize an existing design.
+centered on the origin, rising `height` (Y) from the ground plane. `height` is per-floor; a
+two-floor design builds in twice that plus the floor separator, derived by `effectiveBuildArea`
+and never stored (ADR-0015). Set on the welcome screen when the design is created, and fixed for
+its lifetime: there is no way to resize an existing design.
+
+**Floor separator** — the 1 ft structural slab between the floors of a two-floor design
+(`FLOOR_SEPARATOR_FEET`). Drawn in the viewport, but it occupies no grid cells: tubes pass through
+it to reach the second floor, so it deliberately does not collide like an obstacle.
 
 **Ground plane** — `Y = 0`. Nothing may occupy a cell below it.
 

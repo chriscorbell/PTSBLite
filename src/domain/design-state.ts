@@ -5,6 +5,7 @@ import {
   DEFAULT_BUILD_AREA
 } from "@/domain/sparse-grid";
 import { reconstructDesign } from "@/domain/design-reconstruction";
+import { effectiveBuildArea } from "@/domain/floors";
 import type { DesignMetadata, DesignState, Scene } from "@/types";
 
 export const DEFAULT_FILENAME = "Untitled system";
@@ -56,7 +57,7 @@ export function emptyDesign(meta?: Partial<DesignMetadata>): DesignState {
     parts: [],
     obstacles: [],
     metadata,
-    grid: new SparseGrid(boundsFromBuildArea(metadata.buildArea))
+    grid: new SparseGrid(boundsFromBuildArea(effectiveBuildArea(metadata)))
   };
 }
 

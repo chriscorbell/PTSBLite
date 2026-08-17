@@ -258,6 +258,28 @@ describe("the placement ghost", () => {
   });
 });
 
+describe("a two-floor design", () => {
+  it("gives the viewport the doubled volume and the separator level", async () => {
+    await renderApp();
+
+    // Reopen the setup form via File → New and ask for a second floor.
+    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "New" }));
+    fireEvent.click(screen.getByLabelText("Add 2nd floor"));
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+
+    // Default height 30 per floor: 61 ft in all, slab starting at Y = 30.
+    expect(viewport.props?.buildArea).toMatchObject({ height: 61 });
+    expect(viewport.props?.separatorY).toBe(30);
+  });
+
+  it("passes no separator for a single-floor design", async () => {
+    await renderApp();
+    expect(viewport.props?.buildArea).toMatchObject({ height: 30 });
+    expect(viewport.props?.separatorY).toBeNull();
+  });
+});
+
 describe("Auto-Build", () => {
   /** Open the modal and pick a routing mode, as a visitor must before it runs. */
   function chooseMode(label: RegExp) {
