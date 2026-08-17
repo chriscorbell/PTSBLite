@@ -61,6 +61,53 @@ export function buildGround(area: BuildArea): THREE.Group {
   return g;
 }
 
+/**
+ * The structural slab between the floors of a two-floor design, spanning one
+ * foot upward from `separatorY`. Purely visual: it occupies no grid cells, so
+ * tubes can pass through it to reach the storey above.
+ *
+ * Translucent, without depth writes, so the lower floor stays legible through
+ * it from above. Its top face carries the same grid as the ground, because it
+ * is the second storey's floor and placement happens on it.
+ */
+export function buildFloorSeparator(area: BuildArea, separatorY: number): THREE.Group {
+  const g = new THREE.Group();
+  const b = boundsFromBuildArea(area);
+  const cx = (b.xMin + b.xMax) / 2;
+  const cz = (b.zMin + b.zMax) / 2;
+
+  const slab = new THREE.Mesh(
+    new THREE.BoxGeometry(area.width, 1, area.depth),
+    new THREE.MeshBasicMaterial({
+      color: VP.gridStrong,
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false
+    })
+  );
+  slab.position.set(cx, separatorY + 0.5, cz);
+  g.add(slab);
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(slab.geometry),
+    new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.8 })
+  );
+  edges.position.copy(slab.position);
+  g.add(edges);
+
+  const minor: number[] = [];
+  const major: number[] = [];
+  for (let x = b.xMin; x <= b.xMax; x++) {
+    (x % 5 === 0 ? major : minor).push(x, 0, b.zMin, x, 0, b.zMax);
+  }
+  for (let z = b.zMin; z <= b.zMax; z++) {
+    (z % 5 === 0 ? major : minor).push(b.xMin, 0, z, b.xMax, 0, z);
+  }
+  g.add(buildGroundLines(minor, VP.grid, 0.3, separatorY + 1.001));
+  g.add(buildGroundLines(major, VP.gridStrong, 0.5, separatorY + 1.002));
+  return g;
+}
+
 export function buildLandingCellHighlight(cell: Vec3, tool: ToolId): THREE.Group {
   const g = new THREE.Group();
   g.userData.landingCell = cell;

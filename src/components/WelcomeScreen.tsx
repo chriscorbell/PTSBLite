@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
+import { FLOOR_SEPARATOR_FEET } from "@/domain/floors";
 import { BUILD_AREA_LIMITS, clampBuildArea, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, DesignState } from "@/types";
 import "@/components/WelcomeScreen.css";
@@ -157,7 +158,7 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
           )}
           <p className="welcome__note">
             1 grid cell = 1 ft. Build area height is per-floor, including plenum. Structural
-            ceiling/floors for multi-floor systems are 1 ft thick.
+            ceiling/floors for multi-floor systems are {FLOOR_SEPARATOR_FEET} ft thick.
           </p>
         </div>
         <div className="welcome__footer">

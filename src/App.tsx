@@ -24,6 +24,7 @@ import {
   emptyDesign,
   newOccupantId
 } from "@/domain/design-state";
+import { effectiveBuildArea, floorSeparatorY } from "@/domain/floors";
 import { totalPathLength } from "@/domain/parts";
 import {
   attemptPlacement,
@@ -120,7 +121,10 @@ export default function App({ platform }: AppProps) {
   );
   const design = history.present;
   const documentLabel = design.metadata.filename;
-  const buildArea = design.metadata.buildArea;
+  // The volume placement and the viewport work in. Taller than the stored
+  // build area for a two-floor design, which is why nothing below reads
+  // metadata.buildArea directly.
+  const buildArea = effectiveBuildArea(design.metadata);
   const undoAvailable = canUndo(history);
   const redoAvailable = canRedo(history);
 
@@ -537,7 +541,8 @@ export default function App({ platform }: AppProps) {
         <div className="viewport-area">
           <Viewport
             scene={viewportScene}
-            buildArea={design.metadata.buildArea}
+            buildArea={buildArea}
+            separatorY={floorSeparatorY(design.metadata)}
             ghost={ghostState}
             tool={tool}
             onPlace={onPlace}
