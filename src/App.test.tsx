@@ -277,6 +277,41 @@ describe("a two-floor design", () => {
     await renderApp();
     expect(viewport.props?.buildArea).toMatchObject({ height: 30 });
     expect(viewport.props?.separatorY).toBeNull();
+    // No second floor: no selector, and the floor keys do nothing.
+    expect(screen.queryByRole("button", { name: "Floor 2" })).toBeNull();
+    fireEvent.keyDown(window, { key: "2" });
+    expect(viewport.props?.activeElevation).toBe(0);
+  });
+
+  it("jumps the placement plane between floors by key and by selector", async () => {
+    await renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "New" }));
+    fireEvent.click(screen.getByLabelText("Add 2nd floor"));
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+
+    fireEvent.keyDown(window, { key: "2" });
+    expect(viewport.props?.activeElevation).toBe(31);
+    expect(viewport.props?.activeFloor).toBe(2);
+    // The camera follows the floor, or the new plane is edge-on and unclickable.
+    expect(viewport.props?.focusY).toBe(31);
+
+    fireEvent.click(screen.getByRole("button", { name: "Floor 1" }));
+    expect(viewport.props?.activeElevation).toBe(0);
+    expect(viewport.props?.activeFloor).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Floor 2" }));
+    expect(viewport.props?.activeElevation).toBe(31);
+  });
+
+  it("shows the elevation beside the armed tool", async () => {
+    await renderApp();
+
+    fireEvent.keyDown(window, { key: "o" });
+    fireEvent.keyDown(window, { key: "]" });
+    fireEvent.keyDown(window, { key: "]" });
+
+    expect(screen.getByText(/EL 2 ft/)).toBeTruthy();
   });
 });
 

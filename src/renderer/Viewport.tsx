@@ -18,6 +18,7 @@ import {
   partIdForObject
 } from "@/renderer/interaction";
 import {
+  buildElevationPlane,
   buildFloorSeparator,
   buildGround,
   buildLandingCellHighlight,
@@ -94,6 +95,15 @@ export type ViewportProps = {
   portMarkers?: PortMarker[];
   /** Y level of a two-floor design's separator slab, or null for one floor. */
   separatorY?: number | null;
+  /** Which floor the placement plane is on; the other floor's grid dims. */
+  activeFloor?: 1 | 2 | null;
+  /**
+   * The Y the camera orbits around — the active floor's base. Selecting a
+   * floor has to bring the camera with it: a plane 31 ft up is edge-on or
+   * behind a camera still aimed at the ground, and clicks at it land far
+   * outside the build area.
+   */
+  focusY?: number;
 };
 
 export function Viewport({
@@ -106,7 +116,9 @@ export function Viewport({
   landingCells = [],
   activeElevation = 0,
   portMarkers = [],
-  separatorY = null
+  separatorY = null,
+  activeFloor = null,
+  focusY = 0
 }: ViewportProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<ViewportState>({});
@@ -116,6 +128,13 @@ export function Viewport({
   useEffect(() => {
     toolRef.current = tool;
   }, [tool]);
+
+  useEffect(() => {
+    const s = stateRef.current;
+    if (!s.cam || !s.applyCamera) return;
+    s.cam.target.y = focusY + DEFAULT_CAMERA_FRAMING.target[1];
+    s.applyCamera();
+  }, [focusY]);
 
   useEffect(() => {
     callbacksRef.current = { onPlace, onHover };
@@ -418,12 +437,14 @@ export function Viewport({
       disposeObject(s.groundGroup);
     }
     const area = { width: areaWidth, depth: areaDepth, height: areaHeight };
-    const ground = buildGround(area);
-    if (separatorY !== null) ground.add(buildFloorSeparator(area, separatorY));
+    const ground = buildGround(area, activeFloor === 2);
+    if (separatorY !== null) {
+      ground.add(buildFloorSeparator(area, separatorY, activeFloor === 1));
+    }
     s.scene3.add(ground);
     s.groundGroup = ground;
     s.requestRender?.();
-  }, [areaWidth, areaDepth, areaHeight, separatorY]);
+  }, [areaWidth, areaDepth, areaHeight, separatorY, activeFloor]);
 
   useEffect(() => {
     const s = stateRef.current;
@@ -479,8 +500,20 @@ export function Viewport({
     if (!s.planeGroup || !s.hoverPlane) return;
     clearGroup(s.planeGroup);
     s.hoverPlane.position.y = activeElevation;
+    // Show the plane itself while a tool would place onto it above the ground;
+    // at ground level the ground grid already marks it, and the cursor and
+    // erase tools do not place on the plane at all.
+    const placesOnPlane = tool !== "cursor" && tool !== "erase";
+    if (placesOnPlane && activeElevation > 0) {
+      s.planeGroup.add(
+        buildElevationPlane(
+          { width: areaWidth, depth: areaDepth, height: areaHeight },
+          activeElevation
+        )
+      );
+    }
     s.requestRender?.();
-  }, [activeElevation]);
+  }, [activeElevation, tool, areaWidth, areaDepth, areaHeight]);
 
   useEffect(() => {
     const s = stateRef.current;

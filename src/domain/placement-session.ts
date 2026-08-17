@@ -74,6 +74,8 @@ export type PlacementAction =
   | { type: "rotate"; reverse: boolean }
   /** `[` and `]` — move the active placement plane. */
   | { type: "nudge-elevation"; delta: number; buildArea: BuildArea }
+  /** Jump the placement plane, e.g. the floor selector picking a floor's base. */
+  | { type: "set-elevation"; elevation: number; buildArea: BuildArea }
   /** The build area changed: re-derive what no longer fits inside it. */
   | { type: "set-obstacle-base"; baseY: number; buildArea: BuildArea }
   | { type: "set-obstacle-height"; height: number; buildArea: BuildArea }
@@ -90,6 +92,22 @@ export type PlacementAction =
 
 function isFreePlacementTool(tool: ToolId): tool is FreePlacementType {
   return tool === "blower" || tool === "terminal";
+}
+
+/**
+ * Move the placement plane, dragging the hover cell — and the ghost derived
+ * from it — along. Without this, pressing an elevation key changed nothing on
+ * screen until the pointer happened to move again, which read as the key doing
+ * nothing at all.
+ */
+function withElevation(session: PlacementSession, activeElevation: number): PlacementSession {
+  return {
+    ...session,
+    activeElevation,
+    hoverCell: session.hoverCell
+      ? [session.hoverCell[0], activeElevation, session.hoverCell[2]]
+      : session.hoverCell
+  };
 }
 
 export function placementSessionReducer(
@@ -124,10 +142,13 @@ export function placementSessionReducer(
       };
 
     case "nudge-elevation":
-      return {
-        ...session,
-        activeElevation: clampElevation(session.activeElevation + action.delta, action.buildArea)
-      };
+      return withElevation(
+        session,
+        clampElevation(session.activeElevation + action.delta, action.buildArea)
+      );
+
+    case "set-elevation":
+      return withElevation(session, clampElevation(action.elevation, action.buildArea));
 
     case "set-obstacle-base":
       return {

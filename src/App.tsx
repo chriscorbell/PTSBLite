@@ -24,7 +24,12 @@ import {
   emptyDesign,
   newOccupantId
 } from "@/domain/design-state";
-import { effectiveBuildArea, floorSeparatorY } from "@/domain/floors";
+import {
+  effectiveBuildArea,
+  floorAtElevation,
+  floorBaseElevation,
+  floorSeparatorY
+} from "@/domain/floors";
 import { totalPathLength } from "@/domain/parts";
 import {
   attemptPlacement,
@@ -325,10 +330,18 @@ export default function App({ platform }: AppProps) {
       if (k === "]" && !e.metaKey && !e.ctrlKey) {
         dispatchPlacement({ type: "nudge-elevation", delta: 1, buildArea });
       }
+      if ((k === "1" || k === "2") && !e.metaKey && !e.ctrlKey && design.metadata.multiFloor) {
+        const floor = k === "1" ? 1 : 2;
+        dispatchPlacement({
+          type: "set-elevation",
+          elevation: floorBaseElevation(design.metadata, floor),
+          buildArea
+        });
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, selectTool, buildArea, welcome]);
+  }, [undo, redo, selectTool, buildArea, welcome, design.metadata]);
 
   const ghostState = useMemo(() => placementGhost(placement, design), [placement, design]);
 
@@ -514,6 +527,25 @@ export default function App({ platform }: AppProps) {
 
   const landingCells = useMemo(() => placementLandingCells(placement, design), [placement, design]);
 
+  // Which floor the placement plane is on, or null for a single-floor design.
+  const activeFloor = design.metadata.multiFloor
+    ? floorAtElevation(design.metadata, activeElevation)
+    : null;
+  // The camera follows the active floor, not every elevation nudge: a keypress
+  // fine-tuning the plane should not yank the view around.
+  const focusY = activeFloor ? floorBaseElevation(design.metadata, activeFloor) : 0;
+
+  const selectFloor = useCallback(
+    (floor: 1 | 2) => {
+      dispatchPlacement({
+        type: "set-elevation",
+        elevation: floorBaseElevation(design.metadata, floor),
+        buildArea
+      });
+    },
+    [buildArea, design.metadata]
+  );
+
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
 
   return (
@@ -549,11 +581,15 @@ export default function App({ platform }: AppProps) {
             onHover={(cell) => dispatchPlacement({ type: "hover", cell })}
             landingCells={landingCells}
             activeElevation={activeElevation}
+            activeFloor={activeFloor}
+            focusY={focusY}
             portMarkers={portMarkers}
           />
           <ViewportHUD
             scene={viewportScene}
             tool={tool}
+            activeFloor={activeFloor}
+            onSelectFloor={selectFloor}
             autoBuilding={autoBuilding}
             errorFlash={errorFlash ?? autosaveError ?? exportError}
             obstacleDraft={obstacleDraft}
@@ -569,7 +605,7 @@ export default function App({ platform }: AppProps) {
             design={design}
             footer={<BomExportFooter onExport={exportBom} />}
           />
-          <ActiveToolBar tool={tool} />
+          <ActiveToolBar tool={tool} elevation={activeElevation} floor={activeFloor} />
         </div>
       </div>
       <StatusBar
