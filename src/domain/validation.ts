@@ -77,10 +77,13 @@ export const checkConnectivity: ValidationRule = (design) => {
 };
 
 export const checkObstacleIntersections: ValidationRule = (design, registry = partRegistry) => {
-  if (design.obstacles.length === 0) return [];
+  // Passing through a penetrable obstacle is that kind's entire purpose, so
+  // only the impenetrable ones can put a path in the wrong.
+  const solid = design.obstacles.filter((obstacle) => !obstacle.penetrable);
+  if (solid.length === 0) return [];
   const overlapping = design.parts.some((part) =>
     partFootprint(part, registry).some((cell) =>
-      design.obstacles.some((obstacle) => obstacleContainsCell(obstacle, cell))
+      solid.some((obstacle) => obstacleContainsCell(obstacle, cell))
     )
   );
   if (!overlapping) return [];

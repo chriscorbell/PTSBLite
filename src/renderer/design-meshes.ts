@@ -326,9 +326,13 @@ export function buildBendMesh(
 export function buildObstacleMesh(
   min: Vec3,
   max: Vec3,
-  opts: { ghost?: boolean } = {}
+  opts: { ghost?: boolean; penetrable?: boolean } = {}
 ): THREE.Group {
   const ghost = !!opts.ghost;
+  // The kinds share their geometry, edges and hatching; color alone tells them
+  // apart — red for a volume routing must avoid, steel blue for one it may
+  // pass through.
+  const color = opts.penetrable ? VP.obstaclePenetrable : VP.obstacle;
   const sx = max[0] - min[0] + 1;
   const sy = max[1] - min[1] + 1;
   const sz = max[2] - min[2] + 1;
@@ -337,7 +341,7 @@ export function buildObstacleMesh(
   const cz = (min[2] + max[2] + 1) / 2;
   const g = new THREE.Group();
   const mat = new THREE.MeshStandardMaterial({
-    color: VP.obstacle,
+    color,
     transparent: true,
     opacity: ghost ? 0.035 : 0.07,
     roughness: 0.95,
@@ -354,7 +358,7 @@ export function buildObstacleMesh(
   const edges = new LineSegments2(
     edgeGeom,
     new LineMaterial({
-      color: VP.obstacle,
+      color,
       linewidth: 1.5,
       transparent: true,
       opacity: ghost ? 0.45 : 0.7,
@@ -364,27 +368,45 @@ export function buildObstacleMesh(
   edges.position.set(cx, cy, cz);
   g.add(edges);
   const hatchMat = new THREE.LineBasicMaterial({
-    color: VP.obstacle,
+    color,
     transparent: true,
     opacity: ghost ? 0.25 : 0.4
   });
-  const topY = max[1] + 1 + 0.002;
+  // 45° hatch lines on every face. Each face is a rectangle in some (u, v)
+  // plane; a hatch line is the locus u - v = c. Sweep c across the rectangle
+  // and clip each line to it by its v-parameter — clamping u and v
+  // independently bends the diagonals. `place` lifts (u, v) into the face's
+  // 3D plane, offset slightly outward so the lines never z-fight the box.
   const lines: number[] = [];
   const step = 0.6;
+  const hatchFace = (
+    u0: number,
+    u1: number,
+    v0: number,
+    v1: number,
+    place: (u: number, v: number) => [number, number, number]
+  ) => {
+    const cMin = u0 - v1;
+    const cMax = u1 - v0;
+    for (let c = cMin; c < cMax; c += step) {
+      const vLo = Math.max(v0, u0 - c);
+      const vHi = Math.min(v1, u1 - c);
+      if (vHi > vLo) lines.push(...place(vLo + c, vLo), ...place(vHi + c, vHi));
+    }
+  };
   const x0 = min[0],
     x1 = max[0] + 1;
+  const y0 = min[1],
+    y1 = max[1] + 1;
   const z0 = min[2],
     z1 = max[2] + 1;
-  // 45° hatch lines run in direction (1, 1), so each line is the locus
-  // x - z = c. Sweep c across the face and clip each line to the rectangle by
-  // its parameter (z) — clamping x and z independently bends the diagonals.
-  const cMin = x0 - z1;
-  const cMax = x1 - z0;
-  for (let c = cMin; c < cMax; c += step) {
-    const zLo = Math.max(z0, x0 - c);
-    const zHi = Math.min(z1, x1 - c);
-    if (zHi > zLo) lines.push(zLo + c, topY, zLo, zHi + c, topY, zHi);
-  }
+  const lift = 0.002;
+  hatchFace(x0, x1, z0, z1, (u, v) => [u, y1 + lift, v]); // top
+  hatchFace(x0, x1, z0, z1, (u, v) => [u, y0 - lift, v]); // bottom
+  hatchFace(x0, x1, y0, y1, (u, v) => [u, v, z1 + lift]); // south
+  hatchFace(x0, x1, y0, y1, (u, v) => [u, v, z0 - lift]); // north
+  hatchFace(z0, z1, y0, y1, (u, v) => [x1 + lift, v, u]); // east
+  hatchFace(z0, z1, y0, y1, (u, v) => [x0 - lift, v, u]); // west
   if (lines.length) {
     const lg = new THREE.BufferGeometry();
     lg.setAttribute("position", new THREE.Float32BufferAttribute(lines, 3));

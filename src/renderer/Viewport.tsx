@@ -398,7 +398,7 @@ export function Viewport({
     clearGroup(s.partsGroup);
     clearGroup(s.obstaclesGroup);
     for (const o of scene.obstacles ?? []) {
-      s.obstaclesGroup.add(buildObstacleMesh(o.min, o.max));
+      s.obstaclesGroup.add(buildObstacleMesh(o.min, o.max, { penetrable: o.penetrable }));
     }
     for (const p of scene.parts ?? []) {
       let mesh: THREE.Group | null = null;
@@ -482,7 +482,10 @@ export function Viewport({
       } else if (ghost.type === "bend") {
         mesh = buildBendMesh(ghost, { ghost: true, accent: true });
       } else if (ghost.type === "obstacle") {
-        mesh = buildObstacleMesh(ghost.min, ghost.max, { ghost: true });
+        mesh = buildObstacleMesh(ghost.min, ghost.max, {
+          ghost: true,
+          penetrable: ghost.penetrable
+        });
       }
       if (mesh) s.ghostGroup.add(mesh);
       if (s.renderer) {

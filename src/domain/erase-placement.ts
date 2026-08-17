@@ -10,6 +10,16 @@ export type EraseResult =
 export function eraseAtCell(design: DesignState, cell: Vec3): EraseResult {
   const occupant = design.grid.query(cell);
   if (!occupant) {
+    // Penetrable obstacles claim no grid cells, so they are found by
+    // containment instead. A cell a part shares with one erases the part —
+    // the occupant wins — and the obstacle goes by clicking any cell of it
+    // that nothing else holds.
+    const penetrable = design.obstacles.find(
+      (candidate) => candidate.penetrable && obstacleContains(candidate, cell)
+    );
+    if (penetrable) {
+      return eraseObstacle(design, penetrable);
+    }
     return { ok: false, message: ERASE_EMPTY_MESSAGE, design };
   }
 
@@ -128,10 +138,23 @@ function obstacleCells(obstacle: Obstacle): Vec3[] {
   return cells;
 }
 
+function obstacleContains(obstacle: Obstacle, cell: Vec3): boolean {
+  return (
+    cell[0] >= Math.floor(obstacle.min[0]) &&
+    cell[0] <= Math.floor(obstacle.max[0]) &&
+    cell[1] >= Math.floor(obstacle.min[1]) &&
+    cell[1] <= Math.floor(obstacle.max[1]) &&
+    cell[2] >= Math.floor(obstacle.min[2]) &&
+    cell[2] <= Math.floor(obstacle.max[2])
+  );
+}
+
 function eraseObstacle(design: DesignState, obstacle: Obstacle): EraseResult {
   const grid = design.grid.clone();
   for (const footprintCell of obstacleCells(obstacle)) {
-    grid.remove(footprintCell);
+    // Only cells this obstacle actually owns: a penetrable obstacle owns none,
+    // and an overlapping neighbour may own some of an impenetrable one's.
+    if (grid.query(footprintCell) === obstacle.id) grid.remove(footprintCell);
   }
   return {
     ok: true,

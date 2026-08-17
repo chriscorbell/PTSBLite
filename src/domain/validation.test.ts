@@ -108,6 +108,13 @@ describe("validation engine", () => {
     expect(warnings[0].detail).toContain("obstacle");
   });
 
+  it("does not fault a path passing through a penetrable obstacle", () => {
+    const design = designWith(baseParts, [
+      { id: "o1", min: [4, 0, 0], max: [4, 0, 0], penetrable: true }
+    ]);
+    expect(checkObstacleIntersections(design)).toEqual([]);
+  });
+
   it("returns no warnings for a valid blower to T1 to tubing to T2 system", () => {
     expect(validate(designWith(baseParts))).toEqual([]);
   });

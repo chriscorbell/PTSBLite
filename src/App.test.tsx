@@ -172,6 +172,32 @@ describe("undo and redo history", () => {
   });
 });
 
+describe("penetrable obstacles", () => {
+  it("offers the kind selector while the obstacle tool is armed, and commits the choice", async () => {
+    await renderApp();
+
+    // No selector until the tool is armed.
+    expect(screen.queryByRole("button", { name: "Penetrable" })).toBeNull();
+    fireEvent.keyDown(window, { key: "o" });
+    fireEvent.click(screen.getByRole("button", { name: "Penetrable" }));
+
+    clickCell([0, 0, 0]);
+    clickCell([2, 0, 2]);
+    act(() => placeButton()?.click());
+
+    const obstacles = viewport.props?.scene.obstacles ?? [];
+    expect(obstacles).toHaveLength(1);
+    expect(obstacles[0]).toMatchObject({ penetrable: true });
+
+    // The next draft keeps the choice; switching back is explicit.
+    expect(
+      screen
+        .getByRole<HTMLButtonElement>("button", { name: "Penetrable" })
+        .getAttribute("aria-pressed")
+    ).toBe("true");
+  });
+});
+
 describe("in-flight interactions", () => {
   it("cancels a half-built obstacle when the tool changes", async () => {
     await renderApp();

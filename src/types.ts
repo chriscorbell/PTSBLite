@@ -46,6 +46,10 @@ export type Obstacle = {
   id: string;
   min: Vec3;
   max: Vec3;
+  /** A penetrable obstacle is a volume tubes may pass through — a wall with
+   * penetrations, a soft ceiling. It claims no grid cells, so placement and
+   * routing ignore it entirely. Absent means impenetrable, which blocks both. */
+  penetrable?: boolean;
 };
 
 export type Ghost =
@@ -61,7 +65,7 @@ export type Ghost =
       outDir: Vec3;
       radius?: number;
     }
-  | { type: "obstacle"; min: Vec3; max: Vec3 };
+  | { type: "obstacle"; min: Vec3; max: Vec3; penetrable?: boolean };
 
 /**
  * The buildable volume for a design, in feet (1 cell = 1 ft). `width` is the X

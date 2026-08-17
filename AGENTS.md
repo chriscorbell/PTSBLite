@@ -39,8 +39,9 @@ never a quote. See [ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md)
 
 **3. `parts` and `obstacles` must agree with `grid`.** `reconstructDesign` is the checked path that
 rebuilds all three together. Call `expectGridMatchesDesign` after operations that add or remove an
-occupant. Parts are strict; obstacles union, clip to the build area, and may overlap a part so
-validation can report it.
+occupant. Parts are strict; impenetrable obstacles union, clip to the build area, and may overlap
+a part so validation can report it. Penetrable obstacles claim no grid cells at all — that is what
+lets tubes route through them (ADR-0016).
 
 ## Layout
 
