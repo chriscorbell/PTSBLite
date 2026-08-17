@@ -112,11 +112,11 @@ camera is still driven by dragging and the scroll wheel; there are no zoom or re
 Nothing on screen names the running build, so `appVersion` on a stored design is the only way to
 identify it.
 
-**Auto-Build has no plenum preference.** The plenum renders as a tinted band at the top of each
-floor (`plenumBands`) and is fully buildable, but the router does not yet know it exists. The
-client's stated intent is that Auto-Build will come to prefer placing horizontal runs — straights
-and bends — inside the plenum; that is routing work in `pathfinder.ts`, not a data change, and it
-has deliberately not been guessed at.
+**The plenum preference is a fixed bias, not a setting.** Auto-Build charges horizontal feet and
+bends outside the plenum extra during the search (`pathfinder.ts`), so long runs ride the band and
+short hops stay direct. The penalty weights are constants; nothing on screen exposes or tunes
+them, and a route through the plenum genuinely is longer — the detour's feet count against the
+300 ft cap like any others.
 
 **Any collaboration, cloud, account, or telemetry surface.** Deliberately. PTSBLite is
 served as static files with a `connect-src 'none'` policy: nothing it does reaches the network

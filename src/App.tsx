@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ActiveToolBar } from "@/components/ActiveToolBar";
-import { AutoBuildModal } from "@/components/AutoBuildModal";
 import { BomExportFooter } from "@/components/BomExportFooter";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LeftRail } from "@/components/LeftRail";
@@ -42,22 +41,13 @@ import {
   placementSessionReducer,
   type PlacementResult
 } from "@/domain/placement-session";
-import {
-  autoBuildOpenPortPair,
-  type OptimizationMode,
-  type UnroutedPair
-} from "@/domain/pathfinder";
+import { autoBuildOpenPortPair, type UnroutedPair } from "@/domain/pathfinder";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { openPortMarkers } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
 import { Viewport } from "@/renderer/Viewport";
 import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
-
-const OPTIMIZATION_MODE_LABELS: Record<OptimizationMode, string> = {
-  shortest: "Shortest path",
-  "fewest-bends": "Fewest bends"
-};
 
 const STARTER_HINT: Hint = {
   title: "Start by placing a blower",
@@ -172,7 +162,6 @@ export default function App({ platform }: AppProps) {
   const [autoBuilding, setAutoBuilding] = useState(false);
   const [autoBuildJustRan, setAutoBuildJustRan] = useState(false);
   const [autoBuildSummary, setAutoBuildSummary] = useState<AutoBuildSummary | null>(null);
-  const [autoBuildOpen, setAutoBuildOpen] = useState(false);
   const [errorFlash, setErrorFlashRaw] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -448,43 +437,38 @@ export default function App({ platform }: AppProps) {
     [resetForNewDesign, sessionStore]
   );
 
-  const runAutoBuild = useCallback(
-    async (mode: OptimizationMode) => {
-      setAutoBuildOpen(false);
-      setAutoBuilding(true);
-      setAutoBuildJustRan(false);
-      // The search is synchronous and blocks the thread. Without yielding first,
-      // React batches this state change with the one after it and the pending
-      // indicator never reaches the screen. Routing typically takes under 40ms,
-      // but an unroutable pair exhausts the search space and can take ~1.7s --
-      // exactly when the user most needs to see that something is happening.
-      await nextPaint();
+  const runAutoBuild = useCallback(async () => {
+    setAutoBuilding(true);
+    setAutoBuildJustRan(false);
+    // The search is synchronous and blocks the thread. Without yielding first,
+    // React batches this state change with the one after it and the pending
+    // indicator never reaches the screen. Routing typically takes under 40ms,
+    // but an unroutable pair exhausts the search space and can take ~1.7s --
+    // exactly when the user most needs to see that something is happening.
+    await nextPaint();
 
-      let result;
-      try {
-        result = autoBuildOpenPortPair(design, { mode });
-      } finally {
-        setAutoBuilding(false);
-      }
+    let result;
+    try {
+      result = autoBuildOpenPortPair(design);
+    } finally {
+      setAutoBuilding(false);
+    }
 
-      if (!result.ok) {
-        setErrorFlash(result.message);
-        return;
-      }
-      setAutoBuildSummary({
-        lengthFeet: totalPathLength(result.parts),
-        bends: result.parts.filter((part) => part.type === "bend").length,
-        obstacles: design.obstacles.filter((obstacle) => !obstacle.penetrable).length,
-        modeLabel: OPTIMIZATION_MODE_LABELS[mode],
-        unrouted: result.unroutedPairs.length
-      });
-      setAutoBuildJustRan(true);
-      selectTool("cursor");
-      commitDesign(result.design);
-      setErrorFlash(unroutedMessage(result.unroutedPairs));
-    },
-    [commitDesign, design, selectTool, setErrorFlash]
-  );
+    if (!result.ok) {
+      setErrorFlash(result.message);
+      return;
+    }
+    setAutoBuildSummary({
+      lengthFeet: totalPathLength(result.parts),
+      bends: result.parts.filter((part) => part.type === "bend").length,
+      obstacles: design.obstacles.filter((obstacle) => !obstacle.penetrable).length,
+      unrouted: result.unroutedPairs.length
+    });
+    setAutoBuildJustRan(true);
+    selectTool("cursor");
+    commitDesign(result.design);
+    setErrorFlash(unroutedMessage(result.unroutedPairs));
+  }, [commitDesign, design, selectTool, setErrorFlash]);
 
   const resetActiveInteraction = useCallback(() => {
     selectTool("cursor");
@@ -493,13 +477,22 @@ export default function App({ platform }: AppProps) {
 
   /** Remove every part Auto-Build placed, as one undoable step. */
   const clearAutoBuild = useCallback(() => {
-    setAutoBuildOpen(false);
     const kept = design.parts.filter((part) => !isAutoBuildPart(part));
     if (kept.length === design.parts.length) return;
-    commitDesign(designFromScene({ parts: kept, obstacles: design.obstacles }, design.metadata));
-    resetActiveInteraction();
-    setAutoBuildSummary(null);
-    setErrorFlash(null);
+    setConfirm({
+      title: "Clear Auto-Build",
+      message:
+        "Remove every part Auto-Build placed? Manually placed parts remain. This can be undone.",
+      confirmLabel: "Clear Auto-Build",
+      onConfirm: () => {
+        commitDesign(
+          designFromScene({ parts: kept, obstacles: design.obstacles }, design.metadata)
+        );
+        resetActiveInteraction();
+        setAutoBuildSummary(null);
+        setErrorFlash(null);
+      }
+    });
   }, [commitDesign, design, resetActiveInteraction, setErrorFlash]);
 
   const clearAllParts = useCallback(() => {
@@ -588,8 +581,10 @@ export default function App({ platform }: AppProps) {
           onTool={selectTool}
           partCount={design.parts.length}
           obstacleCount={design.obstacles.length}
+          autoBuildPartCount={design.parts.filter(isAutoBuildPart).length}
           onClearParts={clearAllParts}
           onClearObstacles={clearAllObstacles}
+          onClearAutoBuild={clearAutoBuild}
         />
         <div className="viewport-area">
           <Viewport
@@ -637,17 +632,9 @@ export default function App({ platform }: AppProps) {
         warnings={warnings}
         expanded={statusOpen}
         onToggle={() => setStatusOpen((s) => !s)}
-        onAutoBuild={() => setAutoBuildOpen(true)}
+        onAutoBuild={() => void runAutoBuild()}
         autoBuilding={autoBuilding}
       />
-      {autoBuildOpen && (
-        <AutoBuildModal
-          onRun={(mode) => void runAutoBuild(mode)}
-          clearablePartCount={design.parts.filter(isAutoBuildPart).length}
-          onClear={clearAutoBuild}
-          onClose={() => setAutoBuildOpen(false)}
-        />
-      )}
       {welcome && (
         <WelcomeScreen
           stored={welcome.stored}

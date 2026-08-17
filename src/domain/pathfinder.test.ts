@@ -229,22 +229,20 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
       [{ id: "obs", min: [-13, 0, -7], max: [9, 13, 15] }]
     );
 
-    for (const mode of ["shortest", "fewest-bends"] as const) {
-      const result = autoBuildOpenPortPair(design, { mode });
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
+    const result = autoBuildOpenPortPair(design);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
 
-      const routeYs = result.parts.flatMap((part) =>
-        part.type === "tube"
-          ? [part.from[1], part.to[1]]
-          : part.type === "bend"
-            ? [part.entry[1], part.exit[1]]
-            : []
-      );
-      expect(Math.min(...routeYs)).toBeGreaterThanOrEqual(GROUND_PLANE_Y);
-      expect(result.unroutedPairs).toEqual([]);
-      expect(validate(result.design)).toEqual([]);
-    }
+    const routeYs = result.parts.flatMap((part) =>
+      part.type === "tube"
+        ? [part.from[1], part.to[1]]
+        : part.type === "bend"
+          ? [part.entry[1], part.exit[1]]
+          : []
+    );
+    expect(Math.min(...routeYs)).toBeGreaterThanOrEqual(GROUND_PLANE_Y);
+    expect(result.unroutedPairs).toEqual([]);
+    expect(validate(result.design)).toEqual([]);
   }, 20_000);
 
   it("reports unrouted pairs when the budget would be exceeded", () => {
@@ -255,39 +253,6 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe("no-route");
-  });
-
-  it("defaults to shortest mode when no option is provided", () => {
-    const design = designWith(basicParts([15, 0, 10], [0, 0, 1]));
-
-    const explicit = autoBuildOpenPortPair(design, { mode: "shortest" });
-    const implicit = autoBuildOpenPortPair(design);
-
-    expect(implicit.ok).toBe(true);
-    expect(explicit.ok).toBe(true);
-    if (!implicit.ok || !explicit.ok) return;
-    expect(implicit.parts.filter((p) => p.type === "bend").length).toBe(
-      explicit.parts.filter((p) => p.type === "bend").length
-    );
-    expect(implicit.cost).toBe(explicit.cost);
-  });
-
-  it("fewest-bends mode returns a valid route on a far-diagonal fixture", () => {
-    const design = designWith(basicParts([15, 0, 10], [0, 0, 1]));
-
-    const shortest = autoBuildOpenPortPair(design, { mode: "shortest" });
-    const fewest = autoBuildOpenPortPair(design, { mode: "fewest-bends" });
-
-    expect(shortest.ok).toBe(true);
-    expect(fewest.ok).toBe(true);
-    if (!shortest.ok || !fewest.ok) return;
-
-    const shortestBends = shortest.parts.filter((p) => p.type === "bend").length;
-    const fewestBends = fewest.parts.filter((p) => p.type === "bend").length;
-
-    expect(fewestBends).toBeLessThanOrEqual(shortestBends);
-    expect(validate(shortest.design)).toEqual([]);
-    expect(validate(fewest.design)).toEqual([]);
   });
 
   it("commits routes within budget and flags only the over-budget pair", () => {
@@ -312,6 +277,80 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     expect(result.unroutedPairs.length).toBe(1);
     expect(result.unroutedPairs[0].reason).toBe("over-budget");
     expect(result.parts.length).toBeGreaterThan(0);
+  });
+});
+
+describe("Pathfinder plenum preference", () => {
+  // An 8 ft floor whose top half is plenum: the band spans Y 4..8. The long
+  // fixture keeps its ports far enough apart that carrying the run in the
+  // plenum beats staying on the ground even after paying for the risers.
+  const PLENUM_META = {
+    buildArea: { width: 60, depth: 60, height: 8 },
+    plenumHeightFeet: 4
+  };
+  const farParts: Part[] = [
+    { id: "b1", type: "blower", cell: [-25, 0, 0], dir: [1, 0, 0] },
+    { id: "t1", type: "terminal", cell: [-24, 0, 0], axis: [1, 0, 0] },
+    { id: "t2", type: "terminal", cell: [20, 0, 0], axis: [1, 0, 0] }
+  ];
+
+  /** Y cell levels a horizontal tube runs at (its centerline sits at Y + 0.5). */
+  function horizontalTubeLevels(parts: Part[]): number[] {
+    return parts.flatMap((part) =>
+      part.type === "tube" && part.from[1] === part.to[1] ? [part.from[1] - 0.5] : []
+    );
+  }
+
+  it("carries a long horizontal run in the plenum", () => {
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: farParts, obstacles: [] }, PLENUM_META)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // The bulk of the run rides in the band; nothing sneaks above or below it.
+    expect(horizontalTubeLevels(result.parts).some((y) => y >= 4)).toBe(true);
+    expect(result.unroutedPairs).toEqual([]);
+    expect(validate(result.design)).toEqual([]);
+  });
+
+  it("routes the same fixture flat along the ground without a plenum", () => {
+    const meta = { ...PLENUM_META, plenumHeightFeet: null };
+    const result = autoBuildOpenPortPair(designFromScene({ parts: farParts, obstacles: [] }, meta));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.parts.every((part) => part.type === "tube")).toBe(true);
+    expect(horizontalTubeLevels(result.parts).every((y) => y === 0)).toBe(true);
+    expect(validate(result.design)).toEqual([]);
+  });
+
+  it("leaves a short hop direct instead of detouring into the plenum", () => {
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: basicParts([8, 0, 0]), obstacles: [] }, PLENUM_META)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // The bias is soft: two risers and their bends cost more than the eight
+    // feet they would move off the ground, so the hop stays a straight shot.
+    expect(result.parts.every((part) => part.type === "tube")).toBe(true);
+    expect(horizontalTubeLevels(result.parts)).toEqual([0]);
+    expect(validate(result.design)).toEqual([]);
+  });
+
+  it("keeps the geometric cost honest while the search is biased", () => {
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: farParts, obstacles: [] }, PLENUM_META)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Penalties steer the route; the budget must still be charged real feet.
+    // Precision 1, not exact: the planner prices a bend at the catalog's 4.71
+    // while totalPathLength computes the true arc, 4.7124 — a gap that predates
+    // the bias and is a few hundredths across a whole route.
+    expect(result.cost).toBeCloseTo(totalPathLength(result.parts), 1);
   });
 });
 

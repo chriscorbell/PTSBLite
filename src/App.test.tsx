@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Vec3 } from "@/types";
@@ -360,30 +360,10 @@ describe("a two-floor design", () => {
 });
 
 describe("Auto-Build", () => {
-  /** Open the modal and pick a routing mode, as a visitor must before it runs. */
-  function chooseMode(label: RegExp) {
-    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
-    fireEvent.click(screen.getByLabelText(label));
-  }
-
-  it("requires a routing mode to be chosen before it will run", async () => {
-    await renderApp();
-
-    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
-
-    // Nothing is preselected, so the run button cannot be used yet.
-    const run = () => screen.getByRole<HTMLButtonElement>("button", { name: /Run Auto-Build/ });
-    expect(run().disabled).toBe(true);
-
-    fireEvent.click(screen.getByLabelText(/Fewest bends/));
-    expect(run().disabled).toBe(false);
-  });
-
   it("paints the routing state before the search blocks the thread", async () => {
     await renderApp();
-    chooseMode(/Shortest path/);
 
-    fireEvent.click(screen.getByRole("button", { name: /Run Auto-Build/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
 
     // The regression this guards: the search used to run synchronously in the
     // same tick, so React batched the pending state away and it never rendered.
@@ -394,16 +374,6 @@ describe("Auto-Build", () => {
     });
   });
 
-  it("closes without routing when cancelled", async () => {
-    await renderApp();
-
-    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(screen.queryByRole("dialog", { name: "Auto-Build" })).toBeNull();
-    expect(screen.getByRole("button", { name: /^Auto-Build$/ })).toBeTruthy();
-  });
-
   it("clears exactly the parts a run added, and only offers to when there are some", async () => {
     await renderApp();
     const partCount = () =>
@@ -411,10 +381,8 @@ describe("Auto-Build", () => {
     const clearButton = () =>
       screen.getByRole<HTMLButtonElement>("button", { name: "Clear Auto-Build" });
 
-    // Nothing routed yet: the button is present but cannot be used.
-    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+    // Nothing routed yet: the rail button is present but cannot be used.
     expect(clearButton().disabled).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     // A blower and its two terminals, placed the way the 3D canvas would.
     fireEvent.click(screen.getByRole("button", { name: "Build" }));
@@ -425,20 +393,20 @@ describe("Auto-Build", () => {
     clickCell([6, 0, 0]); // Terminal 2, free-placed down the run.
     expect(partCount()).toBe("3");
 
-    chooseMode(/Shortest path/);
-    fireEvent.click(screen.getByRole("button", { name: /Run Auto-Build/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /^Auto-Build$/ })).toBeTruthy();
     });
     const routed = Number(partCount());
     expect(routed).toBeGreaterThan(3);
 
-    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+    // Clearing asks first, like the rail's other destructive buttons.
     expect(clearButton().disabled).toBe(false);
     fireEvent.click(clearButton());
+    const dialog = screen.getByRole("dialog", { name: "Clear Auto-Build" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Clear Auto-Build" }));
 
     // The manual parts survive; the routed tubes and bends are gone, undoably.
-    expect(screen.queryByRole("dialog", { name: "Auto-Build" })).toBeNull();
     expect(partCount()).toBe("3");
     act(() => undoButton().click());
     expect(Number(partCount())).toBe(routed);

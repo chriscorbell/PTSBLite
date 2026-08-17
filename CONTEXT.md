@@ -69,7 +69,7 @@ it to reach the second floor, so it deliberately does not collide like an obstac
 **Plenum** — the space between a floor's drop ceiling and its top, `plenumHeightFeet` tall,
 occupying the top of each floor (directly under the separator slab on floor 1). The declared
 per-floor height includes it. Drawn as a tinted band via `plenumBands`, and fully buildable —
-it restricts nothing. Auto-Build does not yet prefer routing horizontal runs through it.
+it restricts nothing. Auto-Build prefers carrying horizontal runs and bends inside it.
 
 **Ground plane** — `Y = 0`. Nothing may occupy a cell below it.
 
@@ -88,8 +88,9 @@ tool. Derived from open ports.
 
 **Ghost** — the translucent preview of the part that would be placed at the hovered cell.
 
-**Auto-Build** — the routing pass that connects open port pairs automatically, optimising for either
-shortest path or fewest bends.
+**Auto-Build** — the routing pass that connects open port pairs automatically. One behavior, no
+modes: shortest path with a per-bend penalty, plus a soft preference for carrying horizontal runs
+and bends in the plenum when the design has one.
 
 **BOM** — bill of materials: catalog rows with quantities derived from the design. **Stock tube** is
 the count of 6 ft sections to purchase (`ceil(total tube feet / 6)`), distinct from the tube *parts*
