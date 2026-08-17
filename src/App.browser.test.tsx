@@ -100,13 +100,40 @@ describe("picking up where you left off", () => {
     expect(screen.queryByRole("dialog", { name: /Welcome back/ })).toBeNull();
   });
 
+  it("confirms before starting a new design, and can be backed out of", async () => {
+    window.localStorage.setItem(SESSION_KEY, storedDesign());
+    await renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: "New design" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep saved design" }));
+
+    // Backing out returns to the choice, with the saved design untouched.
+    expect(screen.getByRole("dialog", { name: /Welcome back/ })).toBeTruthy();
+    expect(window.localStorage.getItem(SESSION_KEY)).not.toBeNull();
+  });
+
+  it("backs out of the confirmation on Escape", async () => {
+    window.localStorage.setItem(SESSION_KEY, storedDesign());
+    await renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: "New design" }));
+    const dialog = screen.getByRole("dialog", { name: /Start a new design/ });
+    // Escape reaches a <dialog> as a cancel event, which is what Modal handles.
+    fireEvent(dialog, new Event("cancel", { bubbles: false, cancelable: true }));
+
+    // Only this stage is escapable: the screens either side of it have nothing
+    // to fall back to, so they deliberately ignore Escape.
+    expect(screen.getByRole("dialog", { name: /Welcome back/ })).toBeTruthy();
+  });
+
   it("keeps the stored design until a new one is actually created", async () => {
     window.localStorage.setItem(SESSION_KEY, storedDesign());
     await renderApp();
 
     fireEvent.click(screen.getByRole("button", { name: "New design" }));
-    // Choosing "New design" alone deletes nothing; abandoning the setup form
-    // by closing the tab must not lose the old design.
+    fireEvent.click(screen.getByRole("button", { name: "Start new design" }));
+    // Confirming only reaches the setup form; abandoning it by closing the tab
+    // must still not lose the old design.
     expect(window.localStorage.getItem(SESSION_KEY)).not.toBeNull();
 
     createFirstDesign();
