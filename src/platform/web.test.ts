@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { webPlatform } from "@/platform/web";
 
-const SESSION_KEY = "ptsbuilder-lite:autosave:v1";
-const UNREADABLE_KEY = "ptsbuilder-lite:autosave:unreadable";
+const SESSION_KEY = "ptsblite:autosave:v1";
+const UNREADABLE_KEY = "ptsblite:autosave:unreadable";
 
 beforeEach(() => {
   window.localStorage.clear();

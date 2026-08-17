@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// PTSBuilderLite is the repository's only application and deployment target.
+// PTSBLite is the repository's only application and deployment target.
 
 const pkg = JSON.parse(readFileSync(resolve(__dirname, "package.json"), "utf-8")) as {
   version: string;

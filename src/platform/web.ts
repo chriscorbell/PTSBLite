@@ -1,16 +1,16 @@
 import type { Platform } from "@/platform/types";
 
 /** One design, one origin. See ADR-0012. */
-const SESSION_KEY = "ptsbuilder-lite:autosave:v1";
+const SESSION_KEY = "ptsblite:autosave:v1";
 /**
  * Where a payload this build cannot read is set aside. Kept rather than
  * deleted: an unsupported schema usually means a rollback or a missed
  * migration, and a later deployment may be able to read what this one could not.
  */
-const UNREADABLE_KEY = "ptsbuilder-lite:autosave:unreadable";
+const UNREADABLE_KEY = "ptsblite:autosave:unreadable";
 
 /**
- * The browser services used by PTSBuilderLite.
+ * The browser services used by PTSBLite.
  */
 export function webPlatform(): Platform {
   return {

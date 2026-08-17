@@ -1,4 +1,4 @@
-# ADR-0013: PTSBuilderLite publishes placeholder part numbers
+# ADR-0013: PTSBLite publishes placeholder part numbers
 
 - **Status:** Accepted
 - **Date:** 2026-08-03
@@ -9,7 +9,7 @@
 `BL-2020-A`, `TM-2020-S`, `ST-06-4OD` and `BN-90-3R` look exactly as authoritative as real ones
 would. Replacing them is issue #94, still open.
 
-PTSBuilderLite is public, and its BOM export is a PDF a visitor downloads and keeps, potentially
+PTSBLite is public, and its BOM export is a PDF a visitor downloads and keeps, potentially
 forwarding it to a supplier or back to Kelly Tube Systems. A plausible-looking invented number is
 worse than an obviously missing one because the audience has no reason to know it is a placeholder.
 
@@ -25,7 +25,7 @@ No notice is added to the PDF. Adding one was offered and not taken.
 
 ## Consequences
 
-A bill of materials downloaded from PTSBuilderLite today contains part numbers that identify
+A bill of materials downloaded from PTSBLite today contains part numbers that identify
 nothing. Anyone acting on one — ordering against it, or pricing it — is acting on invented data,
 and nothing in the document says so.
 

@@ -7,7 +7,7 @@
 
 `checkTerminalCount` rejects any design that does not have exactly two terminals, and
 `checkBlowerTerminalAdjacency` requires one of them to be seated against the blower outlet. Together
-these mean PTSBuilderLite can only model single-direction, point-to-point systems.
+these mean PTSBLite can only model single-direction, point-to-point systems.
 
 Real PTS installations frequently have many stations connected through diverters. So the question was
 whether this pair of rules describes the hardware or describes the product's current ambition.

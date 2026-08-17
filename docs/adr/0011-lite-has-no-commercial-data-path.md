@@ -1,4 +1,4 @@
-# ADR-0011: PTSBuilderLite has no commercial data path
+# ADR-0011: PTSBLite has no commercial data path
 
 - **Status:** Accepted
 - **Date:** 2026-08-03
@@ -6,7 +6,7 @@
   commercial code left anywhere in the repository, the build-time module-graph check was removed
   as well; the boundaries below are the ones that remain live.
 
-PTSBuilderLite is Kelly Tube Systems' public marketing tool. The requirement remains absolute: no
+PTSBLite is Kelly Tube Systems' public marketing tool. The requirement remains absolute: no
 prices, costs, taxes, quotes, customer details, seller details, or dollar amounts of any kind.
 Commercial information is absent rather than hidden.
 
