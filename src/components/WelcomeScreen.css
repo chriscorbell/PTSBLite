@@ -70,3 +70,10 @@
   padding: 12px 18px;
   border-top: 1px solid var(--line);
 }
+
+/* Matches the destructive icon in ConfirmDialog: this stage guards the same
+   kind of loss, and the two dialogs sit back to back. */
+.welcome__warn {
+  display: flex;
+  color: var(--danger);
+}

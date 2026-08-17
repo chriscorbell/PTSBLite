@@ -18,7 +18,7 @@ export function BomExportFooter({ onExport }: BomExportFooterProps) {
   return (
     <div className="bom__footer">
       <button className="bom__export" onClick={handleExport} disabled={busy}>
-        <Icons.Pdf size={14} /> {busy ? "Preparing…" : "Export BOM PDF"}
+        <Icons.Pdf size={14} /> {busy ? "Preparing…" : "Export PDF"}
       </button>
     </div>
   );
