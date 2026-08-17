@@ -71,6 +71,12 @@ occupying the top of each floor (directly under the separator slab on floor 1). 
 per-floor height includes it. Drawn as a tinted band via `plenumBands`, and fully buildable —
 it restricts nothing. Auto-Build prefers carrying horizontal runs and bends inside it.
 
+**Company name / System name** — who a design is for, and what it is called. Both collected on the
+welcome screen, both editable afterwards from the top-bar label, which shows them as
+`Company: System` (or the system name alone when no company was given). The system name is the one
+the exported PDF is named from; company is optional and is simply omitted where it is blank.
+*Avoid:* "filename" — the pre-rename key for `systemName`, still read when restoring.
+
 **Ground plane** — `Y = 0`. Nothing may occupy a cell below it.
 
 **Centerline** — total path length through the system, in feet: straight tube lengths plus bend arc

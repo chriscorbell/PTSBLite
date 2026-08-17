@@ -21,13 +21,36 @@
   font-weight: 600;
 }
 
+/* A button, but it reads as the document's label until pointed at: chrome that
+   announced itself as editable would compete with the controls either side. */
 .topbar__document {
   font-size: 11.5px;
   color: var(--text-dim);
-  max-width: 220px;
+  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.topbar__document:hover {
+  color: var(--text);
+  background: var(--panel-2);
+  border-color: var(--line-2);
+}
+
+.topbar__document:focus-visible {
+  color: var(--text);
+  border-color: var(--line-2);
 }
 
 .topbar__spacer {

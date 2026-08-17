@@ -79,8 +79,9 @@ export type BuildArea = {
 };
 
 export type DesignMetadata = {
-  filename: string;
-  revision: string;
+  /** The company the system is being designed for. Blank when not given. */
+  companyName: string;
+  systemName: string;
   buildArea: BuildArea;
   /** Whether the project spans multiple floors. Asked at design setup; nothing
    * routes across floors yet. */

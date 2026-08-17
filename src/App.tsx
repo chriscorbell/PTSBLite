@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ActiveToolBar } from "@/components/ActiveToolBar";
 import { BomExportFooter } from "@/components/BomExportFooter";
+import { SystemDetailsModal } from "@/components/SystemDetailsModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LeftRail } from "@/components/LeftRail";
 import { RightPanel } from "@/components/RightPanel";
@@ -17,8 +18,7 @@ import {
 } from "@/domain/session-autosave";
 import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
 import {
-  DEFAULT_FILENAME,
-  DEFAULT_REVISION,
+  DEFAULT_SYSTEM_NAME,
   designFromScene,
   emptyDesign,
   newOccupantId
@@ -47,7 +47,15 @@ import { openPortMarkers } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
 import { Viewport } from "@/renderer/Viewport";
-import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
+import type {
+  AutoBuildSummary,
+  DesignMetadata,
+  DesignState,
+  Hint,
+  Scene,
+  ToolId,
+  Vec3
+} from "@/types";
 
 const STARTER_HINT: Hint = {
   title: "Start by placing a blower",
@@ -61,7 +69,13 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
 };
 
 const PRODUCT_NAME = "PTSBLite";
-const DESIGN_METADATA = { filename: DEFAULT_FILENAME, revision: DEFAULT_REVISION };
+const DESIGN_METADATA = { systemName: DEFAULT_SYSTEM_NAME };
+
+/** "Acme: Main Loop", or just the system name when no company was given. */
+function documentLabelFor(metadata: DesignMetadata): string {
+  const company = metadata.companyName.trim();
+  return company === "" ? metadata.systemName : `${company}: ${metadata.systemName}`;
+}
 
 /**
  * How long to wait after a change before autosaving.
@@ -117,7 +131,7 @@ export default function App({ platform }: AppProps) {
     (metadata) => initDesignHistory(emptyDesign(metadata))
   );
   const design = history.present;
-  const documentLabel = design.metadata.filename;
+  const documentLabel = documentLabelFor(design.metadata);
   // The volume placement and the viewport work in. Taller than the stored
   // build area for a two-floor design, which is why nothing below reads
   // metadata.buildArea directly.
@@ -162,6 +176,7 @@ export default function App({ platform }: AppProps) {
   const [autoBuilding, setAutoBuilding] = useState(false);
   const [autoBuildJustRan, setAutoBuildJustRan] = useState(false);
   const [autoBuildSummary, setAutoBuildSummary] = useState<AutoBuildSummary | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [errorFlash, setErrorFlashRaw] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -470,6 +485,22 @@ export default function App({ platform }: AppProps) {
     setErrorFlash(unroutedMessage(result.unroutedPairs));
   }, [commitDesign, design, selectTool, setErrorFlash]);
 
+  /** Rename the design. Undoable, like any other edit to it. */
+  const saveDetails = useCallback(
+    (names: { companyName: string; systemName: string }) => {
+      setDetailsOpen(false);
+      const { companyName, systemName } = design.metadata;
+      if (names.companyName === companyName && names.systemName === systemName) return;
+      commitDesign(
+        designFromScene(
+          { parts: design.parts, obstacles: design.obstacles },
+          { ...design.metadata, ...names }
+        )
+      );
+    },
+    [commitDesign, design]
+  );
+
   const resetActiveInteraction = useCallback(() => {
     selectTool("cursor");
     setAutoBuildJustRan(false);
@@ -567,6 +598,7 @@ export default function App({ platform }: AppProps) {
       <TopBar
         onNew={handleNew}
         documentLabel={documentLabel}
+        onEditDocument={() => setDetailsOpen(true)}
         productName={PRODUCT_NAME}
         onUndo={undo}
         onRedo={redo}
@@ -635,6 +667,14 @@ export default function App({ platform }: AppProps) {
         onAutoBuild={() => void runAutoBuild()}
         autoBuilding={autoBuilding}
       />
+      {detailsOpen && (
+        <SystemDetailsModal
+          companyName={design.metadata.companyName}
+          systemName={design.metadata.systemName}
+          onSave={saveDetails}
+          onClose={() => setDetailsOpen(false)}
+        />
+      )}
       {welcome && (
         <WelcomeScreen
           stored={welcome.stored}
@@ -662,7 +702,7 @@ export default function App({ platform }: AppProps) {
 
 /** "BOM_MAIN_LOOP.pdf" from a design named "Main Loop". */
 function bomFilename(design: DesignState): string {
-  const base = design.metadata.filename
+  const base = design.metadata.systemName
     .replace(/\.[^.]+$/, "")
     .replace(/[^A-Za-z0-9]+/g, "_")
     .toUpperCase();

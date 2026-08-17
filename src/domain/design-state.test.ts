@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_FILENAME,
-  DEFAULT_REVISION,
+  DEFAULT_COMPANY_NAME,
+  DEFAULT_SYSTEM_NAME,
   designFromScene,
   emptyDesign,
   newOccupantId
@@ -16,8 +16,8 @@ describe("DesignState", () => {
     expect(d.parts).toEqual([]);
     expect(d.obstacles).toEqual([]);
     expect(d.metadata).toEqual({
-      filename: DEFAULT_FILENAME,
-      revision: DEFAULT_REVISION,
+      companyName: DEFAULT_COMPANY_NAME,
+      systemName: DEFAULT_SYSTEM_NAME,
       buildArea: DEFAULT_BUILD_AREA,
       multiFloor: false,
       plenumHeightFeet: null
@@ -25,9 +25,9 @@ describe("DesignState", () => {
   });
 
   it("emptyDesign accepts metadata overrides", () => {
-    const d = emptyDesign({ filename: "Main loop", revision: "1.2" });
-    expect(d.metadata.filename).toBe("Main loop");
-    expect(d.metadata.revision).toBe("1.2");
+    const d = emptyDesign({ systemName: "Main loop", companyName: "Acme" });
+    expect(d.metadata.systemName).toBe("Main loop");
+    expect(d.metadata.companyName).toBe("Acme");
   });
 
   it("designFromScene clones parts and obstacles", () => {
@@ -54,9 +54,9 @@ describe("DesignState", () => {
 
   it("designFromScene applies metadata overrides", () => {
     const scene: Scene = { parts: [], obstacles: [] };
-    const d = designFromScene(scene, { filename: "Warehouse" });
-    expect(d.metadata.filename).toBe("Warehouse");
-    expect(d.metadata.revision).toBe(DEFAULT_REVISION);
+    const d = designFromScene(scene, { systemName: "Warehouse" });
+    expect(d.metadata.systemName).toBe("Warehouse");
+    expect(d.metadata.companyName).toBe(DEFAULT_COMPANY_NAME);
   });
 });
 

@@ -10,14 +10,14 @@ import { emptyDesign } from "@/domain/design-state";
 import type { DesignState } from "@/types";
 
 /** Distinguishable stand-ins; the reducer never inspects the design itself. */
-function design(filename: string): DesignState {
-  return emptyDesign({ filename, revision: "1" });
+function design(systemName: string): DesignState {
+  return emptyDesign({ systemName });
 }
 
 const reduce = (history: DesignHistory, ...actions: Parameters<typeof designHistoryReducer>[1][]) =>
   actions.reduce(designHistoryReducer, history);
 
-const names = (designs: DesignState[]) => designs.map((d) => d.metadata.filename);
+const names = (designs: DesignState[]) => designs.map((d) => d.metadata.systemName);
 
 describe("designHistoryReducer", () => {
   it("starts with nothing to undo or redo", () => {
@@ -30,7 +30,7 @@ describe("designHistoryReducer", () => {
   it("moves the previous design onto the past when committing", () => {
     const history = reduce(initDesignHistory(design("a")), { type: "commit", design: design("b") });
 
-    expect(history.present.metadata.filename).toBe("b");
+    expect(history.present.metadata.systemName).toBe("b");
     expect(names(history.past)).toEqual(["a"]);
     expect(canUndo(history)).toBe(true);
   });
@@ -39,12 +39,12 @@ describe("designHistoryReducer", () => {
     const start = reduce(initDesignHistory(design("a")), { type: "commit", design: design("b") });
 
     const undone = reduce(start, { type: "undo" });
-    expect(undone.present.metadata.filename).toBe("a");
+    expect(undone.present.metadata.systemName).toBe("a");
     expect(canUndo(undone)).toBe(false);
     expect(canRedo(undone)).toBe(true);
 
     const redone = reduce(undone, { type: "redo" });
-    expect(redone.present.metadata.filename).toBe("b");
+    expect(redone.present.metadata.systemName).toBe("b");
     expect(canRedo(redone)).toBe(false);
   });
 
@@ -56,7 +56,7 @@ describe("designHistoryReducer", () => {
       { type: "commit", design: design("c") }
     );
 
-    expect(history.present.metadata.filename).toBe("c");
+    expect(history.present.metadata.systemName).toBe("c");
     expect(canRedo(history)).toBe(false);
     expect(names(history.past)).toEqual(["a"]);
   });
@@ -76,7 +76,7 @@ describe("designHistoryReducer", () => {
       { type: "reset", design: design("restored") }
     );
 
-    expect(history.present.metadata.filename).toBe("restored");
+    expect(history.present.metadata.systemName).toBe("restored");
     expect(canUndo(history)).toBe(false);
     expect(canRedo(history)).toBe(false);
   });
@@ -89,7 +89,9 @@ describe("designHistoryReducer", () => {
     );
 
     expect(names(history.past)).toEqual(["a", "b"]);
-    expect(reduce(history, { type: "undo" }).present.metadata.filename).toBe("b");
-    expect(reduce(history, { type: "undo" }, { type: "undo" }).present.metadata.filename).toBe("a");
+    expect(reduce(history, { type: "undo" }).present.metadata.systemName).toBe("b");
+    expect(reduce(history, { type: "undo" }, { type: "undo" }).present.metadata.systemName).toBe(
+      "a"
+    );
   });
 });

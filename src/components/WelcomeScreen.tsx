@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
+import { NameFields } from "@/components/NameFields";
+import { DEFAULT_SYSTEM_NAME } from "@/domain/design-state";
 import { FLOOR_SEPARATOR_FEET } from "@/domain/floors";
 import { BUILD_AREA_LIMITS, clampBuildArea, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, DesignState } from "@/types";
@@ -22,6 +24,8 @@ type Stage = "choice" | "confirm-new" | "setup";
 
 /** What the setup form collects before a design exists. */
 export type DesignSetup = {
+  companyName: string;
+  systemName: string;
   buildArea: BuildArea;
   multiFloor: boolean;
   plenumHeightFeet: number | null;
@@ -50,6 +54,10 @@ export type WelcomeScreenProps = {
  */
 export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: WelcomeScreenProps) {
   const [stage, setStage] = useState<Stage>(stored ? "choice" : "setup");
+  // Both start empty and fall back to their defaults on create, so neither
+  // needs validation and neither field has to be cleared before it is typed in.
+  const [companyName, setCompanyName] = useState("");
+  const [systemName, setSystemName] = useState("");
   const [buildArea, setBuildArea] = useState<BuildArea>({ ...DEFAULT_BUILD_AREA });
   const [multiFloor, setMultiFloor] = useState(false);
   const [hasPlenum, setHasPlenum] = useState(false);
@@ -123,6 +131,12 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
           <div className="modal__title">{title}</div>
         </div>
         <div className="welcome__body">
+          <NameFields
+            companyName={companyName}
+            systemName={systemName}
+            onCompanyName={setCompanyName}
+            onSystemName={setSystemName}
+          />
           <p className="welcome__note">
             Provide details about the area this system will be built in.
           </p>
@@ -167,6 +181,8 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
             disabled={hasPlenum && !plenumHeightValid}
             onClick={() =>
               onCreate({
+                companyName: companyName.trim(),
+                systemName: systemName.trim() || DEFAULT_SYSTEM_NAME,
                 buildArea,
                 multiFloor,
                 plenumHeightFeet: hasPlenum ? plenumHeightFeet : null

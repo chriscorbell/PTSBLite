@@ -61,11 +61,18 @@ ADR-0001 — a spec requirement, not a workflow convenience.*
 **Nothing below Y = 0.** The ground plane is the floor. Basements or below-grade runs would need the
 build area to describe a Y origin rather than assuming zero.
 
-**A design's setup answers are fixed once it is created.** The build area, and the multi-floor and
-plenum answers, are collected on the welcome screen and cannot be changed afterwards — there is no
-settings screen, and the system name and revision are no longer editable either. Changing one means
-starting a new design. `DesignMetadata` would hold an edit fine; what was deliberately removed is
-the UI and the resize path that dropped parts no longer fitting a shrunken area.
+**A design's geometry answers are fixed once it is created.** The build area, and the multi-floor
+and plenum answers, are collected on the welcome screen and cannot be changed afterwards. Changing
+one means starting a new design. `DesignMetadata` would hold an edit fine; what was deliberately
+removed is the UI and the resize path that dropped parts no longer fitting a shrunken area.
+
+The names are the exception, because nothing is placed relative to them: company and system name
+are collected on the same form and can be changed at any time from the top-bar label.
+
+**No revision or version on a design.** `DesignMetadata` carried a `revision` string that printed
+on the PDF, but nothing could ever set it, so every export claimed "Revision 0.1". Tracking which
+revision a printed BOM belongs to is real work — history, comparison, a way to say what changed —
+and a field nobody can edit is not the start of it. Removed rather than left as furniture.
 
 ---
 
