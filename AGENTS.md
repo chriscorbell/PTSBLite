@@ -66,5 +66,6 @@ The supported browsers, absence of money, BOM export, and browser autosave are d
 such as station count, moving placed parts, and the real catalog remain open. Do not guess answers
 that only Kelly Tube Systems can provide.
 
-Keep [`docs/baked-in-assumptions.md`](docs/baked-in-assumptions.md) and
-[`docs/client-questions.md`](docs/client-questions.md) synchronized with the related question issues.
+Keep [`docs/baked-in-assumptions.md`](docs/baked-in-assumptions.md) current: it records what the
+current model cannot express. Scoped features are tracked with the client on a Trello board, not in
+this repository.
