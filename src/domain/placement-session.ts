@@ -20,6 +20,7 @@ import {
   resizeObstaclePlacementHeight,
   setObstaclePlacementFootprint,
   startObstaclePlacement,
+  type ObstacleKind,
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
 import { clampElevation } from "@/domain/sparse-grid";
@@ -50,6 +51,8 @@ export type PlacementSession = {
   tool: ToolId;
   hoverCell: Vec3 | null;
   obstacleDraft: ObstaclePlacementDraft | null;
+  /** Which kind of volume the obstacle tool draws. Sticky across tool changes. */
+  obstacleKind: ObstacleKind;
   ghostRotation: number;
   freePlacementMemory: FreePlacementMemory;
   freePlacementRotation: FreePlacementRotation;
@@ -60,6 +63,7 @@ export const INITIAL_PLACEMENT_SESSION: PlacementSession = {
   tool: "cursor",
   hoverCell: null,
   obstacleDraft: null,
+  obstacleKind: "impenetrable",
   ghostRotation: 0,
   freePlacementMemory: DEFAULT_FREE_PLACEMENT_MEMORY,
   freePlacementRotation: DEFAULT_FREE_PLACEMENT_ROTATION,
@@ -80,6 +84,8 @@ export type PlacementAction =
   | { type: "set-obstacle-base"; baseY: number; buildArea: BuildArea }
   | { type: "set-obstacle-height"; height: number; buildArea: BuildArea }
   | { type: "cancel-obstacle-draft" }
+  /** Switch what the obstacle tool draws. An in-flight draft keeps its shape. */
+  | { type: "set-obstacle-kind"; kind: ObstacleKind }
   /**
    * Fold back the session `attemptPlacement` or `commitObstacleDraft` returned.
    *
@@ -165,6 +171,9 @@ export function placementSessionReducer(
           ? resizeObstaclePlacementHeight(session.obstacleDraft, action.height, action.buildArea)
           : session.obstacleDraft
       };
+
+    case "set-obstacle-kind":
+      return { ...session, obstacleKind: action.kind };
 
     case "cancel-obstacle-draft":
       return { ...session, obstacleDraft: cancelObstaclePlacement(session.obstacleDraft) };
@@ -307,7 +316,7 @@ export function attemptPlacement(
       // Two clicks: the first anchors a corner, the second sets the footprint.
       // Height is then adjusted from the HUD before `commitObstacleDraft`.
       if (!session.obstacleDraft) {
-        const started = startObstaclePlacement(design, cell);
+        const started = startObstaclePlacement(design, cell, session.obstacleKind);
         if (!started.ok) return unchanged({ status: "error", message: started.message });
         return {
           session: { ...session, obstacleDraft: started.draft },
@@ -341,7 +350,8 @@ export function commitObstacleDraft(
   const placed = placeObstacleVolume(design, {
     id: occupantId,
     cornerA: bounds.min,
-    cornerB: bounds.max
+    cornerB: bounds.max,
+    kind: session.obstacleKind
   });
   if (!placed.ok) return { session, result: { status: "error", message: placed.message } };
   return {
@@ -383,7 +393,7 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
     case "bend":
       return bendPlacementGhost(design, hoverCell, { rotationIndex: session.ghostRotation });
     case "obstacle":
-      return obstaclePlacementGhost(session.obstacleDraft, hoverCell);
+      return obstaclePlacementGhost(session.obstacleDraft, hoverCell, session.obstacleKind);
     default:
       return null;
   }

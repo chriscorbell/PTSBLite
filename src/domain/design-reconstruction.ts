@@ -105,8 +105,11 @@ export function reconstructDesign(
   }
 
   // Obstacles second, and per-cell: they mark space rather than occupy it, so a
-  // cell already spoken for simply stays spoken for.
+  // cell already spoken for simply stays spoken for. A penetrable obstacle
+  // marks nothing at all — staying out of the grid is what lets tubes route
+  // through it (ADR-0016).
   for (const obstacle of obstacles) {
+    if (obstacle.penetrable) continue;
     for (const cell of obstacleCells(obstacle)) {
       if (grid.withinBounds(cell) && grid.query(cell) === undefined) {
         grid.place(cell, obstacle.id);

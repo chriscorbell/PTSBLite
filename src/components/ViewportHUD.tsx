@@ -1,6 +1,7 @@
 import { Icons } from "@/components/Icons";
 import {
   obstaclePlacementDraftHasFootprint,
+  type ObstacleKind,
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
@@ -15,6 +16,9 @@ export type ViewportHUDProps = {
   /** Which floor the placement plane is on; null hides the floor selector. */
   activeFloor: 1 | 2 | null;
   onSelectFloor: (floor: 1 | 2) => void;
+  /** What the obstacle tool draws; its selector shows while the tool is armed. */
+  obstacleKind: ObstacleKind;
+  onObstacleKindChange: (kind: ObstacleKind) => void;
   obstacleDraft: ObstaclePlacementDraft | null;
   /** Bounds the base/height steppers, so they cannot offer a rejected value. */
   buildArea: BuildArea;
@@ -26,9 +30,12 @@ export type ViewportHUDProps = {
 
 export function ViewportHUD({
   scene,
+  tool,
   errorFlash,
   activeFloor,
   onSelectFloor,
+  obstacleKind,
+  onObstacleKindChange,
   obstacleDraft,
   buildArea,
   onObstacleBaseYChange,
@@ -42,6 +49,26 @@ export function ViewportHUD({
   const atCeiling = obstacleReady && obstacleDraft.baseY + obstacleDraft.height >= buildArea.height;
   return (
     <div className="hud nosel">
+      {tool === "obstacle" && (
+        <div className="hud__obstacle-kind" role="group" aria-label="Obstacle type">
+          {(["impenetrable", "penetrable"] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              className="hud__floor"
+              aria-pressed={obstacleKind === kind}
+              title={
+                kind === "penetrable"
+                  ? "Tubes can pass through this volume"
+                  : "Placement and routing must avoid this volume"
+              }
+              onClick={() => onObstacleKindChange(kind)}
+            >
+              {kind === "penetrable" ? "Penetrable" : "Impenetrable"}
+            </button>
+          ))}
+        </div>
+      )}
       {activeFloor !== null && (
         <div className="hud__floors" role="group" aria-label="Active floor">
           {([1, 2] as const).map((floor) => (

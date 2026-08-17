@@ -32,6 +32,7 @@ import {
   plenumBands
 } from "@/domain/floors";
 import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
+import { type ObstacleKind } from "@/domain/obstacle-placement";
 import {
   attemptPlacement,
   commitObstacleDraft,
@@ -142,6 +143,7 @@ export default function App({ platform }: AppProps) {
   );
   const tool = placement.tool;
   const obstacleDraft = placement.obstacleDraft;
+  const obstacleKind = placement.obstacleKind;
   const activeElevation = placement.activeElevation;
 
   // Every visit starts on the welcome screen: a continue/new/delete choice when
@@ -356,6 +358,10 @@ export default function App({ platform }: AppProps) {
     applyPlacementResult(result);
   }, [applyPlacementResult, design, placement]);
 
+  const setObstacleKind = useCallback((kind: ObstacleKind) => {
+    dispatchPlacement({ type: "set-obstacle-kind", kind });
+  }, []);
+
   const setObstacleBaseY = useCallback(
     (baseY: number) => {
       dispatchPlacement({ type: "set-obstacle-base", baseY, buildArea });
@@ -468,7 +474,7 @@ export default function App({ platform }: AppProps) {
       setAutoBuildSummary({
         lengthFeet: totalPathLength(result.parts),
         bends: result.parts.filter((part) => part.type === "bend").length,
-        obstacles: design.obstacles.length,
+        obstacles: design.obstacles.filter((obstacle) => !obstacle.penetrable).length,
         modeLabel: OPTIMIZATION_MODE_LABELS[mode],
         unrouted: result.unroutedPairs.length
       });
@@ -606,6 +612,8 @@ export default function App({ platform }: AppProps) {
             tool={tool}
             activeFloor={activeFloor}
             onSelectFloor={selectFloor}
+            obstacleKind={obstacleKind}
+            onObstacleKindChange={setObstacleKind}
             autoBuilding={autoBuilding}
             errorFlash={errorFlash ?? autosaveError ?? exportError}
             obstacleDraft={obstacleDraft}

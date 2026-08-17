@@ -127,6 +127,19 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     expect(validate(result.design)).toEqual([]);
   });
 
+  it("routes straight through a penetrable obstacle instead of around it", () => {
+    // The obstacle the "routes around" test above detours for, now penetrable:
+    // no wall at all, so the route is the same straight shot as open space —
+    // all tube, no bends — and validation has nothing to say about it.
+    const obstacle: Obstacle = { id: "obs1", min: [5, 0, 0], max: [5, 0, 0], penetrable: true };
+    const result = autoBuildOpenPortPair(designWith(basicParts([16, 0, 0]), [obstacle]));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.parts.every((part) => part.type === "tube")).toBe(true);
+    expect(validate(result.design)).toEqual([]);
+  });
+
   it("threads a route between obstacles when the straight path is blocked", () => {
     const obstacles: Obstacle[] = [
       { id: "wall-a", min: [5, 0, 0], max: [5, 0, 0] },

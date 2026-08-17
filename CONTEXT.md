@@ -47,8 +47,10 @@ Obstacles are **not** parts. Modelled by `Part`.
 Contributes 4.71 ft of centerline. `loadPartRegistry` checks the catalog's declared
 `cells` against the footprint the geometry actually produces, so the two cannot drift.
 
-**Obstacle** — a rectangular volume the routing must avoid. Costs nothing, appears in no BOM, and
-occupies grid cells so nothing can be placed inside it.
+**Obstacle** — a rectangular volume, in one of two kinds chosen when it is drawn. An
+**impenetrable** obstacle is what routing must avoid: it occupies grid cells so nothing can be
+placed inside it. A **penetrable** obstacle — a wall with penetrations, a soft ceiling — claims no
+cells, so tubes pass through it (ADR-0016). Either kind costs nothing and appears in no BOM.
 *Avoid:* "volume" alone, "blocker", "keep-out" (all appear informally; "obstacle" is the term).
 
 **Cell** — one grid position. **1 cell = 1 ft** on every axis. Cell coordinates are integers;

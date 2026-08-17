@@ -326,9 +326,12 @@ export function buildBendMesh(
 export function buildObstacleMesh(
   min: Vec3,
   max: Vec3,
-  opts: { ghost?: boolean } = {}
+  opts: { ghost?: boolean; penetrable?: boolean } = {}
 ): THREE.Group {
   const ghost = !!opts.ghost;
+  // Penetrable volumes are steel blue and unhatched; the red diagonal hatching
+  // stays the mark of a volume routing must keep out of.
+  const color = opts.penetrable ? VP.obstaclePenetrable : VP.obstacle;
   const sx = max[0] - min[0] + 1;
   const sy = max[1] - min[1] + 1;
   const sz = max[2] - min[2] + 1;
@@ -337,7 +340,7 @@ export function buildObstacleMesh(
   const cz = (min[2] + max[2] + 1) / 2;
   const g = new THREE.Group();
   const mat = new THREE.MeshStandardMaterial({
-    color: VP.obstacle,
+    color,
     transparent: true,
     opacity: ghost ? 0.035 : 0.07,
     roughness: 0.95,
@@ -354,7 +357,7 @@ export function buildObstacleMesh(
   const edges = new LineSegments2(
     edgeGeom,
     new LineMaterial({
-      color: VP.obstacle,
+      color,
       linewidth: 1.5,
       transparent: true,
       opacity: ghost ? 0.45 : 0.7,
@@ -363,6 +366,7 @@ export function buildObstacleMesh(
   );
   edges.position.set(cx, cy, cz);
   g.add(edges);
+  if (opts.penetrable) return g;
   const hatchMat = new THREE.LineBasicMaterial({
     color: VP.obstacle,
     transparent: true,

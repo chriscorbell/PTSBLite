@@ -163,3 +163,58 @@ describe("obstacle draft bounds follow the design's build area", () => {
     expectGridMatchesDesign(result.design);
   });
 });
+
+describe("penetrable obstacles", () => {
+  it("claims no grid cells, so parts can be placed inside it", () => {
+    const result = placeObstacleVolume(emptyDesign(), {
+      id: "o1",
+      cornerA: [0, 0, 0],
+      cornerB: [2, 0, 2],
+      kind: "penetrable"
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.obstacles[0]).toMatchObject({ id: "o1", penetrable: true });
+    expect(result.design.grid.query([1, 0, 1])).toBeUndefined();
+    expectGridMatchesDesign(result.design);
+  });
+
+  it("may be drawn over occupied cells, which the impenetrable kind refuses", () => {
+    const seeded = emptyDesign();
+    seeded.grid.place([1, 0, 1], "blocker");
+
+    const solid = placeObstacleVolume(seeded, {
+      id: "o1",
+      cornerA: [0, 0, 0],
+      cornerB: [2, 0, 2]
+    });
+    expect(solid.ok).toBe(false);
+
+    const penetrable = placeObstacleVolume(seeded, {
+      id: "o1",
+      cornerA: [0, 0, 0],
+      cornerB: [2, 0, 2],
+      kind: "penetrable"
+    });
+    expect(penetrable.ok).toBe(true);
+    // The blocker keeps its cell; the obstacle claimed nothing.
+    if (!penetrable.ok) return;
+    expect(penetrable.design.grid.query([1, 0, 1])).toBe("blocker");
+  });
+
+  it("accepts a first corner on an occupied cell for the penetrable kind only", () => {
+    const seeded = emptyDesign();
+    seeded.grid.place([0, 0, 0], "blocker");
+    expect(startObstaclePlacement(seeded, [0, 0, 0]).ok).toBe(false);
+    expect(startObstaclePlacement(seeded, [0, 0, 0], "penetrable").ok).toBe(true);
+  });
+
+  it("marks the ghost so the preview can render the kind being drawn", () => {
+    const draft = { cornerA: [0, 0, 0] as [number, number, number] };
+    expect(obstaclePlacementGhost(draft, [2, 0, 2], "penetrable")).toMatchObject({
+      penetrable: true
+    });
+    const solidGhost = obstaclePlacementGhost(draft, [2, 0, 2]);
+    expect(solidGhost && "penetrable" in solidGhost).toBe(false);
+  });
+});

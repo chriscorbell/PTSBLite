@@ -7,7 +7,9 @@
 
 .hud__obstacle-controls {
   position: absolute;
-  top: 12px;
+  /* Below the obstacle-kind pill, which owns the top-left corner while the
+     obstacle tool is armed — the kind stays switchable right up to Place. */
+  top: 52px;
   left: 14px;
   display: flex;
   align-items: center;
@@ -185,4 +187,18 @@
   background: color-mix(in oklab, var(--accent) 14%, var(--panel-2));
   color: var(--accent);
   font-weight: 600;
+}
+
+/* Obstacle kind selector: top-left, mirroring the floor selector's pill. */
+.hud__obstacle-kind {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 7px;
+  border: 1px solid var(--line-2);
+  background: color-mix(in oklab, var(--panel) 88%, transparent);
+  pointer-events: auto;
 }
