@@ -40,6 +40,12 @@
   background: var(--line);
 }
 
+.active-tool-bar__elevation {
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
 .active-tool-bar__hint {
   color: var(--text-mut);
   display: flex;
