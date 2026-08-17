@@ -23,5 +23,5 @@ bug `reconstructDesign` exists to prevent. The consequences are accepted deliber
 - Validation's obstacle-intersection rule considers only impenetrable obstacles: passing through a
   penetrable one is its purpose, not a fault.
 
-Penetrable obstacles render steel blue and unhatched; the red diagonal hatching remains the mark
-of a volume routing must keep out of.
+Both kinds render with the same geometry, edges, and diagonal hatching on every face; color alone
+tells them apart — red for a volume routing must avoid, steel blue for one it may pass through.
