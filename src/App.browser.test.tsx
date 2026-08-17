@@ -75,7 +75,7 @@ describe("picking up where you left off", () => {
     await renderApp();
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
-    fireEvent.change(within(dialog).getByLabelText("Width (X)"), { target: { value: "40" } });
+    fireEvent.change(within(dialog).getByLabelText("Width"), { target: { value: "40" } });
     fireEvent.click(within(dialog).getByRole("button", { name: /Create design/ }));
 
     await waitFor(() => {
@@ -163,7 +163,7 @@ describe("the welcome setup form", () => {
     await renderApp();
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
-    expect(within(dialog).getByLabelText("Width (X)")).toBeTruthy();
+    expect(within(dialog).getByLabelText("Width")).toBeTruthy();
     expect(within(dialog).getByLabelText("Add 2nd floor")).toBeTruthy();
     expect(within(dialog).getByLabelText("Plenum (drop ceiling)")).toBeTruthy();
     // The height input only appears once a plenum is declared.
@@ -174,7 +174,7 @@ describe("the welcome setup form", () => {
     await renderApp();
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
-    fireEvent.change(within(dialog).getByLabelText("Width (X)"), { target: { value: "40" } });
+    fireEvent.change(within(dialog).getByLabelText("Width"), { target: { value: "40" } });
     fireEvent.click(within(dialog).getByLabelText("Add 2nd floor"));
     fireEvent.click(within(dialog).getByLabelText("Plenum (drop ceiling)"));
     fireEvent.change(within(dialog).getByLabelText(/plenum height/i), { target: { value: "4" } });
@@ -206,7 +206,7 @@ describe("the welcome setup form", () => {
 
     expect(screen.getByRole("dialog", { name: /New design/ })).toBeTruthy();
     expect(
-      within(screen.getByRole("dialog", { name: /New design/ })).getByLabelText("Width (X)")
+      within(screen.getByRole("dialog", { name: /New design/ })).getByLabelText("Width")
     ).toBeTruthy();
   });
 });

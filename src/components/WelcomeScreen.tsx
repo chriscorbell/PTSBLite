@@ -8,11 +8,12 @@ import { BUILD_AREA_LIMITS, clampBuildArea, DEFAULT_BUILD_AREA } from "@/domain/
 import type { BuildArea, DesignState } from "@/types";
 import "@/components/WelcomeScreen.css";
 
-// Build-area axes, labeled with their world-space axis.
+// Build-area axes in the words a visitor measuring a room would use. The
+// domain keeps calling the Z axis `depth`; only the label says "Length".
 const BUILD_AREA_AXES: { key: keyof BuildArea; label: string }[] = [
-  { key: "width", label: "Width (X)" },
-  { key: "depth", label: "Depth (Z)" },
-  { key: "height", label: "Height (Y)" }
+  { key: "width", label: "Width" },
+  { key: "depth", label: "Length" },
+  { key: "height", label: "Height" }
 ];
 
 /**
