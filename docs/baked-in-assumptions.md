@@ -99,6 +99,11 @@ and probably multi-select.
 
 **Copy, duplicate, array, mirror.** No bulk operations of any kind.
 
+**Multi-floor and plenum behavior.** The welcome screen asks whether the project spans multiple
+floors and whether the space has a plenum (drop ceiling, with an approximate height in feet), and
+stores the answers in the design's metadata. Nothing reads them yet: routing and validation are
+single-floor and ignore the plenum.
+
 **Any collaboration, cloud, account, or telemetry surface.** Deliberately. PTSBuilderLite is
 served as static files with a `connect-src 'none'` policy: nothing it does reaches the network
 after load, so there is also no error reporting from production.

@@ -23,10 +23,12 @@ import type { DesignState } from "@/types";
  */
 export function isWorthKeeping(design: DesignState): boolean {
   if (design.parts.length > 0 || design.obstacles.length > 0) return true;
-  const { filename, revision, buildArea } = design.metadata;
+  const { filename, revision, buildArea, multiFloor, plenumHeightFeet } = design.metadata;
   return (
     filename !== DEFAULT_FILENAME ||
     revision !== DEFAULT_REVISION ||
+    multiFloor ||
+    plenumHeightFeet !== null ||
     buildArea.width !== DEFAULT_BUILD_AREA.width ||
     buildArea.depth !== DEFAULT_BUILD_AREA.depth ||
     buildArea.height !== DEFAULT_BUILD_AREA.height

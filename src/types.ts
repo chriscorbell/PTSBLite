@@ -73,6 +73,12 @@ export type DesignMetadata = {
   filename: string;
   revision: string;
   buildArea: BuildArea;
+  /** Whether the project spans multiple floors. Asked at design setup; nothing
+   * routes across floors yet. */
+  multiFloor: boolean;
+  /** Approximate plenum (drop ceiling) height in feet, or null when the space
+   * has none. Asked at design setup; nothing places tube in the plenum yet. */
+  plenumHeightFeet: number | null;
 };
 
 import type { SparseGrid } from "@/domain/sparse-grid";

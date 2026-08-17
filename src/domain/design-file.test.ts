@@ -47,7 +47,9 @@ describe("serializeDesign", () => {
     expect(payload.metadata).toEqual({
       filename: "House",
       revision: "0.3",
-      buildArea: DEFAULT_BUILD_AREA
+      buildArea: DEFAULT_BUILD_AREA,
+      multiFloor: false,
+      plenumHeightFeet: null
     });
   });
 
@@ -96,8 +98,17 @@ describe("deserializeDesign", () => {
     expect(result.design.metadata.buildArea).toEqual({ width: 40, depth: 80, height: 12 });
   });
 
-  it("defaults the build area for designs saved before it existed", () => {
-    // A v1 payload written before the build-area field was added.
+  it("roundtrips the welcome screen's setup answers", () => {
+    const original = designFromScene(FULL_SCENE, { multiFloor: true, plenumHeightFeet: 2.5 });
+    const result = deserializeDesign(JSON.stringify(serializeDesign(original, TEST_APP_VERSION)));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.metadata.multiFloor).toBe(true);
+    expect(result.design.metadata.plenumHeightFeet).toBe(2.5);
+  });
+
+  it("defaults fields added since a design was saved", () => {
+    // A v1 payload written before the build area and setup answers existed.
     const legacy = {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       appVersion: "0.1.0",
@@ -109,6 +120,8 @@ describe("deserializeDesign", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.design.metadata.buildArea).toEqual(DEFAULT_BUILD_AREA);
+    expect(result.design.metadata.multiFloor).toBe(false);
+    expect(result.design.metadata.plenumHeightFeet).toBeNull();
   });
 
   it("rejects unparseable JSON", () => {

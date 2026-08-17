@@ -38,6 +38,11 @@ describe("isWorthKeeping", () => {
     resized.metadata.buildArea = { width: 80, depth: 40, height: 14 };
     expect(isWorthKeeping(resized)).toBe(true);
   });
+
+  it("keeps the welcome screen's setup answers", () => {
+    expect(isWorthKeeping(emptyDesign({ multiFloor: true }))).toBe(true);
+    expect(isWorthKeeping(emptyDesign({ plenumHeightFeet: 3 }))).toBe(true);
+  });
 });
 
 describe("readStoredSession", () => {
