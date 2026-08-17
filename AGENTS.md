@@ -1,10 +1,10 @@
-# Working on PTSBuilderLite
+# Working on PTSBLite
 
 Read [`CONTEXT.md`](CONTEXT.md) before changing anything under `src/domain/`. It defines the
 vocabulary and identifies which engineering constraints are authoritative.
 
-PTSBuilderLite is the repository's only product
-([ADR-0014](docs/adr/0014-ptsbuilderlite-is-the-only-product.md)); the README says what it is.
+PTSBLite is the repository's only product
+([ADR-0014](docs/adr/0014-ptsblite-is-the-only-product.md)); the README says what it is.
 Do not add Electron, desktop packaging, pricing, quotes, customer data, tax, or other commercial
 functionality.
 
@@ -33,7 +33,7 @@ placeholders. See [ADR-0001](docs/adr/0001-engineering-constraints-are-authorita
 
 User-facing copy must interpolate engineering constants rather than restating them.
 
-**2. PTSBuilderLite cannot express money.** `BomRow` has no price, the catalog loader rejects
+**2. PTSBLite cannot express money.** `BomRow` has no price, the catalog loader rejects
 `unitPrice`, and the UI tests assert no money reaches the screen. The application exports a BOM,
 never a quote. See [ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md).
 

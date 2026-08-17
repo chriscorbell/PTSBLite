@@ -1,12 +1,12 @@
 {
-  "name": "ptsbuilder-lite",
+  "name": "ptsblite",
   "version": "0.1.3",
   "description": "Interactive 3D pneumatic tube system planner for Kelly Tube Systems",
   "author": "Chris Corbell <hi@chriscorbell.com>",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chriscorbell/PTSBuilder"
+    "url": "https://github.com/chriscorbell/PTSBLite"
   },
   "type": "module",
   "packageManager": "pnpm@11.5.0",

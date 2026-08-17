@@ -82,7 +82,7 @@ worth asking about early.
 
 **Part numbers and names** in `src/data/parts.json` are invented and will be replaced when the real
 catalog arrives. The `partNo` values in particular look authoritative and are not. **They are now
-published**: PTSBuilderLite prints them into a BOM PDF that any member of the public can download
+published**: PTSBLite prints them into a BOM PDF that any member of the public can download
 and keep. That is a deliberate decision, recorded in
 [ADR-0013](adr/0013-lite-publishes-placeholder-part-numbers.md), and it is the one place invented
 data reaches a customer-facing artifact on purpose. Issue #94.
@@ -118,7 +118,7 @@ client's stated intent is that Auto-Build will come to prefer placing horizontal
 and bends — inside the plenum; that is routing work in `pathfinder.ts`, not a data change, and it
 has deliberately not been guessed at.
 
-**Any collaboration, cloud, account, or telemetry surface.** Deliberately. PTSBuilderLite is
+**Any collaboration, cloud, account, or telemetry surface.** Deliberately. PTSBLite is
 served as static files with a `connect-src 'none'` policy: nothing it does reaches the network
 after load, so there is also no error reporting from production.
 

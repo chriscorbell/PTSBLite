@@ -51,13 +51,13 @@ describe("generateBomPdf", () => {
 
   it("names the product that generated it", async () => {
     const text = extractText(
-      await generateBomPdf(designWith(sampleParts), { productName: "PTSBuilderLite" })
+      await generateBomPdf(designWith(sampleParts), { productName: "PTSBLite" })
     );
-    expect(text).toContain("PTSBuilderLite");
+    expect(text).toContain("PTSBLite");
   });
 
   it("prints no money of any kind", async () => {
-    // The defining constraint of PTSBuilderLite. A currency symbol, a decimal
+    // The defining constraint of PTSBLite. A currency symbol, a decimal
     // amount, or any of the quote's money headings reaching this document means
     // the separation has failed somewhere upstream (ADR-0011).
     const text = extractText(await generateBomPdf(designWith(sampleParts)));

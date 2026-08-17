@@ -1,11 +1,11 @@
-# ADR-0012: PTSBuilderLite persists a session, not files
+# ADR-0012: PTSBLite persists a session, not files
 
 - **Status:** Accepted
 - **Date:** 2026-08-03
 
 ## Context
 
-PTSBuilderLite's visitors are exploring the product in a browser. They have no reason to manage a
+PTSBLite's visitors are exploring the product in a browser. They have no reason to manage a
 design file, but they do expect closing the tab and returning later not to lose their work.
 
 What they do have a reason to expect is that closing the tab and coming back later does not lose
@@ -15,7 +15,9 @@ their work.
 
 **One design, autosaved to `localStorage`, offered back on return.**
 
-The value stored under `ptsbuilder-lite:autosave:v1` is exactly what `serializeDesign` produces.
+The value stored under `ptsbuilder-lite:autosave:v1` (a pre-rename prefix kept deliberately — see
+[ADR-0017](0017-storage-keys-keep-the-pre-rename-prefix.md)) is exactly what `serializeDesign`
+produces.
 No wrapper, no second version number: a timestamp and an
 independent autosave format version would both be things to maintain with no use the UI has asked
 for.
@@ -46,14 +48,14 @@ something to lose, and that prompt is all a browser offers.
 
 ## Consequences
 
-There is no Save, Save As or Open in PTSBuilderLite, and no unsaved-work marker — the design is
+There is no Save, Save As or Open in PTSBLite, and no unsaved-work marker — the design is
 never not saved.
 
 **A design lives in one browser profile on one machine.** Clearing site data loses it. A different
 browser, a different machine, or private browsing sees nothing. This is a real product limitation
 and is recorded in `docs/baked-in-assumptions.md`.
 
-**`localStorage` is scoped to the origin.** Moving PTSBuilderLite to a different hostname — from
+**`localStorage` is scoped to the origin.** Moving PTSBLite to a different hostname — from
 `*.pages.dev` to a custom domain, say — makes every stored design unreachable. Choose the hostname
 before telling anyone about the tool.
 

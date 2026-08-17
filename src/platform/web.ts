@@ -1,6 +1,14 @@
 import type { Platform } from "@/platform/types";
 
-/** One design, one origin. See ADR-0012. */
+/**
+ * One design, one origin. See ADR-0012.
+ *
+ * The `ptsbuilder-lite` prefix predates the rename to PTSBLite and stays that
+ * way deliberately: a key is an address, not a label. Renaming it to match the
+ * product would orphan every design already saved in a visitor's browser, with
+ * no migration path and nothing to warn them with — the same silent loss
+ * ADR-0017 exists to prevent. Nobody ever sees these strings.
+ */
 const SESSION_KEY = "ptsbuilder-lite:autosave:v1";
 /**
  * Where a payload this build cannot read is set aside. Kept rather than
@@ -10,7 +18,7 @@ const SESSION_KEY = "ptsbuilder-lite:autosave:v1";
 const UNREADABLE_KEY = "ptsbuilder-lite:autosave:unreadable";
 
 /**
- * The browser services used by PTSBuilderLite.
+ * The browser services used by PTSBLite.
  */
 export function webPlatform(): Platform {
   return {

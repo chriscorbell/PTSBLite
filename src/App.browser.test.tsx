@@ -41,7 +41,7 @@ function createFirstDesign() {
   fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
 }
 
-describe("PTSBuilderLite", () => {
+describe("PTSBLite", () => {
   it("shows no money anywhere on screen", async () => {
     await renderApp();
     createFirstDesign();
@@ -63,9 +63,9 @@ describe("PTSBuilderLite", () => {
     expect(screen.getByRole("button", { name: /Export PDF/ })).toBeTruthy();
   });
 
-  it("uses the PTSBuilderLite name", async () => {
+  it("uses the PTSBLite name", async () => {
     await renderApp();
-    expect(document.body.textContent).toContain("PTSBuilderLite");
+    expect(document.body.textContent).toContain("PTSBLite");
   });
 });
 
@@ -74,7 +74,7 @@ describe("picking up where you left off", () => {
     const download = vi.spyOn(HTMLAnchorElement.prototype, "click");
     await renderApp();
 
-    const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBuilderLite/ });
+    const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
     fireEvent.change(within(dialog).getByLabelText("Width (X)"), { target: { value: "40" } });
     fireEvent.click(within(dialog).getByRole("button", { name: /Create design/ }));
 
@@ -144,7 +144,7 @@ describe("picking up where you left off", () => {
     window.localStorage.setItem(SESSION_KEY, JSON.stringify(serializeDesign(emptyDesign(), "t")));
     await renderApp();
     expect(screen.queryByRole("dialog", { name: /Welcome back/ })).toBeNull();
-    expect(screen.getByRole("dialog", { name: /Welcome to PTSBuilderLite/ })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: /Welcome to PTSBLite/ })).toBeTruthy();
   });
 
   it("sets aside a payload it cannot read, and says so without jargon", async () => {
@@ -162,7 +162,7 @@ describe("the welcome setup form", () => {
   it("asks for the required details on a first visit", async () => {
     await renderApp();
 
-    const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBuilderLite/ });
+    const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
     expect(within(dialog).getByLabelText("Width (X)")).toBeTruthy();
     expect(within(dialog).getByLabelText("Add 2nd floor")).toBeTruthy();
     expect(within(dialog).getByLabelText("Plenum (drop ceiling)")).toBeTruthy();
@@ -173,7 +173,7 @@ describe("the welcome setup form", () => {
   it("stores the setup answers with the created design", async () => {
     await renderApp();
 
-    const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBuilderLite/ });
+    const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
     fireEvent.change(within(dialog).getByLabelText("Width (X)"), { target: { value: "40" } });
     fireEvent.click(within(dialog).getByLabelText("Add 2nd floor"));
     fireEvent.click(within(dialog).getByLabelText("Plenum (drop ceiling)"));

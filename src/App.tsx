@@ -70,7 +70,7 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
   x: "erase"
 };
 
-const PRODUCT_NAME = "PTSBuilderLite";
+const PRODUCT_NAME = "PTSBLite";
 const DESIGN_METADATA = { filename: DEFAULT_FILENAME, revision: DEFAULT_REVISION };
 
 /**
@@ -197,7 +197,7 @@ export default function App({ platform }: AppProps) {
   // console, not to the visitor, who can do nothing with it.
   useEffect(() => {
     if (storedSession.status !== "unreadable") return;
-    console.warn(`PTSBuilderLite: stored design could not be read - ${storedSession.reason}`);
+    console.warn(`PTSBLite: stored design could not be read - ${storedSession.reason}`);
     sessionStore.preserveUnreadable();
   }, [storedSession, sessionStore]);
 
