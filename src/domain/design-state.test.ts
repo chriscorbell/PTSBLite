@@ -19,7 +19,9 @@ describe("DesignState", () => {
     expect(d.metadata).toEqual({
       filename: DEFAULT_FILENAME,
       revision: DEFAULT_REVISION,
-      buildArea: DEFAULT_BUILD_AREA
+      buildArea: DEFAULT_BUILD_AREA,
+      multiFloor: false,
+      plenumHeightFeet: null
     });
   });
 

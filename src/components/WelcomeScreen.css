@@ -1,0 +1,26 @@
+.welcome__message {
+  padding: 18px 18px 4px;
+  font-size: 13px;
+  color: var(--text-mut);
+  line-height: 1.5;
+}
+
+.welcome__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.welcome__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+/* Indented under its "Plenum" checkbox: the checkbox width plus its gap. */
+.welcome__plenum {
+  display: block;
+  margin-left: 21px;
+}

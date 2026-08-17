@@ -1,6 +1,7 @@
 agent/
 # AGENTS.md is committed: it is project knowledge, not personal setup.
 CLAUDE.md
+.claude/
 # Planning documents are scratch. Decisions that outlive them become ADRs, and
 # questions only the client can answer become issues labelled `question`.
 docs/plans/

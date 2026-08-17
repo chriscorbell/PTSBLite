@@ -44,7 +44,9 @@ function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
   return {
     filename: meta?.filename ?? DEFAULT_FILENAME,
     revision: meta?.revision ?? DEFAULT_REVISION,
-    buildArea: meta?.buildArea ? clampBuildArea(meta.buildArea) : { ...DEFAULT_BUILD_AREA }
+    buildArea: meta?.buildArea ? clampBuildArea(meta.buildArea) : { ...DEFAULT_BUILD_AREA },
+    multiFloor: meta?.multiFloor ?? false,
+    plenumHeightFeet: meta?.plenumHeightFeet ?? null
   };
 }
 

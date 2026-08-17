@@ -10,6 +10,7 @@ import { RightPanel } from "@/components/RightPanel";
 import { StatusBar } from "@/components/StatusBar";
 import { TopBar } from "@/components/TopBar";
 import { ViewportHUD } from "@/components/ViewportHUD";
+import { WelcomeScreen, type DesignSetup } from "@/components/WelcomeScreen";
 import { generateBomPdf } from "@/domain/bom-pdf";
 import { serializeDesign } from "@/domain/design-file";
 import {
@@ -153,9 +154,14 @@ export default function App({ platform }: AppProps) {
   const obstacleDraft = placement.obstacleDraft;
   const activeElevation = placement.activeElevation;
 
-  // The design found in storage, until the visitor answers. Null once they have.
-  const [restoreOffer, setRestoreOffer] = useState<DesignState | null>(
-    storedSession.status === "restorable" ? storedSession.design : null
+  // Every visit starts on the welcome screen: a continue/new/delete choice when
+  // a design is stored, the setup form otherwise. Null once answered. "New"
+  // from the top bar reopens it, without the greeting.
+  const [welcome, setWelcome] = useState<{ stored: DesignState | null; greeting: boolean } | null>(
+    () => ({
+      stored: storedSession.status === "restorable" ? storedSession.design : null,
+      greeting: true
+    })
   );
   // Set when a write fails, cleared when one succeeds. While it holds a message
   // there is genuinely unsaved work, which is the only time Lite warns on exit.
@@ -208,10 +214,10 @@ export default function App({ platform }: AppProps) {
   }, [storedSession, sessionStore]);
 
   // Autosave, debounced so a drag does not write on every frame. Nothing is
-  // written until the visitor answers the restore offer, or the blank design
-  // they are looking at would overwrite the one being offered.
+  // written while the welcome screen is open, or the blank design behind it
+  // would overwrite the one being offered.
   useEffect(() => {
-    if (restoreOffer) return;
+    if (welcome) return;
     if (!isWorthKeeping(design)) {
       // Starting over empties the design. Leaving the previous one in storage
       // would offer it back on the next visit, after the visitor discarded it.
@@ -223,7 +229,7 @@ export default function App({ platform }: AppProps) {
       setAutosaveError(result.ok ? null : result.error);
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [design, restoreOffer, sessionStore]);
+  }, [design, welcome, sessionStore]);
 
   // Write immediately when the tab is being hidden or torn down, which is the
   // last chance the browser gives. `visibilitychange` is the reliable one and
@@ -231,7 +237,7 @@ export default function App({ platform }: AppProps) {
   // cache. Both are idempotent, and neither survives a crash — the debounce
   // above is what covers that.
   useEffect(() => {
-    if (restoreOffer) return;
+    if (welcome) return;
     const flush = () => {
       if (!isWorthKeeping(design)) return;
       sessionStore.store(JSON.stringify(serializeDesign(design, __APP_VERSION__)));
@@ -245,7 +251,7 @@ export default function App({ platform }: AppProps) {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pagehide", flush);
     };
-  }, [design, restoreOffer, sessionStore]);
+  }, [design, welcome, sessionStore]);
 
   // The only time a browser build warns on the way out. Normally autosave means
   // there is nothing to lose and the prompt would be pure friction — but once a
@@ -353,6 +359,9 @@ export default function App({ platform }: AppProps) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // While the welcome screen is up there is no design being edited yet, and
+      // a shortcut would reach the app behind the dialog.
+      if (welcome) return;
       const target = e.target as HTMLElement | null;
       if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
       const k = e.key.toLowerCase();
@@ -381,7 +390,7 @@ export default function App({ platform }: AppProps) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, selectTool, buildArea]);
+  }, [undo, redo, selectTool, buildArea, welcome]);
 
   const ghostState = useMemo(() => placementGhost(placement, design), [placement, design]);
 
@@ -443,12 +452,11 @@ export default function App({ platform }: AppProps) {
     setErrorFlash(null);
   }, [selectTool, setErrorFlash]);
 
+  // "New" reopens the welcome screen's setup form, so every design starts by
+  // answering the same questions. The current design stays on screen (and in
+  // storage) until the new one is actually created.
   const handleNew = useCallback(() => {
-    const startNew = () => {
-      sessionStore.clear();
-      dispatchDocument({ type: "reset", design: emptyDesign(DESIGN_METADATA) });
-      resetForNewDesign();
-    };
+    const startNew = () => setWelcome({ stored: null, greeting: false });
     if (!isWorthKeeping(design)) {
       startNew();
       return;
@@ -459,7 +467,30 @@ export default function App({ platform }: AppProps) {
       confirmLabel: "Start new design",
       onConfirm: startNew
     });
-  }, [design, resetForNewDesign, sessionStore]);
+  }, [design]);
+
+  /** Restore the design the welcome screen offered. */
+  const continueStored = useCallback(
+    (stored: DesignState) => {
+      dispatchDocument({ type: "reset", design: stored });
+      resetForNewDesign();
+      setWelcome(null);
+    },
+    [resetForNewDesign]
+  );
+
+  const deleteStored = useCallback(() => sessionStore.clear(), [sessionStore]);
+
+  /** Create the design the setup form described. Replaces whatever was stored. */
+  const createDesign = useCallback(
+    (setup: DesignSetup) => {
+      sessionStore.clear();
+      dispatchDocument({ type: "reset", design: emptyDesign({ ...DESIGN_METADATA, ...setup }) });
+      resetForNewDesign();
+      setWelcome(null);
+    },
+    [resetForNewDesign, sessionStore]
+  );
 
   const runAutoBuild = useCallback(async () => {
     setAutoBuilding(true);
@@ -635,24 +666,13 @@ export default function App({ platform }: AppProps) {
           onClose={() => setAboutOpen(false)}
         />
       )}
-      {restoreOffer && (
-        <ConfirmDialog
-          title="Pick up where you left off?"
-          message="This browser has a design you were working on. Restoring it replaces the empty one you are looking at."
-          confirmLabel="Restore it"
-          cancelLabel="Start fresh"
-          onConfirm={() => {
-            dispatchDocument({ type: "reset", design: restoreOffer });
-            setRestoreOffer(null);
-            resetForNewDesign();
-          }}
-          onCancel={() => {
-            // Declining discards it. Saying yes to "start fresh" and then
-            // finding the old design offered again on the next visit would make
-            // the answer meaningless.
-            sessionStore.clear();
-            setRestoreOffer(null);
-          }}
+      {welcome && (
+        <WelcomeScreen
+          stored={welcome.stored}
+          greeting={welcome.greeting}
+          onContinue={continueStored}
+          onDeleteStored={deleteStored}
+          onCreate={createDesign}
         />
       )}
       {confirm && (
