@@ -4,7 +4,8 @@ import {
   effectiveBuildArea,
   floorAtElevation,
   floorBaseElevation,
-  floorSeparatorY
+  floorSeparatorY,
+  plenumBands
 } from "@/domain/floors";
 
 describe("effectiveBuildArea", () => {
@@ -88,5 +89,42 @@ describe("floor elevations", () => {
     expect(floorAtElevation(twoFloor, 30)).toBe(1);
     expect(floorAtElevation(twoFloor, 31)).toBe(2);
     expect(floorAtElevation(twoFloor, 60)).toBe(2);
+  });
+});
+
+describe("plenumBands", () => {
+  it("is empty when the design has no plenum", () => {
+    expect(plenumBands(emptyDesign().metadata)).toEqual([]);
+    expect(plenumBands(emptyDesign({ multiFloor: true }).metadata)).toEqual([]);
+  });
+
+  it("occupies the top of a single floor", () => {
+    const { metadata } = emptyDesign({
+      buildArea: { width: 20, depth: 20, height: 30 },
+      plenumHeightFeet: 4
+    });
+    expect(plenumBands(metadata)).toEqual([{ floor: 1, base: 26, top: 30 }]);
+  });
+
+  it("puts floor 1's band directly under the separator slab", () => {
+    const { metadata } = emptyDesign({
+      buildArea: { width: 20, depth: 20, height: 30 },
+      multiFloor: true,
+      plenumHeightFeet: 4
+    });
+    // The slab starts at 30, so floor 1's plenum tops out exactly there; floor
+    // 2 (base 31) carries the same band at its own top.
+    expect(plenumBands(metadata)).toEqual([
+      { floor: 1, base: 26, top: 30 },
+      { floor: 2, base: 57, top: 61 }
+    ]);
+  });
+
+  it("stops a too-tall plenum at the floor it belongs to", () => {
+    const { metadata } = emptyDesign({
+      buildArea: { width: 20, depth: 20, height: 30 },
+      plenumHeightFeet: 99
+    });
+    expect(plenumBands(metadata)).toEqual([{ floor: 1, base: 0, top: 30 }]);
   });
 });

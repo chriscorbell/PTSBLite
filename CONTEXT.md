@@ -64,6 +64,11 @@ its lifetime: there is no way to resize an existing design.
 (`FLOOR_SEPARATOR_FEET`). Drawn in the viewport, but it occupies no grid cells: tubes pass through
 it to reach the second floor, so it deliberately does not collide like an obstacle.
 
+**Plenum** — the space between a floor's drop ceiling and its top, `plenumHeightFeet` tall,
+occupying the top of each floor (directly under the separator slab on floor 1). The declared
+per-floor height includes it. Drawn as a tinted band via `plenumBands`, and fully buildable —
+it restricts nothing. Auto-Build does not yet prefer routing horizontal runs through it.
+
 **Ground plane** — `Y = 0`. Nothing may occupy a cell below it.
 
 **Centerline** — total path length through the system, in feet: straight tube lengths plus bend arc

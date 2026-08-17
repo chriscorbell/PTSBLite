@@ -22,6 +22,7 @@ import {
   buildFloorSeparator,
   buildGround,
   buildLandingCellHighlight,
+  buildPlenumBand,
   buildPortGlow
 } from "@/renderer/scene-affordances";
 import {
@@ -32,6 +33,7 @@ import {
   updateLineResolutions,
   VP
 } from "@/renderer/three-utils";
+import { type PlenumBand } from "@/domain/floors";
 import { type PortMarker } from "@/domain/renderer-affordances";
 import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, Ghost, Scene, ToolId, Vec3 } from "@/types";
@@ -97,6 +99,8 @@ export type ViewportProps = {
   separatorY?: number | null;
   /** Which floor the placement plane is on; the other floor's grid dims. */
   activeFloor?: 1 | 2 | null;
+  /** The plenum's Y range on each floor; empty when the design has none. */
+  plenumBands?: PlenumBand[];
   /**
    * The Y the camera orbits around — the active floor's base. Selecting a
    * floor has to bring the camera with it: a plane 31 ft up is edge-on or
@@ -118,6 +122,7 @@ export function Viewport({
   portMarkers = [],
   separatorY = null,
   activeFloor = null,
+  plenumBands = [],
   focusY = 0
 }: ViewportProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -441,10 +446,13 @@ export function Viewport({
     if (separatorY !== null) {
       ground.add(buildFloorSeparator(area, separatorY, activeFloor === 1));
     }
+    for (const band of plenumBands) {
+      ground.add(buildPlenumBand(area, band, activeFloor !== null && activeFloor !== band.floor));
+    }
     s.scene3.add(ground);
     s.groundGroup = ground;
     s.requestRender?.();
-  }, [areaWidth, areaDepth, areaHeight, separatorY, activeFloor]);
+  }, [areaWidth, areaDepth, areaHeight, separatorY, activeFloor, plenumBands]);
 
   useEffect(() => {
     const s = stateRef.current;

@@ -46,3 +46,28 @@ export function floorBaseElevation(metadata: DesignMetadata, floor: 1 | 2): numb
 export function floorAtElevation(metadata: DesignMetadata, elevation: number): 1 | 2 {
   return elevation >= floorBaseElevation(metadata, 2) ? 2 : 1;
 }
+
+/** One floor's plenum: the Y range between its drop ceiling and its top. */
+export type PlenumBand = { floor: 1 | 2; base: number; top: number };
+
+/**
+ * Where the plenum sits, one band per floor, or none when the design has no
+ * plenum. The declared per-floor height *includes* the plenum (the welcome
+ * screen says so), so each band occupies the top of its floor: on floor 1 of a
+ * two-floor design that is directly under the separator slab. The band is
+ * buildable — it restricts nothing and occupies no cells; it exists so the
+ * space above the drop ceiling reads differently from the room below it.
+ */
+export function plenumBands(metadata: DesignMetadata): PlenumBand[] {
+  const plenum = metadata.plenumHeightFeet;
+  if (plenum === null) return [];
+  const perFloor = metadata.buildArea.height;
+  // A plenum taller than the floor would swallow it; the band stops at the floor.
+  const height = Math.min(plenum, perFloor);
+  const bands: PlenumBand[] = [{ floor: 1, base: perFloor - height, top: perFloor }];
+  if (metadata.multiFloor) {
+    const base2 = floorBaseElevation(metadata, 2);
+    bands.push({ floor: 2, base: base2 + perFloor - height, top: base2 + perFloor });
+  }
+  return bands;
+}

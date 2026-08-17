@@ -304,6 +304,24 @@ describe("a two-floor design", () => {
     expect(viewport.props?.activeElevation).toBe(31);
   });
 
+  it("hands the viewport the plenum bands a design declares", async () => {
+    await renderApp();
+    expect(viewport.props?.plenumBands).toEqual([]);
+
+    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "New" }));
+    fireEvent.click(screen.getByLabelText("Add 2nd floor"));
+    fireEvent.click(screen.getByLabelText("Plenum (drop ceiling)"));
+    fireEvent.change(screen.getByLabelText(/plenum height/i), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+
+    // Default 30 ft floors: bands under the slab at 30 and at floor 2's top.
+    expect(viewport.props?.plenumBands).toEqual([
+      { floor: 1, base: 26, top: 30 },
+      { floor: 2, base: 57, top: 61 }
+    ]);
+  });
+
   it("shows the elevation beside the armed tool", async () => {
     await renderApp();
 
