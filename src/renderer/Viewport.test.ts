@@ -16,6 +16,9 @@ import {
   moveViewportDrag
 } from "@/renderer/interaction";
 import { clearGroup } from "@/renderer/three-utils";
+import { cameraFarPlane, maxCameraDistance } from "@/renderer/Viewport";
+import { BUILD_AREA_LIMITS, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
+import { effectiveBuildArea } from "@/domain/floors";
 
 const vec = (x: number, y: number, z: number): [number, number, number] => [x, y, z];
 
@@ -292,5 +295,45 @@ describe("three.js integration points", () => {
 
     expect(material.linewidth).toBe(1.5);
     expect(material.resolution.x).toBe(800);
+  });
+});
+
+describe("how far the camera may pull back", () => {
+  const LARGEST = {
+    width: BUILD_AREA_LIMITS.width.max,
+    depth: BUILD_AREA_LIMITS.depth.max,
+    height: BUILD_AREA_LIMITS.height.max
+  };
+
+  it("leaves the default design framed exactly as before", () => {
+    // 140 was the fixed limit for every design; scaling it must not pull the
+    // common case further out than it already went.
+    expect(maxCameraDistance(DEFAULT_BUILD_AREA)).toBe(140);
+  });
+
+  it("pulls back far enough to frame the largest footprint whole", () => {
+    // A 38 degree vertical field needs span / (2 * tan(19deg)) to fit a span.
+    const needed = Math.hypot(LARGEST.width, LARGEST.depth) / (2 * Math.tan((19 * Math.PI) / 180));
+    expect(maxCameraDistance(LARGEST)).toBeGreaterThan(needed);
+  });
+
+  it("keeps the far plane clear of the volume at full pull-back", () => {
+    // The regression this guards: a fixed far plane of 200 clipped the back off
+    // anything larger than the default build area.
+    for (const area of [DEFAULT_BUILD_AREA, LARGEST]) {
+      const halfDiagonal = Math.hypot(area.width, area.depth) / 2;
+      expect(cameraFarPlane(area)).toBeGreaterThan(maxCameraDistance(area) + halfDiagonal);
+    }
+  });
+
+  it("accounts for the doubled height of a two-floor design", () => {
+    const twoFloor = effectiveBuildArea({
+      companyName: "",
+      systemName: "s",
+      buildArea: LARGEST,
+      multiFloor: true,
+      plenumHeightFeet: null
+    });
+    expect(cameraFarPlane(twoFloor)).toBeGreaterThan(maxCameraDistance(twoFloor) + twoFloor.height);
   });
 });

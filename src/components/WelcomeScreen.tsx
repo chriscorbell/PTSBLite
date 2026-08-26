@@ -208,7 +208,7 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
  * text parses, so a half-typed value is never rewritten under the cursor.
  * `onCommit` fires on blur, which is where range limits belong: clamping per
  * keystroke turned the "1" of an intended "12" into the 4 ft minimum, appended
- * a digit to 60 and got the 200 ft maximum, and left the field impossible to
+ * a digit to 60 and got the width maximum, and left the field impossible to
  * clear because an empty string reads as zero.
  */
 function NumberInput({

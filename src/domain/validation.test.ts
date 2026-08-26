@@ -26,10 +26,9 @@ function designWith(
 }
 
 /**
- * The largest build area the app allows is 200 ft on a side, but the centerline
- * cap is 300 ft — so any design that trips the cap has to fold back on itself.
- * A single straight run long enough to exceed it does not fit in any legal
- * design, which is why these fixtures use parallel runs rather than one tube.
+ * The centerline cap is 300 ft, and no straight run inside this 200 ft fixture
+ * can exceed it on its own — so a design that trips the cap has to fold back on
+ * itself, which is why these fixtures use parallel runs rather than one tube.
  */
 const LARGE_AREA: BuildArea = { width: 200, depth: 200, height: 30 };
 const LONG_RUN: Part[] = [

@@ -15,10 +15,18 @@ export const GROUND_PLANE_Y = 0;
  */
 export const DEFAULT_BUILD_AREA: BuildArea = { width: 60, depth: 60, height: 30 };
 
-/** Sane bounds for the configurable build area, in feet. */
+/**
+ * Sane bounds for the configurable build area, in feet.
+ *
+ * A guard rail on what a visitor can type, not a fact from the PTS spec — the
+ * authoritative constants are the ones ADR-0001 lists. The footprint reaches
+ * 300 ft so a large facility can be laid out at 1 cell = 1 ft; the viewport
+ * derives how far the camera may pull back from these, so raising them again
+ * needs no camera change.
+ */
 export const BUILD_AREA_LIMITS = {
-  width: { min: 4, max: 200 },
-  depth: { min: 4, max: 200 },
+  width: { min: 4, max: 300 },
+  depth: { min: 4, max: 300 },
   height: { min: 2, max: 100 }
 } as const;
 

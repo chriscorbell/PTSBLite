@@ -5,6 +5,7 @@ import App from "@/App";
 import { serializeDesign } from "@/domain/design-file";
 import { emptyDesign } from "@/domain/design-state";
 import { webPlatform } from "@/platform/web";
+import { BUILD_AREA_LIMITS } from "@/domain/sparse-grid";
 import type { Part } from "@/types";
 
 vi.mock("@/renderer/Viewport", () => ({
@@ -235,9 +236,9 @@ describe("the welcome setup form", () => {
     it("applies the limits when the field is left", async () => {
       const width = await widthField();
 
-      fireEvent.change(width, { target: { value: "600" } });
+      fireEvent.change(width, { target: { value: "9999" } });
       fireEvent.blur(width);
-      expect(width.value).toBe("200");
+      expect(width.value).toBe(String(BUILD_AREA_LIMITS.width.max));
 
       fireEvent.change(width, { target: { value: "1" } });
       fireEvent.blur(width);
