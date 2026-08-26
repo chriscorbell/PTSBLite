@@ -197,6 +197,81 @@ describe("the welcome setup form", () => {
     });
   });
 
+  // Reported by the client on Safari, reproduced in every browser: the field
+  // clamped on every keystroke, so it rewrote numbers the visitor was still
+  // typing. The limits still apply -- they just wait until the field is left.
+  describe("typing a build-area dimension", () => {
+    async function widthField() {
+      await renderApp();
+      const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
+      return within(dialog).getByLabelText<HTMLInputElement>("Width");
+    }
+
+    it("keeps a value whose first digit is below the minimum", async () => {
+      const width = await widthField();
+
+      // "1" of an intended "12" used to become the 4 ft minimum on the spot,
+      // leaving "42" once the second digit landed.
+      fireEvent.change(width, { target: { value: "1" } });
+      expect(width.value).toBe("1");
+      fireEvent.change(width, { target: { value: "12" } });
+      expect(width.value).toBe("12");
+    });
+
+    it("keeps a value passing through above the maximum", async () => {
+      const width = await widthField();
+
+      fireEvent.change(width, { target: { value: "600" } });
+      expect(width.value).toBe("600");
+    });
+
+    it("lets the field be emptied", async () => {
+      const width = await widthField();
+
+      fireEvent.change(width, { target: { value: "" } });
+      expect(width.value).toBe("");
+    });
+
+    it("applies the limits when the field is left", async () => {
+      const width = await widthField();
+
+      fireEvent.change(width, { target: { value: "600" } });
+      fireEvent.blur(width);
+      expect(width.value).toBe("200");
+
+      fireEvent.change(width, { target: { value: "1" } });
+      fireEvent.blur(width);
+      expect(width.value).toBe("4");
+    });
+
+    it("restores the last good value when an emptied field is left", async () => {
+      const width = await widthField();
+
+      fireEvent.change(width, { target: { value: "45" } });
+      fireEvent.change(width, { target: { value: "" } });
+      fireEvent.blur(width);
+      expect(width.value).toBe("45");
+    });
+
+    it("carries the typed dimensions into the created design", async () => {
+      await renderApp();
+      const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
+      fireEvent.change(within(dialog).getByLabelText("Width"), { target: { value: "12" } });
+      fireEvent.change(within(dialog).getByLabelText("Length"), { target: { value: "150" } });
+      fireEvent.change(within(dialog).getByLabelText("Height"), { target: { value: "8" } });
+      fireEvent.click(within(dialog).getByRole("button", { name: /Create design/ }));
+
+      await waitFor(() => {
+        const saved = window.localStorage.getItem(SESSION_KEY);
+        expect(saved).not.toBeNull();
+        const parsed = JSON.parse(saved ?? "") as {
+          metadata: { buildArea: { width: number; depth: number; height: number } };
+        };
+        expect(parsed.metadata.buildArea).toEqual({ width: 12, depth: 150, height: 8 });
+      });
+    });
+  });
+
   it("reopens as the setup form when starting a new design from the top bar", async () => {
     await renderApp();
     createFirstDesign();

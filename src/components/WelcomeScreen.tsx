@@ -161,13 +161,11 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
           {hasPlenum && (
             <label className="welcome__plenum">
               <span className="welcome__label">Approximate plenum height (feet)</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={plenumHeightFeet}
-                onChange={(e) => setPlenumHeightFeet(Number(e.target.value))}
+              <NumberInput
                 className="welcome__input welcome__input--narrow"
+                value={plenumHeightFeet}
+                min={1}
+                onChange={setPlenumHeightFeet}
               />
             </label>
           )}
@@ -203,7 +201,59 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
   );
 }
 
-/** The three build-area dimensions. Clamps to `BUILD_AREA_LIMITS` on every change. */
+/**
+ * A number input that lets the visitor finish typing.
+ *
+ * It holds the raw text while it has focus and reports a number only once that
+ * text parses, so a half-typed value is never rewritten under the cursor.
+ * `onCommit` fires on blur, which is where range limits belong: clamping per
+ * keystroke turned the "1" of an intended "12" into the 4 ft minimum, appended
+ * a digit to 60 and got the 200 ft maximum, and left the field impossible to
+ * clear because an empty string reads as zero.
+ */
+function NumberInput({
+  value,
+  min,
+  max,
+  className,
+  onChange,
+  onCommit
+}: {
+  value: number;
+  min: number;
+  max?: number;
+  className: string;
+  onChange: (next: number) => void;
+  /** Apply the limits. Omitted where the field has none to apply. */
+  onCommit?: () => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      step={1}
+      value={draft ?? String(value)}
+      onChange={(event) => {
+        const text = event.target.value;
+        setDraft(text);
+        const parsed = Number(text);
+        // Blank or mid-edit garbage leaves the last good number in place, so
+        // committing without a valid entry restores it rather than inventing one.
+        if (text.trim() !== "" && Number.isFinite(parsed)) onChange(parsed);
+      }}
+      onBlur={() => {
+        setDraft(null);
+        onCommit?.();
+      }}
+      className={className}
+    />
+  );
+}
+
+/** The three build-area dimensions. Limits apply when a field is left, not per keystroke. */
 function BuildAreaFields({
   value,
   onChange
@@ -211,8 +261,6 @@ function BuildAreaFields({
   value: BuildArea;
   onChange: (next: BuildArea) => void;
 }) {
-  const setAxis = (patch: Partial<BuildArea>) => onChange(clampBuildArea({ ...value, ...patch }));
-
   return (
     <div>
       <span className="field-heading">Build area (feet)</span>
@@ -220,14 +268,13 @@ function BuildAreaFields({
         {BUILD_AREA_AXES.map(({ key, label }) => (
           <label key={key} className="welcome__axis">
             <span className="welcome__label">{label}</span>
-            <input
-              type="number"
+            <NumberInput
+              className="welcome__input"
+              value={value[key]}
               min={BUILD_AREA_LIMITS[key].min}
               max={BUILD_AREA_LIMITS[key].max}
-              step={1}
-              value={value[key]}
-              onChange={(e) => setAxis({ [key]: Number(e.target.value) })}
-              className="welcome__input"
+              onChange={(next) => onChange({ ...value, [key]: next })}
+              onCommit={() => onChange(clampBuildArea(value))}
             />
           </label>
         ))}
