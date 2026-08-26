@@ -66,6 +66,16 @@ export const DEFAULT_CAMERA_FRAMING = {
 /** What the zoom limit was before it scaled, and the floor it keeps. */
 const DEFAULT_MAX_CAMERA_DISTANCE = 140;
 
+/** How close the camera may be pushed, wherever the distance is being set. */
+const MIN_CAMERA_DISTANCE = 8;
+
+/**
+ * What the camera distances are derived from. The footprint alone: height
+ * changes what the camera looks at, not how far back it has to stand, and
+ * taking the whole build area would tie these to a value they never read.
+ */
+type CameraFootprint = { width: number; depth: number };
+
 /**
  * How far the camera may pull back, and how far it can see.
  *
@@ -75,7 +85,7 @@ const DEFAULT_MAX_CAMERA_DISTANCE = 140;
  * is `span / (2 * tan(19deg))`, about 1.45x — applied to the footprint's
  * diagonal, with headroom, and never below what small designs already had.
  */
-export function maxCameraDistance(area: BuildArea): number {
+export function maxCameraDistance(area: CameraFootprint): number {
   return Math.max(DEFAULT_MAX_CAMERA_DISTANCE, Math.hypot(area.width, area.depth) * 1.6);
 }
 
@@ -86,6 +96,23 @@ export function maxCameraDistance(area: BuildArea): number {
  */
 export function cameraFarPlane(area: BuildArea): number {
   return maxCameraDistance(area) + Math.hypot(area.width, area.depth) + area.height;
+}
+
+/**
+ * Where the camera sits when a design opens.
+ *
+ * Proportional to the footprint rather than fixed. At a constant 38 a 300 ft
+ * design opened showing a corner of itself, with nothing on screen to suggest
+ * the rest existed. Scaling against the default build area's diagonal means
+ * every design opens on the same fraction of its own floor — and the default
+ * one opens at exactly the 38 it always did, since that is the ratio of 1.
+ */
+export function openingCameraDistance(area: CameraFootprint): number {
+  const scale =
+    Math.hypot(area.width, area.depth) /
+    Math.hypot(DEFAULT_BUILD_AREA.width, DEFAULT_BUILD_AREA.depth);
+  const proportional = DEFAULT_CAMERA_FRAMING.distance * scale;
+  return Math.max(MIN_CAMERA_DISTANCE, Math.min(maxCameraDistance(area), proportional));
 }
 
 type ViewportState = {
@@ -382,7 +409,10 @@ export function Viewport({
       // scales the limit to the build area rather than capping every design at
       // what the smallest needs, which is what stopped a large one being framed.
       const limit = stateRef.current.maxDistance ?? DEFAULT_MAX_CAMERA_DISTANCE;
-      cam.distance = Math.max(8, Math.min(limit, cam.distance * (1 + e.deltaY * 0.0015)));
+      cam.distance = Math.max(
+        MIN_CAMERA_DISTANCE,
+        Math.min(limit, cam.distance * (1 + e.deltaY * 0.0015))
+      );
       applyCamera();
     };
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
@@ -501,6 +531,17 @@ export function Viewport({
     }
     s.requestRender?.();
   }, [areaWidth, areaDepth, areaHeight, separatorY, activeFloor, plenumBands]);
+
+  // Frame the camera on the build area: on first render, and again whenever a
+  // new design brings a different footprint. Deliberately not keyed to height
+  // or floor — switching floors moves the target, and yanking the zoom with it
+  // would throw away wherever the visitor had scrolled to.
+  useEffect(() => {
+    const s = stateRef.current;
+    if (!s.cam) return;
+    s.cam.distance = openingCameraDistance({ width: areaWidth, depth: areaDepth });
+    s.applyCamera?.();
+  }, [areaWidth, areaDepth]);
 
   useEffect(() => {
     const s = stateRef.current;

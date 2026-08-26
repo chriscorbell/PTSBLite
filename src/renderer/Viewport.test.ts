@@ -16,7 +16,12 @@ import {
   moveViewportDrag
 } from "@/renderer/interaction";
 import { clearGroup } from "@/renderer/three-utils";
-import { cameraFarPlane, maxCameraDistance } from "@/renderer/Viewport";
+import {
+  cameraFarPlane,
+  DEFAULT_CAMERA_FRAMING,
+  maxCameraDistance,
+  openingCameraDistance
+} from "@/renderer/Viewport";
 import { BUILD_AREA_LIMITS, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
 import { effectiveBuildArea } from "@/domain/floors";
 
@@ -335,5 +340,38 @@ describe("how far the camera may pull back", () => {
       plenumHeightFeet: null
     });
     expect(cameraFarPlane(twoFloor)).toBeGreaterThan(maxCameraDistance(twoFloor) + twoFloor.height);
+  });
+});
+
+describe("where the camera opens", () => {
+  const LARGEST = { width: BUILD_AREA_LIMITS.width.max, depth: BUILD_AREA_LIMITS.depth.max };
+
+  it("opens the default design exactly where it always did", () => {
+    // The ratio against the default footprint is 1, so this must not drift.
+    expect(openingCameraDistance(DEFAULT_BUILD_AREA)).toBe(DEFAULT_CAMERA_FRAMING.distance);
+  });
+
+  it("stands further back for a larger footprint", () => {
+    // The regression this guards: a fixed opening distance showed a 300 ft
+    // design as a corner of itself, with nothing hinting the rest was there.
+    expect(openingCameraDistance(LARGEST)).toBeGreaterThan(DEFAULT_CAMERA_FRAMING.distance);
+  });
+
+  it("opens on the same fraction of the floor at any size", () => {
+    const ratio =
+      Math.hypot(LARGEST.width, LARGEST.depth) /
+      Math.hypot(DEFAULT_BUILD_AREA.width, DEFAULT_BUILD_AREA.depth);
+    expect(openingCameraDistance(LARGEST)).toBeCloseTo(DEFAULT_CAMERA_FRAMING.distance * ratio, 5);
+  });
+
+  it("never opens beyond where the visitor could scroll back to", () => {
+    for (const area of [DEFAULT_BUILD_AREA, LARGEST, { width: 4, depth: 4 }]) {
+      expect(openingCameraDistance(area)).toBeLessThanOrEqual(maxCameraDistance(area));
+    }
+  });
+
+  it("keeps the smallest design off the camera's nose", () => {
+    // 4 x 4 scales to well under the 8 ft minimum the wheel also enforces.
+    expect(openingCameraDistance({ width: 4, depth: 4 })).toBe(8);
   });
 });
