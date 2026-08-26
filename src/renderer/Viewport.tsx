@@ -63,6 +63,31 @@ export const DEFAULT_CAMERA_FRAMING = {
   target: [0, 0.5, 1] as const
 };
 
+/** What the zoom limit was before it scaled, and the floor it keeps. */
+const DEFAULT_MAX_CAMERA_DISTANCE = 140;
+
+/**
+ * How far the camera may pull back, and how far it can see.
+ *
+ * A fixed limit cannot serve both ends of the build-area range: 140 frames a
+ * 60 ft room with room to spare and leaves a 300 ft one impossible to see
+ * whole. The distance needed to fit a span across a 38 degree vertical field
+ * is `span / (2 * tan(19deg))`, about 1.45x — applied to the footprint's
+ * diagonal, with headroom, and never below what small designs already had.
+ */
+export function maxCameraDistance(area: BuildArea): number {
+  return Math.max(DEFAULT_MAX_CAMERA_DISTANCE, Math.hypot(area.width, area.depth) * 1.6);
+}
+
+/**
+ * The far plane. Anything beyond it is clipped, so it has to clear the camera
+ * at full pull-back plus the far side of the volume it is looking at — a fixed
+ * 200 quietly cut the back off any design bigger than the default.
+ */
+export function cameraFarPlane(area: BuildArea): number {
+  return maxCameraDistance(area) + Math.hypot(area.width, area.depth) + area.height;
+}
+
 type ViewportState = {
   renderer?: THREE.WebGLRenderer;
   scene3?: THREE.Scene;
@@ -78,6 +103,8 @@ type ViewportState = {
   groundGroup?: THREE.Group;
   hoverPlane?: THREE.Mesh;
   requestRender?: () => void;
+  /** How far the camera may pull back, derived from the current build area. */
+  maxDistance?: number;
   cleanup?: () => void;
 };
 
@@ -159,6 +186,8 @@ export function Viewport({
 
     const scene3 = new THREE.Scene();
 
+    // Near/far are placeholders: the build-area effect sizes the far plane to
+    // the volume actually being drawn, and runs on first render too.
     const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 200);
     const cam = {
       yaw: DEFAULT_CAMERA_FRAMING.yaw,
@@ -225,7 +254,9 @@ export function Viewport({
     const ray = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     const hoverPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(300, 300),
+      // Comfortably past the largest legal footprint. Sized to match it exactly,
+      // a pointer at the far edge would land on the plane's own boundary.
+      new THREE.PlaneGeometry(1200, 1200),
       new THREE.MeshBasicMaterial({ visible: false })
     );
     hoverPlane.rotation.x = -Math.PI / 2;
@@ -346,10 +377,12 @@ export function Viewport({
     }
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      // The far limit must fit a two-floor design in frame: the largest volume
-      // is 200 ft wide but only ~140 of camera distance is ever needed to see
-      // a 60 x 60 x 61 build whole, and beyond that the grid dissolves into moiré.
-      cam.distance = Math.max(8, Math.min(140, cam.distance * (1 + e.deltaY * 0.0015)));
+      // How far back is enough depends on the design: a 60 ft room needs ~140,
+      // and a 300 ft one cannot be seen whole from there. `maxCameraDistance`
+      // scales the limit to the build area rather than capping every design at
+      // what the smallest needs, which is what stopped a large one being framed.
+      const limit = stateRef.current.maxDistance ?? DEFAULT_MAX_CAMERA_DISTANCE;
+      cam.distance = Math.max(8, Math.min(limit, cam.distance * (1 + e.deltaY * 0.0015)));
       applyCamera();
     };
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
@@ -451,6 +484,21 @@ export function Viewport({
     }
     s.scene3.add(ground);
     s.groundGroup = ground;
+
+    // The camera's reach belongs to the volume it is looking at, so it is set
+    // here rather than where the camera is built — that effect deliberately
+    // takes no build-area dependency.
+    s.maxDistance = maxCameraDistance(area);
+    if (s.camera) {
+      s.camera.far = cameraFarPlane(area);
+      s.camera.updateProjectionMatrix();
+    }
+    // A design smaller than the last one can leave the camera parked beyond its
+    // new limit, showing empty space it can no longer zoom back from.
+    if (s.cam && s.cam.distance > s.maxDistance) {
+      s.cam.distance = s.maxDistance;
+      s.applyCamera?.();
+    }
     s.requestRender?.();
   }, [areaWidth, areaDepth, areaHeight, separatorY, activeFloor, plenumBands]);
 
