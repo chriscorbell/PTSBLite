@@ -13,21 +13,28 @@ export const GROUND_PLANE_Y = 0;
  * historical buildable range (the old grid was a symmetric ±30 cube, but only
  * the at-or-above-ground portion was ever usable).
  */
-export const DEFAULT_BUILD_AREA: BuildArea = { width: 60, depth: 60, height: 30 };
+/**
+ * The build area: the volume every design exists in, fixed at 300 x 300 x 100 ft
+ * (ADR-0017). Not configurable — what a visitor sizes on the welcome screen is
+ * their *room*, which sits centered inside this. Parts may be placed anywhere
+ * in the build area, inside the room or out.
+ */
+export const BUILD_AREA: BuildArea = { width: 300, depth: 300, height: 100 };
+
+export const DEFAULT_ROOM: BuildArea = { width: 60, depth: 60, height: 30 };
 
 /**
- * Sane bounds for the configurable build area, in feet.
- *
- * A guard rail on what a visitor can type, not a fact from the PTS spec — the
- * authoritative constants are the ones ADR-0001 lists. The footprint reaches
- * 300 ft so a large facility can be laid out at 1 cell = 1 ft; the viewport
- * derives how far the camera may pull back from these, so raising them again
- * needs no camera change.
+ * Sane bounds for the room a visitor can type, in feet. A guard rail, not a
+ * fact from the PTS spec — the authoritative constants are the ones ADR-0001
+ * lists. The maxima are the build area itself: a room may fill it entirely.
+ * A two-floor room is further capped so both floors and the separator fit
+ * inside the build area; that cap needs the floor constants, so it lives in
+ * floors.ts (`clampRoom`) rather than here.
  */
-export const BUILD_AREA_LIMITS = {
-  width: { min: 4, max: 300 },
-  depth: { min: 4, max: 300 },
-  height: { min: 2, max: 100 }
+export const ROOM_LIMITS = {
+  width: { min: 4, max: BUILD_AREA.width },
+  depth: { min: 4, max: BUILD_AREA.depth },
+  height: { min: 2, max: BUILD_AREA.height }
 } as const;
 
 /**
@@ -59,13 +66,17 @@ function clampInt(value: number, min: number, max: number, fallback: number): nu
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
-/** Coerce a (possibly partial/invalid) build area into whole feet within limits. */
-export function clampBuildArea(area: Partial<BuildArea> | undefined): BuildArea {
-  const L = BUILD_AREA_LIMITS;
+/**
+ * Coerce (possibly partial/invalid) room dimensions into whole feet within
+ * limits. Dimension bounds only — the two-floor height cap is `clampRoom` in
+ * floors.ts, which every real caller goes through.
+ */
+export function clampRoomDims(room: Partial<BuildArea> | undefined): BuildArea {
+  const L = ROOM_LIMITS;
   return {
-    width: clampInt(area?.width ?? NaN, L.width.min, L.width.max, DEFAULT_BUILD_AREA.width),
-    depth: clampInt(area?.depth ?? NaN, L.depth.min, L.depth.max, DEFAULT_BUILD_AREA.depth),
-    height: clampInt(area?.height ?? NaN, L.height.min, L.height.max, DEFAULT_BUILD_AREA.height)
+    width: clampInt(room?.width ?? NaN, L.width.min, L.width.max, DEFAULT_ROOM.width),
+    depth: clampInt(room?.depth ?? NaN, L.depth.min, L.depth.max, DEFAULT_ROOM.depth),
+    height: clampInt(room?.height ?? NaN, L.height.min, L.height.max, DEFAULT_ROOM.height)
   };
 }
 
@@ -90,7 +101,7 @@ export class SparseGrid {
   private readonly cells = new Map<string, string>();
   private readonly bounds: GridBounds;
 
-  constructor(bounds: GridBounds = boundsFromBuildArea(DEFAULT_BUILD_AREA)) {
+  constructor(bounds: GridBounds = boundsFromBuildArea(BUILD_AREA)) {
     this.bounds = bounds;
   }
 

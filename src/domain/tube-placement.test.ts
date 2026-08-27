@@ -184,17 +184,18 @@ describe("Straight tube partial placement", () => {
   });
 
   it("places as many segments as fit before the build-area edge", () => {
-    const design = emptyDesign({ buildArea: { width: 10, depth: 10, height: 4 } });
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([0, 0, 0], "b1");
+    // The build area is fixed at 300 ft: X spans [-150, 150), so a blower at
+    // 145 leaves exactly cells 146..149 before the edge.
+    const design = emptyDesign();
+    design.parts = [{ id: "b1", type: "blower", cell: [145, 0, 0], dir: [1, 0, 0] }];
+    design.grid.place([145, 0, 0], "b1");
 
-    const result = placeTube(design, { id: "st1", cell: [1, 0, 0] });
+    const result = placeTube(design, { id: "st1", cell: [146, 0, 0] });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expectGridMatchesDesign(result.design);
-    // X spans [-5, 5): cells 1..4 fit, x = 5 is out of bounds.
     expect(result.part.length).toBe(4);
-    expect(result.part.to).toEqual([5.5, 0.5, 0.5]);
+    expect(result.part.to).toEqual([150.5, 0.5, 0.5]);
   });
 
   it("places as many segments as fit before an existing part", () => {
@@ -215,12 +216,12 @@ describe("Straight tube partial placement", () => {
   });
 
   it("reports blocked when not even one segment fits", () => {
-    const design = emptyDesign({ buildArea: { width: 10, depth: 10, height: 4 } });
+    const design = emptyDesign();
     // Blower at the +X edge facing out: its only port is already out of bounds.
-    design.parts = [{ id: "b1", type: "blower", cell: [4, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([4, 0, 0], "b1");
+    design.parts = [{ id: "b1", type: "blower", cell: [149, 0, 0], dir: [1, 0, 0] }];
+    design.grid.place([149, 0, 0], "b1");
 
-    expect(placeTube(design, { id: "st1", cell: [5, 0, 0] })).toEqual({
+    expect(placeTube(design, { id: "st1", cell: [150, 0, 0] })).toEqual({
       ok: false,
       message: TUBE_BLOCKED_MESSAGE
     });

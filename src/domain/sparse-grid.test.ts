@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   boundsFromBuildArea,
-  clampBuildArea,
-  BUILD_AREA_LIMITS,
-  DEFAULT_BUILD_AREA,
+  clampRoomDims,
+  ROOM_LIMITS,
+  DEFAULT_ROOM,
   SparseGrid
 } from "@/domain/sparse-grid";
 
@@ -13,24 +13,25 @@ describe("SparseGrid.withinBounds", () => {
     expect(g.withinBounds([0, 0, 0])).toBe(true);
   });
 
-  it("returns true for cells inside the default 60×60×30 area", () => {
+  it("returns true for cells inside the default build area", () => {
+    // The default grid spans the fixed 300 × 300 × 100 ft build area.
     const g = new SparseGrid();
     // X/Z span [-30, 30); Y rises from the ground (0) up to 30.
-    expect(g.withinBounds([29, 29, 29])).toBe(true);
-    expect(g.withinBounds([-30, 0, -30])).toBe(true);
+    expect(g.withinBounds([149, 99, 149])).toBe(true);
+    expect(g.withinBounds([-150, 0, -150])).toBe(true);
   });
 
-  it("returns false when X or Z is >= 30, or Y reaches the ceiling (>= 30)", () => {
+  it("returns false when X or Z is >= 150, or Y reaches the ceiling (>= 100)", () => {
     const g = new SparseGrid();
-    expect(g.withinBounds([30, 0, 0])).toBe(false);
-    expect(g.withinBounds([0, 30, 0])).toBe(false);
-    expect(g.withinBounds([0, 0, 30])).toBe(false);
+    expect(g.withinBounds([150, 0, 0])).toBe(false);
+    expect(g.withinBounds([0, 100, 0])).toBe(false);
+    expect(g.withinBounds([0, 0, 150])).toBe(false);
   });
 
-  it("returns false below the X/Z edge (< -30) or below the ground (Y < 0)", () => {
+  it("returns false below the X/Z edge (< -150) or below the ground (Y < 0)", () => {
     const g = new SparseGrid();
-    expect(g.withinBounds([-31, 0, 0])).toBe(false);
-    expect(g.withinBounds([0, 0, -31])).toBe(false);
+    expect(g.withinBounds([-151, 0, 0])).toBe(false);
+    expect(g.withinBounds([0, 0, -151])).toBe(false);
     expect(g.withinBounds([0, -1, 0])).toBe(false);
   });
 });
@@ -51,17 +52,17 @@ describe("configurable build area", () => {
   });
 
   it("clamps build areas to whole feet within limits, falling back on bad input", () => {
-    expect(clampBuildArea({ width: 80.6, depth: 40, height: 12 })).toEqual({
+    expect(clampRoomDims({ width: 80.6, depth: 40, height: 12 })).toEqual({
       width: 81,
       depth: 40,
       height: 12
     });
-    expect(clampBuildArea({ width: 5000, depth: 1, height: -3 })).toEqual({
-      width: BUILD_AREA_LIMITS.width.max,
-      depth: BUILD_AREA_LIMITS.depth.min,
-      height: BUILD_AREA_LIMITS.height.min
+    expect(clampRoomDims({ width: 5000, depth: 1, height: -3 })).toEqual({
+      width: ROOM_LIMITS.width.max,
+      depth: ROOM_LIMITS.depth.min,
+      height: ROOM_LIMITS.height.min
     });
-    expect(clampBuildArea(undefined)).toEqual(DEFAULT_BUILD_AREA);
+    expect(clampRoomDims(undefined)).toEqual(DEFAULT_ROOM);
   });
 });
 
@@ -87,8 +88,8 @@ describe("SparseGrid.place and query", () => {
 
   it("throws when placing out-of-bounds", () => {
     const g = new SparseGrid();
-    expect(() => g.place([30, 0, 0], "b1")).toThrow();
-    expect(() => g.place([-31, 0, 0], "b1")).toThrow();
+    expect(() => g.place([150, 0, 0], "b1")).toThrow();
+    expect(() => g.place([-151, 0, 0], "b1")).toThrow();
   });
 
   it("throws when placing on an already-occupied cell", () => {
@@ -150,18 +151,18 @@ describe("SparseGrid.neighbors", () => {
 
   it("clips neighbors at the positive boundary", () => {
     const g = new SparseGrid();
-    const n = g.neighbors([29, 1, 0]);
+    const n = g.neighbors([149, 1, 0]);
     const xs = n.map((c) => c[0]);
-    expect(xs).not.toContain(30);
-    expect(xs).toContain(28);
+    expect(xs).not.toContain(150);
+    expect(xs).toContain(148);
   });
 
   it("clips neighbors at the negative boundary", () => {
     const g = new SparseGrid();
-    const n = g.neighbors([-30, 1, 0]);
+    const n = g.neighbors([-150, 1, 0]);
     const xs = n.map((c) => c[0]);
-    expect(xs).not.toContain(-31);
-    expect(xs).toContain(-29);
+    expect(xs).not.toContain(-151);
+    expect(xs).toContain(-149);
   });
 
   it("clips the downward neighbor at the ground plane", () => {

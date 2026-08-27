@@ -33,10 +33,14 @@ Diagonal or free-angle runs are not expressible.
 **One bend geometry: 90°, 3 ft radius.** A second radius or a 45° bend needs new catalog entries and
 new footprint generation. See [ADR-0005](adr/0005-defer-the-bend-geometry-model.md).
 
-**One build area per design.** A single width × depth × height box centred on the origin, rising
-from Y = 0. A two-floor design doubles the height of that box and draws a separator slab
-([ADR-0015](adr/0015-two-floor-volume-is-derived-not-stored.md)); it is still one box — no rooms,
-zones, non-rectangular sites, or per-floor footprints, and no third floor.
+**One room per design, in a fixed build area.** The build area is always 300 × 300 × 100 ft
+([ADR-0017](adr/0017-the-build-area-is-fixed-designs-have-rooms.md)); the welcome screen sizes a
+single rectangular room centered in it, with penetrable 1 ft walls that claim no grid cells. A
+two-floor room doubles its height and draws a separator slab
+([ADR-0015](adr/0015-two-floor-volume-is-derived-not-stored.md)); it is still one box — no
+additional rooms, zones, non-rectangular rooms, or per-floor footprints, and no third floor. The
+client has asked about a drag-to-place room tool with a penetrable/impenetrable choice (Trello,
+"Rooms"); that would make rooms occupants like obstacles, and has deliberately not been started.
 
 **One design per browser profile.** A single design
 autosaves to `localStorage` and is offered back on return
@@ -61,7 +65,7 @@ ADR-0001 — a spec requirement, not a workflow convenience.*
 **Nothing below Y = 0.** The ground plane is the floor. Basements or below-grade runs would need the
 build area to describe a Y origin rather than assuming zero.
 
-**A design's geometry answers are fixed once it is created.** The build area, and the multi-floor
+**A design's geometry answers are fixed once it is created.** The room, and the multi-floor
 and plenum answers, are collected on the welcome screen and cannot be changed afterwards. Changing
 one means starting a new design. `DesignMetadata` would hold an edit fine; what was deliberately
 removed is the UI and the resize path that dropped parts no longer fitting a shrunken area.

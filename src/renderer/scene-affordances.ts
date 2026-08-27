@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { TUBE_R, VP } from "@/renderer/three-utils";
+import { buildObstacleMesh } from "@/renderer/design-meshes";
 import { boundsFromBuildArea } from "@/domain/sparse-grid";
 import type { PortMarker } from "@/domain/renderer-affordances";
+import type { RoomRect } from "@/domain/floors";
 import type { BuildArea, ToolId, Vec3 } from "@/types";
 
 /**
@@ -67,6 +69,45 @@ export function buildGround(area: BuildArea, dimmed = false): THREE.Group {
 }
 
 /**
+ * The room's floor: the same plane as the ground, a step brighter, over the
+ * room's footprint only — the border between the two brightnesses is what
+ * tells a visitor where the room ends and the rest of the build area begins.
+ */
+export function buildRoomFloor(rect: RoomRect, dimmed = false): THREE.Group {
+  const g = new THREE.Group();
+  const cx = (rect.xMin + rect.xMax) / 2;
+  const cz = (rect.zMin + rect.zMax) / 2;
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(rect.xMax - rect.xMin, rect.zMax - rect.zMin),
+    new THREE.MeshBasicMaterial({
+      color: VP.groundRoom,
+      transparent: dimmed,
+      opacity: dimmed ? 0.5 : 1
+    })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  // Between the ground plane (-0.005) and the grid lines (0), so the grid
+  // stays visible across the room.
+  floor.position.set(cx, -0.003, cz);
+  g.add(floor);
+  return g;
+}
+
+/**
+ * The room's walls, drawn with the penetrable obstacle's own mesh so the
+ * steel-blue hatch keeps one meaning everywhere: tubes pass through this.
+ * Like penetrable obstacles they claim no grid cells; unlike them they are
+ * scenery — no part of the design, not erasable, absent from the BOM.
+ */
+export function buildRoomWalls(walls: Array<{ min: Vec3; max: Vec3 }>): THREE.Group {
+  const g = new THREE.Group();
+  for (const wall of walls) {
+    g.add(buildObstacleMesh(wall.min, wall.max, { penetrable: true }));
+  }
+  return g;
+}
+
+/**
  * The structural slab between the floors of a two-floor design, spanning one
  * foot upward from `separatorY`. Purely visual: it occupies no grid cells, so
  * tubes can pass through it to reach the storey above.
@@ -76,18 +117,18 @@ export function buildGround(area: BuildArea, dimmed = false): THREE.Group {
  * is the second storey's floor and placement happens on it.
  */
 export function buildFloorSeparator(
-  area: BuildArea,
+  rect: RoomRect,
   separatorY: number,
   dimmed = false
 ): THREE.Group {
   const g = new THREE.Group();
-  const b = boundsFromBuildArea(area);
+  const b = rect;
   const cx = (b.xMin + b.xMax) / 2;
   const cz = (b.zMin + b.zMax) / 2;
   const fade = dimmed ? 0.45 : 1;
 
   const slab = new THREE.Mesh(
-    new THREE.BoxGeometry(area.width, 1, area.depth),
+    new THREE.BoxGeometry(b.xMax - b.xMin, 1, b.zMax - b.zMin),
     new THREE.MeshBasicMaterial({
       color: VP.gridStrong,
       transparent: true,
@@ -125,19 +166,19 @@ export function buildFloorSeparator(
  * than the accent teal, which is reserved for placement affordances.
  */
 export function buildPlenumBand(
-  area: BuildArea,
+  rect: RoomRect,
   band: { base: number; top: number },
   dimmed = false
 ): THREE.Group {
   const g = new THREE.Group();
-  const b = boundsFromBuildArea(area);
+  const b = rect;
   const cx = (b.xMin + b.xMax) / 2;
   const cz = (b.zMin + b.zMax) / 2;
   const height = band.top - band.base;
   const fade = dimmed ? 0.4 : 1;
 
   const fill = new THREE.Mesh(
-    new THREE.BoxGeometry(area.width, height, area.depth),
+    new THREE.BoxGeometry(b.xMax - b.xMin, height, b.zMax - b.zMin),
     new THREE.MeshBasicMaterial({
       color: VP.warn,
       transparent: true,

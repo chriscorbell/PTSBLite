@@ -1,6 +1,6 @@
 import { DEFAULT_COMPANY_NAME, DEFAULT_SYSTEM_NAME } from "@/domain/design-state";
+import { clampRoom } from "@/domain/floors";
 import { reconstructDesign } from "@/domain/design-reconstruction";
-import { clampBuildArea } from "@/domain/sparse-grid";
 import type {
   BendPart,
   BlowerPart,
@@ -115,6 +115,7 @@ function parseMetadata(
   value: unknown
 ): { ok: true; metadata: DesignMetadata } | { ok: false; message: string } {
   if (!isRecord(value)) return fail("Missing metadata object.");
+  const multiFloor = value.multiFloor === true;
   return {
     ok: true,
     metadata: {
@@ -123,12 +124,13 @@ function parseMetadata(
       // and is still read so designs saved under the old key keep their name.
       companyName: typeof value.companyName === "string" ? value.companyName : DEFAULT_COMPANY_NAME,
       systemName: parseName(value.systemName) ?? parseName(value.filename) ?? DEFAULT_SYSTEM_NAME,
-      // Forgiving migration: designs saved before the build area was configurable
-      // (or with a malformed area) fall back to the default, clamped to limits.
-      buildArea: parseBuildArea(value.buildArea),
+      // `buildArea` is what the room was called when it was the whole build
+      // area; still read so stored designs keep their dimensions. A malformed
+      // or missing room falls back to the default, clamped like any other.
+      room: clampRoom(parseDims(value.room) ?? parseDims(value.buildArea), multiFloor),
       // Same forgiveness for the setup answers, which designs saved before the
       // welcome screen do not carry.
-      multiFloor: value.multiFloor === true,
+      multiFloor,
       plenumHeightFeet:
         typeof value.plenumHeightFeet === "number" &&
         Number.isFinite(value.plenumHeightFeet) &&
@@ -144,15 +146,13 @@ function parseName(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value : null;
 }
 
-function parseBuildArea(value: unknown): BuildArea {
-  const partial = isRecord(value)
-    ? {
-        width: typeof value.width === "number" ? value.width : undefined,
-        depth: typeof value.depth === "number" ? value.depth : undefined,
-        height: typeof value.height === "number" ? value.height : undefined
-      }
-    : undefined;
-  return clampBuildArea(partial);
+function parseDims(value: unknown): Partial<BuildArea> | undefined {
+  if (!isRecord(value)) return undefined;
+  return {
+    width: typeof value.width === "number" ? value.width : undefined,
+    depth: typeof value.depth === "number" ? value.depth : undefined,
+    height: typeof value.height === "number" ? value.height : undefined
+  };
 }
 
 function parsePart(

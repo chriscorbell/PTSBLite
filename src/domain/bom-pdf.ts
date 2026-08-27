@@ -61,9 +61,9 @@ export async function generateBomPdf(
     y -= 15;
   }
 
-  const { width, depth, height } = design.metadata.buildArea;
+  const { width, depth, height } = design.metadata.room;
   const floors = design.metadata.multiFloor ? " · 2 floors" : "";
-  drawText(p, `Build area ${width} x ${depth} x ${height} ft${floors}`, MARGIN_X, y, {
+  drawText(p, `Room ${width} x ${depth} x ${height} ft${floors}`, MARGIN_X, y, {
     size: 9,
     color: DIM
   });

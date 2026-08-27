@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyDesign } from "@/domain/design-state";
-import { DEFAULT_BUILD_AREA, GROUND_PLANE_Y } from "@/domain/sparse-grid";
+import { BUILD_AREA, GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import {
   cancelObstaclePlacement,
   moveObstaclePlacementBase,
@@ -85,8 +85,8 @@ describe("obstacle volume placement", () => {
     expect(started.ok).toBe(true);
     if (!started.ok) return;
     const footprint = setObstaclePlacementFootprint(started.draft, [4, 0, 6]);
-    const raised = moveObstaclePlacementBase(footprint, 3, DEFAULT_BUILD_AREA);
-    const tall = resizeObstaclePlacementHeight(raised, 5, DEFAULT_BUILD_AREA);
+    const raised = moveObstaclePlacementBase(footprint, 3, BUILD_AREA);
+    const tall = resizeObstaclePlacementHeight(raised, 5, BUILD_AREA);
 
     expect(obstaclePlacementGhost(tall, [4, 0, 6])).toEqual({
       type: "obstacle",
@@ -111,7 +111,7 @@ describe("obstacle draft bounds follow the design's build area", () => {
   const SHORT: BuildArea = { width: 20, depth: 20, height: 6 };
 
   function footprintDraft() {
-    const started = startObstaclePlacement(emptyDesign({ buildArea: SHORT }), [2, 0, 3]);
+    const started = startObstaclePlacement(emptyDesign(), [2, 0, 3]);
     if (!started.ok) throw new Error("expected a draft");
     return setObstaclePlacementFootprint(started.draft, [4, 0, 6]);
   }
@@ -144,7 +144,7 @@ describe("obstacle draft bounds follow the design's build area", () => {
   it("produces a draft that placeObstacleVolume actually accepts", () => {
     // The point of clamping in the domain: a control cannot offer a value the
     // domain will then reject.
-    const design = emptyDesign({ buildArea: SHORT });
+    const design = emptyDesign();
     const started = startObstaclePlacement(design, [2, 0, 3]);
     if (!started.ok) throw new Error("expected a draft");
     const draft = resizeObstaclePlacementHeight(

@@ -82,7 +82,13 @@ export type DesignMetadata = {
   /** The company the system is being designed for. Blank when not given. */
   companyName: string;
   systemName: string;
-  buildArea: BuildArea;
+  /**
+   * The room this system is built in and around: per-floor height and a
+   * footprint centered in the fixed build area (`BUILD_AREA`). What the
+   * welcome screen sizes; walls, plenum and floors derive from it in
+   * floors.ts. Parts may be placed outside it.
+   */
+  room: BuildArea;
   /** Whether the project spans multiple floors. Asked at design setup; nothing
    * routes across floors yet. */
   multiFloor: boolean;

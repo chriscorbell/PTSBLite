@@ -7,7 +7,7 @@ import {
   newOccupantId
 } from "@/domain/design-state";
 import { bendFootprint } from "@/domain/bend-placement";
-import { DEFAULT_BUILD_AREA, SparseGrid } from "@/domain/sparse-grid";
+import { DEFAULT_ROOM, SparseGrid } from "@/domain/sparse-grid";
 import type { BendPart, Scene } from "@/types";
 
 describe("DesignState", () => {
@@ -18,7 +18,7 @@ describe("DesignState", () => {
     expect(d.metadata).toEqual({
       companyName: DEFAULT_COMPANY_NAME,
       systemName: DEFAULT_SYSTEM_NAME,
-      buildArea: DEFAULT_BUILD_AREA,
+      room: DEFAULT_ROOM,
       multiFloor: false,
       plenumHeightFeet: null
     });

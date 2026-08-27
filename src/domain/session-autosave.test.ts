@@ -35,7 +35,7 @@ describe("isWorthKeeping", () => {
     expect(isWorthKeeping(renamed)).toBe(true);
 
     const resized = emptyDesign();
-    resized.metadata.buildArea = { width: 80, depth: 40, height: 14 };
+    resized.metadata.room = { width: 80, depth: 40, height: 14 };
     expect(isWorthKeeping(resized)).toBe(true);
   });
 

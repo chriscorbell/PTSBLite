@@ -20,6 +20,8 @@ import {
 import {
   buildElevationPlane,
   buildFloorSeparator,
+  buildRoomFloor,
+  buildRoomWalls,
   buildGround,
   buildLandingCellHighlight,
   buildPlenumBand,
@@ -33,9 +35,9 @@ import {
   updateLineResolutions,
   VP
 } from "@/renderer/three-utils";
-import { type PlenumBand } from "@/domain/floors";
+import { type PlenumBand, type RoomRect } from "@/domain/floors";
 import { type PortMarker } from "@/domain/renderer-affordances";
-import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
+import { BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, Ghost, Scene, ToolId, Vec3 } from "@/types";
 import "@/renderer/Viewport.css";
 
@@ -99,20 +101,18 @@ export function cameraFarPlane(area: BuildArea): number {
 }
 
 /**
- * Where the camera sits when a design opens.
+ * Where the camera sits when a design opens: far enough back that the whole
+ * room and a margin of the ground around it are in frame.
  *
- * Proportional to the footprint rather than fixed. At a constant 38 a 300 ft
- * design opened showing a corner of itself, with nothing on screen to suggest
- * the rest existed. Scaling against the default build area's diagonal means
- * every design opens on the same fraction of its own floor — and the default
- * one opens at exactly the 38 it always did, since that is the ratio of 1.
+ * The same 1.6 x diagonal that `maxCameraDistance` uses to see a footprint
+ * whole, applied to the room's. The old rule scaled the wall-less era's 38,
+ * which now opens *inside* the room — the walls fill the frame and nothing
+ * says where you are. Opening on the room as an object in the build area is
+ * the mental model the room exists to teach.
  */
 export function openingCameraDistance(area: CameraFootprint): number {
-  const scale =
-    Math.hypot(area.width, area.depth) /
-    Math.hypot(DEFAULT_BUILD_AREA.width, DEFAULT_BUILD_AREA.depth);
-  const proportional = DEFAULT_CAMERA_FRAMING.distance * scale;
-  return Math.max(MIN_CAMERA_DISTANCE, Math.min(maxCameraDistance(area), proportional));
+  const proportional = Math.hypot(area.width, area.depth) * 1.6;
+  return Math.max(MIN_CAMERA_DISTANCE, Math.min(maxCameraDistance(BUILD_AREA), proportional));
 }
 
 type ViewportState = {
@@ -155,6 +155,10 @@ export type ViewportProps = {
   activeFloor?: 1 | 2 | null;
   /** The plenum's Y range on each floor; empty when the design has none. */
   plenumBands?: PlenumBand[];
+  /** The room's footprint; its floor patch, walls, slab and plenum span this. */
+  roomRect?: RoomRect | null;
+  /** The room's walls as cell boxes, derived beside the rect in floors.ts. */
+  roomWalls?: Array<{ min: Vec3; max: Vec3 }>;
   /**
    * The Y the camera orbits around — the active floor's base. Selecting a
    * floor has to bring the camera with it: a plane 31 ft up is edge-on or
@@ -166,7 +170,7 @@ export type ViewportProps = {
 
 export function Viewport({
   scene,
-  buildArea = DEFAULT_BUILD_AREA,
+  buildArea = BUILD_AREA,
   ghost,
   tool,
   onPlace,
@@ -177,6 +181,8 @@ export function Viewport({
   separatorY = null,
   activeFloor = null,
   plenumBands = [],
+  roomRect = null,
+  roomWalls = [],
   focusY = 0
 }: ViewportProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -506,11 +512,17 @@ export function Viewport({
     }
     const area = { width: areaWidth, depth: areaDepth, height: areaHeight };
     const ground = buildGround(area, activeFloor === 2);
-    if (separatorY !== null) {
-      ground.add(buildFloorSeparator(area, separatorY, activeFloor === 1));
-    }
-    for (const band of plenumBands) {
-      ground.add(buildPlenumBand(area, band, activeFloor !== null && activeFloor !== band.floor));
+    if (roomRect) {
+      ground.add(buildRoomFloor(roomRect, activeFloor === 2));
+      ground.add(buildRoomWalls(roomWalls));
+      if (separatorY !== null) {
+        ground.add(buildFloorSeparator(roomRect, separatorY, activeFloor === 1));
+      }
+      for (const band of plenumBands) {
+        ground.add(
+          buildPlenumBand(roomRect, band, activeFloor !== null && activeFloor !== band.floor)
+        );
+      }
     }
     s.scene3.add(ground);
     s.groundGroup = ground;
@@ -530,18 +542,21 @@ export function Viewport({
       s.applyCamera?.();
     }
     s.requestRender?.();
-  }, [areaWidth, areaDepth, areaHeight, separatorY, activeFloor, plenumBands]);
+  }, [areaWidth, areaDepth, areaHeight, separatorY, activeFloor, plenumBands, roomRect, roomWalls]);
 
-  // Frame the camera on the build area: on first render, and again whenever a
-  // new design brings a different footprint. Deliberately not keyed to height
-  // or floor — switching floors moves the target, and yanking the zoom with it
-  // would throw away wherever the visitor had scrolled to.
+  // Frame the camera on the room: on first render, and again whenever a new
+  // design brings a different one — the build area itself never changes size.
+  // Deliberately not keyed to height or floor: switching floors moves the
+  // target, and yanking the zoom with it would throw away wherever the
+  // visitor had scrolled to.
+  const roomWidth = roomRect ? roomRect.xMax - roomRect.xMin : areaWidth;
+  const roomDepth = roomRect ? roomRect.zMax - roomRect.zMin : areaDepth;
   useEffect(() => {
     const s = stateRef.current;
     if (!s.cam) return;
-    s.cam.distance = openingCameraDistance({ width: areaWidth, depth: areaDepth });
+    s.cam.distance = openingCameraDistance({ width: roomWidth, depth: roomDepth });
     s.applyCamera?.();
-  }, [areaWidth, areaDepth]);
+  }, [roomWidth, roomDepth]);
 
   useEffect(() => {
     const s = stateRef.current;

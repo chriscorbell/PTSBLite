@@ -3,14 +3,14 @@ import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
 import { NameFields } from "@/components/NameFields";
 import { DEFAULT_SYSTEM_NAME } from "@/domain/design-state";
-import { FLOOR_SEPARATOR_FEET } from "@/domain/floors";
-import { BUILD_AREA_LIMITS, clampBuildArea, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
+import { clampRoom, FLOOR_SEPARATOR_FEET, maxRoomHeightFeet } from "@/domain/floors";
+import { BUILD_AREA, DEFAULT_ROOM, ROOM_LIMITS } from "@/domain/sparse-grid";
 import type { BuildArea, DesignState } from "@/types";
 import "@/components/WelcomeScreen.css";
 
-// Build-area axes in the words a visitor measuring a room would use. The
-// domain keeps calling the Z axis `depth`; only the label says "Length".
-const BUILD_AREA_AXES: { key: keyof BuildArea; label: string }[] = [
+// Room axes in the words a visitor measuring one would use. The domain keeps
+// calling the Z axis `depth`; only the label says "Length".
+const ROOM_AXES: { key: keyof BuildArea; label: string }[] = [
   { key: "width", label: "Width" },
   { key: "depth", label: "Length" },
   { key: "height", label: "Height" }
@@ -27,7 +27,7 @@ type Stage = "choice" | "confirm-new" | "setup";
 export type DesignSetup = {
   companyName: string;
   systemName: string;
-  buildArea: BuildArea;
+  room: BuildArea;
   multiFloor: boolean;
   plenumHeightFeet: number | null;
 };
@@ -59,7 +59,7 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
   // needs validation and neither field has to be cleared before it is typed in.
   const [companyName, setCompanyName] = useState("");
   const [systemName, setSystemName] = useState("");
-  const [buildArea, setBuildArea] = useState<BuildArea>({ ...DEFAULT_BUILD_AREA });
+  const [room, setRoom] = useState<BuildArea>({ ...DEFAULT_ROOM });
   const [multiFloor, setMultiFloor] = useState(false);
   const [hasPlenum, setHasPlenum] = useState(false);
   const [plenumHeightFeet, setPlenumHeightFeet] = useState(3);
@@ -139,9 +139,9 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
             onSystemName={setSystemName}
           />
           <p className="welcome__note">
-            Provide details about the area this system will be built in.
+            Provide the dimensions of the room this system will be built in and around.
           </p>
-          <BuildAreaFields value={buildArea} onChange={setBuildArea} />
+          <RoomFields value={room} multiFloor={multiFloor} onChange={setRoom} />
           <label className="welcome__toggle">
             <input
               type="checkbox"
@@ -174,8 +174,10 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
               <Icons.Warn size={15} />
             </span>
             <span>
-              1 grid cell = 1 ft. Build area height is per-floor, including plenum. Structural
-              ceiling/floor thickness for multi-floor systems is {FLOOR_SEPARATOR_FEET} ft.
+              1 grid cell = 1 ft. Room height is per-floor, including plenum. Structural
+              ceiling/floor thickness for multi-floor systems is {FLOOR_SEPARATOR_FEET} ft. The room
+              sits at the center of a {BUILD_AREA.width} × {BUILD_AREA.depth} × {BUILD_AREA.height}{" "}
+              ft build area, and parts may be placed outside it.
             </span>
           </p>
         </div>
@@ -187,7 +189,7 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
               onCreate({
                 companyName: companyName.trim(),
                 systemName: systemName.trim() || DEFAULT_SYSTEM_NAME,
-                buildArea,
+                room: clampRoom(room, multiFloor),
                 multiFloor,
                 plenumHeightFeet: hasPlenum ? plenumHeightFeet : null
               })
@@ -253,28 +255,34 @@ function NumberInput({
   );
 }
 
-/** The three build-area dimensions. Limits apply when a field is left, not per keystroke. */
-function BuildAreaFields({
+/**
+ * The three room dimensions. Limits apply when a field is left, not per
+ * keystroke, and a two-floor room's height cap is tighter — both floors and
+ * the separator have to fit inside the build area.
+ */
+function RoomFields({
   value,
+  multiFloor,
   onChange
 }: {
   value: BuildArea;
+  multiFloor: boolean;
   onChange: (next: BuildArea) => void;
 }) {
   return (
     <div>
-      <span className="field-heading">Build area (feet)</span>
+      <span className="field-heading">Room dimensions (feet)</span>
       <div className="welcome__axes">
-        {BUILD_AREA_AXES.map(({ key, label }) => (
+        {ROOM_AXES.map(({ key, label }) => (
           <label key={key} className="welcome__axis">
             <span className="welcome__label">{label}</span>
             <NumberInput
               className="welcome__input"
               value={value[key]}
-              min={BUILD_AREA_LIMITS[key].min}
-              max={BUILD_AREA_LIMITS[key].max}
+              min={ROOM_LIMITS[key].min}
+              max={key === "height" ? maxRoomHeightFeet(multiFloor) : ROOM_LIMITS[key].max}
               onChange={(next) => onChange({ ...value, [key]: next })}
-              onCommit={() => onChange(clampBuildArea(value))}
+              onCommit={() => onChange(clampRoom(value, multiFloor))}
             />
           </label>
         ))}

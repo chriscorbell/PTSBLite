@@ -24,7 +24,8 @@ import {
   newOccupantId
 } from "@/domain/design-state";
 import {
-  effectiveBuildArea,
+  roomRect,
+  roomWalls,
   floorAtElevation,
   floorBaseElevation,
   floorSeparatorY,
@@ -43,6 +44,7 @@ import {
 } from "@/domain/placement-session";
 import { autoBuildOpenPortPair, type UnroutedPair } from "@/domain/pathfinder";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
+import { BUILD_AREA } from "@/domain/sparse-grid";
 import { openPortMarkers } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
@@ -132,10 +134,9 @@ export default function App({ platform }: AppProps) {
   );
   const design = history.present;
   const documentLabel = documentLabelFor(design.metadata);
-  // The volume placement and the viewport work in. Taller than the stored
-  // build area for a two-floor design, which is why nothing below reads
-  // metadata.buildArea directly.
-  const buildArea = effectiveBuildArea(design.metadata);
+  // The volume placement and the viewport work in: the fixed build area,
+  // never the room — parts may be placed outside the room (ADR-0017).
+  const buildArea = BUILD_AREA;
   const undoAvailable = canUndo(history);
   const redoAvailable = canRedo(history);
 
@@ -592,6 +593,11 @@ export default function App({ platform }: AppProps) {
   // Memoized for identity: the viewport rebuilds its ground group when this
   // prop changes, and the bands only actually change with the metadata.
   const plenum = useMemo(() => plenumBands(design.metadata), [design.metadata]);
+  // Memoized for identity like the bands: the viewport rebuilds its ground
+  // group when these change, and the room only actually changes with a new
+  // design.
+  const room = useMemo(() => roomRect(design.metadata), [design.metadata]);
+  const walls = useMemo(() => roomWalls(design.metadata), [design.metadata]);
 
   return (
     <div className="app-shell">
@@ -632,6 +638,8 @@ export default function App({ platform }: AppProps) {
             activeFloor={activeFloor}
             focusY={focusY}
             plenumBands={plenum}
+            roomRect={room}
+            roomWalls={walls}
             portMarkers={portMarkers}
           />
           <ViewportHUD

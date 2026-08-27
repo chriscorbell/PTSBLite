@@ -6,7 +6,7 @@ import {
   type SerializedDesign
 } from "@/domain/design-file";
 import { designFromScene, emptyDesign } from "@/domain/design-state";
-import { DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
+import { DEFAULT_ROOM } from "@/domain/sparse-grid";
 import type { Scene } from "@/types";
 
 const FULL_SCENE: Scene = {
@@ -47,7 +47,7 @@ describe("serializeDesign", () => {
     expect(payload.metadata).toEqual({
       companyName: "",
       systemName: "House",
-      buildArea: DEFAULT_BUILD_AREA,
+      room: DEFAULT_ROOM,
       multiFloor: false,
       plenumHeightFeet: null
     });
@@ -86,15 +86,15 @@ describe("deserializeDesign", () => {
     expect(result.design.grid.query([2, 0, 2])).toBe("o1");
   });
 
-  it("roundtrips a custom build area", () => {
+  it("roundtrips a custom room", () => {
     const original = designFromScene(FULL_SCENE, {
       systemName: "House",
-      buildArea: { width: 40, depth: 80, height: 12 }
+      room: { width: 40, depth: 80, height: 12 }
     });
     const result = deserializeDesign(JSON.stringify(serializeDesign(original, TEST_APP_VERSION)));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.design.metadata.buildArea).toEqual({ width: 40, depth: 80, height: 12 });
+    expect(result.design.metadata.room).toEqual({ width: 40, depth: 80, height: 12 });
   });
 
   it("roundtrips a penetrable obstacle, whose cells stay free after restore", () => {
@@ -166,7 +166,7 @@ describe("deserializeDesign", () => {
     const result = deserializeDesign(JSON.stringify(legacy));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.design.metadata.buildArea).toEqual(DEFAULT_BUILD_AREA);
+    expect(result.design.metadata.room).toEqual(DEFAULT_ROOM);
     expect(result.design.metadata.multiFloor).toBe(false);
     expect(result.design.metadata.plenumHeightFeet).toBeNull();
   });
@@ -277,6 +277,40 @@ describe("deserializeDesign", () => {
     if (!result.ok) return;
     expect(result.design.metadata.systemName).toBe("Untitled system");
     expect(result.design.metadata.companyName).toBe("");
+  });
+
+  it("reads a room stored under the old buildArea key", () => {
+    // What the room was called when it was the whole build area. A design
+    // saved then keeps its dimensions rather than reverting to the default.
+    const result = deserializeDesign(
+      JSON.stringify({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        appVersion: "0.1.0",
+        parts: [],
+        obstacles: [],
+        metadata: { systemName: "x", buildArea: { width: 40, depth: 80, height: 12 } }
+      })
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.metadata.room).toEqual({ width: 40, depth: 80, height: 12 });
+  });
+
+  it("caps a stored two-floor room the build area cannot hold", () => {
+    // 100 ft per floor cannot stack twice inside the 100 ft build area; the
+    // room restores at the tallest height that fits rather than refusing.
+    const result = deserializeDesign(
+      JSON.stringify({
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        appVersion: "0.1.0",
+        parts: [],
+        obstacles: [],
+        metadata: { room: { width: 40, depth: 40, height: 100 }, multiFloor: true }
+      })
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.metadata.room.height).toBe(49);
   });
 
   it("reads a system name stored under the old filename key", () => {
