@@ -45,7 +45,17 @@ export function buildGround(area: BuildArea, dimmed = false): THREE.Group {
     new THREE.PlaneGeometry(area.width, area.depth),
     // Unlit so the plane is a flat, uniform color — MeshStandardMaterial would
     // pick up the directional lights and shade a gradient across the ground.
-    new THREE.MeshBasicMaterial({ color: VP.ground })
+    // polygonOffset pushes the ground back in depth so the room's floor wins
+    // cleanly where they overlap: the two planes are 0.002 ft apart, which the
+    // depth buffer cannot resolve at distance now that the far plane spans the
+    // fixed build area, and relying on the Y gap alone striped the floor with
+    // z-fighting. The offset works in depth space, so it holds at any zoom.
+    new THREE.MeshBasicMaterial({
+      color: VP.ground,
+      polygonOffset: true,
+      polygonOffsetFactor: 2,
+      polygonOffsetUnits: 2
+    })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(cx, -0.005, cz);
@@ -81,7 +91,12 @@ export function buildRoomFloor(rect: RoomRect, dimmed = false): THREE.Group {
     new THREE.MeshBasicMaterial({
       color: VP.groundRoom,
       transparent: dimmed,
-      opacity: dimmed ? 0.5 : 1
+      opacity: dimmed ? 0.5 : 1,
+      // One step of offset, against the ground's two: behind the grid lines,
+      // in front of the ground, whatever the camera distance. See buildGround.
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1
     })
   );
   floor.rotation.x = -Math.PI / 2;
