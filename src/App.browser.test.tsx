@@ -165,10 +165,38 @@ describe("the welcome setup form", () => {
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
     expect(within(dialog).getByLabelText("Width")).toBeTruthy();
-    expect(within(dialog).getByLabelText("Add 2nd floor")).toBeTruthy();
+    expect(within(dialog).getByLabelText(/Add 2nd floor/)).toBeTruthy();
     expect(within(dialog).getByLabelText("Plenum (drop ceiling)")).toBeTruthy();
     // The height input only appears once a plenum is declared.
     expect(within(dialog).queryByLabelText(/plenum height/i)).toBeNull();
+  });
+
+  it("explains each field where the field is, not in a warning box", async () => {
+    await renderApp();
+    const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
+
+    // The amber warning box is gone; what it said now sits beside the control
+    // it constrains, and what is left is a neutral note about scale.
+    expect(within(dialog).getByText(/Floor to ceiling, including plenum/i)).toBeTruthy();
+    expect(
+      within(dialog)
+        .getByLabelText(/Add 2nd floor/)
+        .closest("label")?.textContent
+    ).toMatch(/Structural ceiling\/floor between them is 1 ft thick/i);
+    expect(within(dialog).getByText(/Maximum build area is 300 × 300 × 100 ft/i)).toBeTruthy();
+    expect(within(dialog).queryByText(/1 grid cell = 1 ft/i)).toBeNull();
+  });
+
+  it("asks for a room rather than a build area, and never for a name", async () => {
+    await renderApp();
+    const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
+
+    expect(within(dialog).getByText("Building or room size")).toBeTruthy();
+    // Designs carry no name any more, so the form must not collect one.
+    expect(within(dialog).queryByLabelText(/company name/i)).toBeNull();
+    expect(within(dialog).queryByLabelText(/system name/i)).toBeNull();
+    // The unit belongs in the box, so no label repeats it.
+    expect(within(dialog).queryByText(/\(feet\)/i)).toBeNull();
   });
 
   it("stores the setup answers with the created design", async () => {
@@ -176,7 +204,7 @@ describe("the welcome setup form", () => {
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
     fireEvent.change(within(dialog).getByLabelText("Width"), { target: { value: "40" } });
-    fireEvent.click(within(dialog).getByLabelText("Add 2nd floor"));
+    fireEvent.click(within(dialog).getByLabelText(/Add 2nd floor/));
     fireEvent.click(within(dialog).getByLabelText("Plenum (drop ceiling)"));
     fireEvent.change(within(dialog).getByLabelText(/plenum height/i), { target: { value: "4" } });
     fireEvent.click(within(dialog).getByRole("button", { name: /Create design/ }));

@@ -31,7 +31,7 @@ describe("isWorthKeeping", () => {
     // Setting the build area and naming the system before placing anything is
     // real work, and losing it because no part existed yet would be its own
     // small betrayal.
-    const renamed = emptyDesign({ systemName: "Ward 4 loop" });
+    const renamed = emptyDesign({ room: { width: 24, depth: 24, height: 9 } });
     expect(isWorthKeeping(renamed)).toBe(true);
 
     const resized = emptyDesign();

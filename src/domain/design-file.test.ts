@@ -40,13 +40,11 @@ describe("serializeDesign", () => {
   });
 
   it("serializes parts, obstacles, and metadata", () => {
-    const design = designFromScene(FULL_SCENE, { systemName: "House" });
+    const design = designFromScene(FULL_SCENE);
     const payload = serializeDesign(design, TEST_APP_VERSION);
     expect(payload.parts).toHaveLength(4);
     expect(payload.obstacles).toHaveLength(1);
     expect(payload.metadata).toEqual({
-      companyName: "",
-      systemName: "House",
       room: DEFAULT_ROOM,
       multiFloor: false,
       plenumHeightFeet: null
@@ -65,7 +63,7 @@ describe("serializeDesign", () => {
 
 describe("deserializeDesign", () => {
   it("roundtrips a full design preserving parts, obstacles, and metadata", () => {
-    const original = designFromScene(FULL_SCENE, { systemName: "House" });
+    const original = designFromScene(FULL_SCENE);
     const text = JSON.stringify(serializeDesign(original, TEST_APP_VERSION));
     const result = deserializeDesign(text);
     expect(result.ok).toBe(true);
@@ -88,7 +86,6 @@ describe("deserializeDesign", () => {
 
   it("roundtrips a custom room", () => {
     const original = designFromScene(FULL_SCENE, {
-      systemName: "House",
       room: { width: 40, depth: 80, height: 12 }
     });
     const result = deserializeDesign(JSON.stringify(serializeDesign(original, TEST_APP_VERSION)));
@@ -261,9 +258,9 @@ describe("deserializeDesign", () => {
     expect(result.message).toMatch(/obstacle|max/i);
   });
 
-  it("falls back to the default name when metadata carries none", () => {
-    // Names are forgiving like the rest of the metadata: a payload missing them
-    // restores under the defaults rather than refusing to open at all.
+  it("restores a payload whose metadata is empty", () => {
+    // Metadata is forgiving throughout: a payload missing every field restores
+    // under the defaults rather than refusing to open at all.
     const result = deserializeDesign(
       JSON.stringify({
         schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -275,8 +272,7 @@ describe("deserializeDesign", () => {
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.design.metadata.systemName).toBe("Untitled system");
-    expect(result.design.metadata.companyName).toBe("");
+    expect(result.design.metadata.room).toEqual(DEFAULT_ROOM);
   });
 
   it("reads a room stored under the old buildArea key", () => {
@@ -313,20 +309,24 @@ describe("deserializeDesign", () => {
     expect(result.design.metadata.room.height).toBe(49);
   });
 
-  it("reads a system name stored under the old filename key", () => {
-    // What the field was called before the company name joined it. Designs
-    // saved then keep their name rather than reverting to the default.
+  it("ignores names left in a payload from when designs had them", () => {
+    // Designs carry no name any more. A stored one is simply dropped, and the
+    // rest of the payload still restores.
     const result = deserializeDesign(
       JSON.stringify({
         schemaVersion: CURRENT_SCHEMA_VERSION,
         appVersion: "0.1.0",
         parts: [],
         obstacles: [],
-        metadata: { filename: "House" }
+        metadata: { filename: "House", systemName: "West Wing", companyName: "Acme" }
       })
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.design.metadata.systemName).toBe("House");
+    expect(result.design.metadata).toEqual({
+      room: DEFAULT_ROOM,
+      multiFloor: false,
+      plenumHeightFeet: null
+    });
   });
 });

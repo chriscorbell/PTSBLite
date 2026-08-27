@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_COMPANY_NAME,
-  DEFAULT_SYSTEM_NAME,
-  designFromScene,
-  emptyDesign,
-  newOccupantId
-} from "@/domain/design-state";
+import { designFromScene, emptyDesign, newOccupantId } from "@/domain/design-state";
 import { bendFootprint } from "@/domain/bend-placement";
 import { DEFAULT_ROOM, SparseGrid } from "@/domain/sparse-grid";
 import type { BendPart, Scene } from "@/types";
@@ -16,8 +10,6 @@ describe("DesignState", () => {
     expect(d.parts).toEqual([]);
     expect(d.obstacles).toEqual([]);
     expect(d.metadata).toEqual({
-      companyName: DEFAULT_COMPANY_NAME,
-      systemName: DEFAULT_SYSTEM_NAME,
       room: DEFAULT_ROOM,
       multiFloor: false,
       plenumHeightFeet: null
@@ -25,9 +17,9 @@ describe("DesignState", () => {
   });
 
   it("emptyDesign accepts metadata overrides", () => {
-    const d = emptyDesign({ systemName: "Main loop", companyName: "Acme" });
-    expect(d.metadata.systemName).toBe("Main loop");
-    expect(d.metadata.companyName).toBe("Acme");
+    const d = emptyDesign({ room: { width: 40, depth: 20, height: 12 }, multiFloor: true });
+    expect(d.metadata.room).toEqual({ width: 40, depth: 20, height: 12 });
+    expect(d.metadata.multiFloor).toBe(true);
   });
 
   it("designFromScene clones parts and obstacles", () => {
@@ -54,9 +46,8 @@ describe("DesignState", () => {
 
   it("designFromScene applies metadata overrides", () => {
     const scene: Scene = { parts: [], obstacles: [] };
-    const d = designFromScene(scene, { systemName: "Warehouse" });
-    expect(d.metadata.systemName).toBe("Warehouse");
-    expect(d.metadata.companyName).toBe(DEFAULT_COMPANY_NAME);
+    const d = designFromScene(scene, { room: { width: 24, depth: 24, height: 9 } });
+    expect(d.metadata.room).toEqual({ width: 24, depth: 24, height: 9 });
   });
 });
 

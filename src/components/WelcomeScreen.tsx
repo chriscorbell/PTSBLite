@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { Icons } from "@/components/Icons";
 import { Modal } from "@/components/Modal";
-import { NameFields } from "@/components/NameFields";
-import { DEFAULT_SYSTEM_NAME } from "@/domain/design-state";
 import { clampRoom, FLOOR_SEPARATOR_FEET, maxRoomHeightFeet } from "@/domain/floors";
 import { BUILD_AREA, DEFAULT_ROOM, ROOM_LIMITS } from "@/domain/sparse-grid";
 import type { BuildArea, DesignState } from "@/types";
 import "@/components/WelcomeScreen.css";
 
-// Room axes in the words a visitor measuring one would use. The domain keeps
-// calling the Z axis `depth`; only the label says "Length".
-const ROOM_AXES: { key: keyof BuildArea; label: string }[] = [
+/**
+ * Room axes in the words a visitor measuring one would use. The domain keeps
+ * calling the Z axis `depth`; only the label says "Length". `hint` carries what
+ * the dismissed warning box used to say about that axis, next to the field it
+ * actually constrains rather than in a paragraph below the whole form.
+ */
+const ROOM_AXES: { key: keyof BuildArea; label: string; hint?: string }[] = [
   { key: "width", label: "Width" },
   { key: "depth", label: "Length" },
-  { key: "height", label: "Height" }
+  { key: "height", label: "Height", hint: "Floor to ceiling, including plenum" }
 ];
 
 /**
@@ -25,8 +27,6 @@ type Stage = "choice" | "confirm-new" | "setup";
 
 /** What the setup form collects before a design exists. */
 export type DesignSetup = {
-  companyName: string;
-  systemName: string;
   room: BuildArea;
   multiFloor: boolean;
   plenumHeightFeet: number | null;
@@ -55,10 +55,6 @@ export type WelcomeScreenProps = {
  */
 export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: WelcomeScreenProps) {
   const [stage, setStage] = useState<Stage>(stored ? "choice" : "setup");
-  // Both start empty and fall back to their defaults on create, so neither
-  // needs validation and neither field has to be cleared before it is typed in.
-  const [companyName, setCompanyName] = useState("");
-  const [systemName, setSystemName] = useState("");
   const [room, setRoom] = useState<BuildArea>({ ...DEFAULT_ROOM });
   const [multiFloor, setMultiFloor] = useState(false);
   const [hasPlenum, setHasPlenum] = useState(false);
@@ -132,15 +128,6 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
           <div className="modal__title">{title}</div>
         </div>
         <div className="welcome__body">
-          <NameFields
-            companyName={companyName}
-            systemName={systemName}
-            onCompanyName={setCompanyName}
-            onSystemName={setSystemName}
-          />
-          <p className="welcome__note">
-            Provide the dimensions of the room this system will be built in and around.
-          </p>
           <RoomFields value={room} multiFloor={multiFloor} onChange={setRoom} />
           <label className="welcome__toggle">
             <input
@@ -148,7 +135,10 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
               checked={multiFloor}
               onChange={(e) => setMultiFloor(e.target.checked)}
             />
-            <span>Add 2nd floor</span>
+            <span>
+              Add 2nd floor. Structural ceiling/floor between them is {FLOOR_SEPARATOR_FEET} ft
+              thick.
+            </span>
           </label>
           <label className="welcome__toggle">
             <input
@@ -159,9 +149,10 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
             <span>Plenum (drop ceiling)</span>
           </label>
           {hasPlenum && (
-            <label className="welcome__plenum">
-              <span className="welcome__label">Approximate plenum height (feet)</span>
+            <label className="welcome__plenum" htmlFor="plenum-height">
+              <span className="welcome__label">Approximate plenum height</span>
               <NumberInput
+                id="plenum-height"
                 className="welcome__input welcome__input--narrow"
                 value={plenumHeightFeet}
                 min={1}
@@ -171,13 +162,12 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
           )}
           <p className="welcome__callout">
             <span className="welcome__callout-icon">
-              <Icons.Warn size={15} />
+              <Icons.Info size={15} />
             </span>
             <span>
-              1 grid cell = 1 ft. Room height is per-floor, including plenum. Structural
-              ceiling/floor thickness for multi-floor systems is {FLOOR_SEPARATOR_FEET} ft. The room
-              sits at the center of a {BUILD_AREA.width} × {BUILD_AREA.depth} × {BUILD_AREA.height}{" "}
-              ft build area, and parts may be placed outside it.
+              Maximum build area is {BUILD_AREA.width} × {BUILD_AREA.depth} × {BUILD_AREA.height}{" "}
+              ft. For systems that exceed this size, please contact Kelly Tube Systems for
+              large-scale system sales.
             </span>
           </p>
         </div>
@@ -187,8 +177,6 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
             disabled={hasPlenum && !plenumHeightValid}
             onClick={() =>
               onCreate({
-                companyName: companyName.trim(),
-                systemName: systemName.trim() || DEFAULT_SYSTEM_NAME,
                 room: clampRoom(room, multiFloor),
                 multiFloor,
                 plenumHeightFeet: hasPlenum ? plenumHeightFeet : null
@@ -214,6 +202,8 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
  * clear because an empty string reads as zero.
  */
 function NumberInput({
+  id,
+  describedBy,
   value,
   min,
   max,
@@ -221,6 +211,11 @@ function NumberInput({
   onChange,
   onCommit
 }: {
+  /** Ties the field to its label explicitly; the unit suffix sits between the
+   * two in the DOM, so implicit nesting no longer associates them. */
+  id: string;
+  /** Id of the hint that explains this field, if it has one. */
+  describedBy?: string;
   value: number;
   min: number;
   max?: number;
@@ -233,6 +228,8 @@ function NumberInput({
 
   return (
     <input
+      id={id}
+      aria-describedby={describedBy}
       type="number"
       min={min}
       max={max}
@@ -271,20 +268,37 @@ function RoomFields({
 }) {
   return (
     <div>
-      <span className="field-heading">Room dimensions (feet)</span>
+      <span className="field-heading">Building or room size</span>
+      <p className="welcome__note">
+        Create additional rooms with the Obstacle tool once you are in the builder.
+      </p>
       <div className="welcome__axes">
-        {ROOM_AXES.map(({ key, label }) => (
-          <label key={key} className="welcome__axis">
-            <span className="welcome__label">{label}</span>
-            <NumberInput
-              className="welcome__input"
-              value={value[key]}
-              min={ROOM_LIMITS[key].min}
-              max={key === "height" ? maxRoomHeightFeet(multiFloor) : ROOM_LIMITS[key].max}
-              onChange={(next) => onChange({ ...value, [key]: next })}
-              onCommit={() => onChange(clampRoom(value, multiFloor))}
-            />
-          </label>
+        {ROOM_AXES.map(({ key, label, hint }) => (
+          // The hint sits outside the <label> and is wired with
+          // aria-describedby: inside it, "Floor to ceiling, including plenum"
+          // would join the field's accessible name instead of describing it.
+          <div key={key} className="welcome__axis">
+            <label className="welcome__label" htmlFor={`room-${key}`}>
+              {label}
+            </label>
+            <span className="welcome__unit-field">
+              <NumberInput
+                id={`room-${key}`}
+                describedBy={hint ? `room-${key}-hint` : undefined}
+                className="welcome__input welcome__input--unit"
+                value={value[key]}
+                min={ROOM_LIMITS[key].min}
+                max={key === "height" ? maxRoomHeightFeet(multiFloor) : ROOM_LIMITS[key].max}
+                onChange={(next) => onChange({ ...value, [key]: next })}
+                onCommit={() => onChange(clampRoom(value, multiFloor))}
+              />
+            </span>
+            {hint && (
+              <span className="welcome__hint" id={`room-${key}-hint`}>
+                {hint}
+              </span>
+            )}
+          </div>
         ))}
       </div>
     </div>
