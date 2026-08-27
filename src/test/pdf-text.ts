@@ -29,19 +29,15 @@ export function extractText(bytes: Uint8Array): string {
     if (buf[dataStart] === 0x0a) dataStart++;
     const endIdx = buf.indexOf("endstream", dataStart);
     if (endIdx < 0) break;
-    let dataEnd = endIdx;
-    if (buf[dataEnd - 1] === 0x0a) dataEnd--;
-    if (buf[dataEnd - 1] === 0x0d) dataEnd--;
-    const raw = buf.subarray(dataStart, dataEnd);
     cursor = endIdx + "endstream".length;
-    let body = raw.toString("latin1");
-    if (raw.length >= 2 && raw[0] === 0x78) {
-      try {
-        body = inflateSync(raw).toString("latin1");
-      } catch {
-        // not flate-encoded — keep raw body
-      }
-    }
+    // `endstream` is preceded by an EOL that is not part of the data — but a
+    // Flate stream can itself end in 0x0A or 0x0D, and trimming those blindly
+    // corrupts it. inflate then throws, the body falls back to compressed
+    // bytes, no `Tj` matches, and this returns "" for a page full of text:
+    // exactly the silent emptiness the note above warns about. So try the
+    // longest slice first and give back only as many bytes as inflate needs.
+    const body = decodeStream(buf, dataStart, endIdx);
+    if (body === null) continue;
     const literalRe = /\((.*?)\)\s*Tj/g;
     const hexRe = /<([0-9A-Fa-f\s]+)>\s*Tj/g;
     let m: RegExpExecArray | null;
@@ -58,4 +54,23 @@ export function extractText(bytes: Uint8Array): string {
     }
   }
   return collected.join("\n");
+}
+
+/**
+ * The text operators inside one `stream ... endstream`, inflated when the
+ * stream is compressed. Null when nothing decodes, so a caller can skip the
+ * segment rather than scan compressed bytes for text that cannot be there.
+ */
+function decodeStream(buf: Buffer, start: number, end: number): string | null {
+  for (const trim of [0, 1, 2]) {
+    const candidate = buf.subarray(start, end - trim);
+    if (candidate.length < 2) break;
+    if (candidate[0] !== 0x78) return candidate.toString("latin1");
+    try {
+      return inflateSync(candidate).toString("latin1");
+    } catch {
+      // Trailing EOL confused the decoder; step back a byte and retry.
+    }
+  }
+  return null;
 }

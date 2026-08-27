@@ -52,15 +52,6 @@ export async function generateBomPdf(
   drawRightText(p, date, right, y, { size: 9, color: DIM });
   y -= 26;
 
-  drawText(p, design.metadata.systemName, MARGIN_X, y, { size: 11 });
-  y -= 16;
-
-  // Only when given: an empty line would leave a gap the reader has to explain.
-  if (design.metadata.companyName.trim() !== "") {
-    drawText(p, design.metadata.companyName, MARGIN_X, y, { size: 10, color: DIM });
-    y -= 15;
-  }
-
   const { width, depth, height } = design.metadata.room;
   const floors = design.metadata.multiFloor ? " · 2 floors" : "";
   drawText(p, `Room ${width} x ${depth} x ${height} ft${floors}`, MARGIN_X, y, {

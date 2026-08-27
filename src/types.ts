@@ -79,9 +79,6 @@ export type BuildArea = {
 };
 
 export type DesignMetadata = {
-  /** The company the system is being designed for. Blank when not given. */
-  companyName: string;
-  systemName: string;
   /**
    * The room this system is built in and around: per-floor height and a
    * footprint centered in the fixed build area (`BUILD_AREA`). What the

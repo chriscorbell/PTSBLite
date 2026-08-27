@@ -3,9 +3,6 @@ import { reconstructDesign } from "@/domain/design-reconstruction";
 import { clampRoom } from "@/domain/floors";
 import type { DesignMetadata, DesignState, Scene } from "@/types";
 
-export const DEFAULT_SYSTEM_NAME = "Untitled system";
-export const DEFAULT_COMPANY_NAME = "";
-
 /** `p` for a part, `o` for an obstacle. Both are grid occupants. */
 export type OccupantPrefix = "p" | "o";
 
@@ -39,8 +36,6 @@ export function newOccupantId(
 function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
   const multiFloor = meta?.multiFloor ?? false;
   return {
-    companyName: meta?.companyName ?? DEFAULT_COMPANY_NAME,
-    systemName: meta?.systemName ?? DEFAULT_SYSTEM_NAME,
     room: clampRoom(meta?.room, multiFloor),
     multiFloor,
     plenumHeightFeet: meta?.plenumHeightFeet ?? null

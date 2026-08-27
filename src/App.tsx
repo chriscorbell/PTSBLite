@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ActiveToolBar } from "@/components/ActiveToolBar";
 import { BomExportFooter } from "@/components/BomExportFooter";
-import { SystemDetailsModal } from "@/components/SystemDetailsModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LeftRail } from "@/components/LeftRail";
 import { RightPanel } from "@/components/RightPanel";
@@ -17,12 +16,7 @@ import {
   UNREADABLE_SESSION_MESSAGE
 } from "@/domain/session-autosave";
 import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
-import {
-  DEFAULT_SYSTEM_NAME,
-  designFromScene,
-  emptyDesign,
-  newOccupantId
-} from "@/domain/design-state";
+import { designFromScene, emptyDesign, newOccupantId } from "@/domain/design-state";
 import {
   roomRect,
   roomWalls,
@@ -49,15 +43,7 @@ import { openPortMarkers } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
 import { Viewport } from "@/renderer/Viewport";
-import type {
-  AutoBuildSummary,
-  DesignMetadata,
-  DesignState,
-  Hint,
-  Scene,
-  ToolId,
-  Vec3
-} from "@/types";
+import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
 
 const STARTER_HINT: Hint = {
   title: "Start by placing a blower",
@@ -71,13 +57,7 @@ const KEY_TOOL_MAP: Record<string, ToolId> = {
 };
 
 const PRODUCT_NAME = "PTSBLite";
-const DESIGN_METADATA = { systemName: DEFAULT_SYSTEM_NAME };
-
-/** "Acme: Main Loop", or just the system name when no company was given. */
-function documentLabelFor(metadata: DesignMetadata): string {
-  const company = metadata.companyName.trim();
-  return company === "" ? metadata.systemName : `${company}: ${metadata.systemName}`;
-}
+const DESIGN_METADATA = {};
 
 /**
  * How long to wait after a change before autosaving.
@@ -133,7 +113,6 @@ export default function App({ platform }: AppProps) {
     (metadata) => initDesignHistory(emptyDesign(metadata))
   );
   const design = history.present;
-  const documentLabel = documentLabelFor(design.metadata);
   // The volume placement and the viewport work in: the fixed build area,
   // never the room — parts may be placed outside the room (ADR-0017).
   const buildArea = BUILD_AREA;
@@ -177,7 +156,6 @@ export default function App({ platform }: AppProps) {
   const [autoBuilding, setAutoBuilding] = useState(false);
   const [autoBuildJustRan, setAutoBuildJustRan] = useState(false);
   const [autoBuildSummary, setAutoBuildSummary] = useState<AutoBuildSummary | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [errorFlash, setErrorFlashRaw] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -399,7 +377,7 @@ export default function App({ platform }: AppProps) {
   const exportBom = useCallback(async () => {
     try {
       const bytes = await generateBomPdf(design, { productName: PRODUCT_NAME });
-      const result = await platform.savePdf(bytes, bomFilename(design));
+      const result = await platform.savePdf(bytes, bomFilename());
       setExportError(result.error ? `Export failed: ${result.error}` : null);
     } catch (err) {
       setExportError(`Export failed: ${String(err)}`);
@@ -485,22 +463,6 @@ export default function App({ platform }: AppProps) {
     commitDesign(result.design);
     setErrorFlash(unroutedMessage(result.unroutedPairs));
   }, [commitDesign, design, selectTool, setErrorFlash]);
-
-  /** Rename the design. Undoable, like any other edit to it. */
-  const saveDetails = useCallback(
-    (names: { companyName: string; systemName: string }) => {
-      setDetailsOpen(false);
-      const { companyName, systemName } = design.metadata;
-      if (names.companyName === companyName && names.systemName === systemName) return;
-      commitDesign(
-        designFromScene(
-          { parts: design.parts, obstacles: design.obstacles },
-          { ...design.metadata, ...names }
-        )
-      );
-    },
-    [commitDesign, design]
-  );
 
   const resetActiveInteraction = useCallback(() => {
     selectTool("cursor");
@@ -603,8 +565,6 @@ export default function App({ platform }: AppProps) {
     <div className="app-shell">
       <TopBar
         onNew={handleNew}
-        documentLabel={documentLabel}
-        onEditDocument={() => setDetailsOpen(true)}
         productName={PRODUCT_NAME}
         onUndo={undo}
         onRedo={redo}
@@ -675,14 +635,6 @@ export default function App({ platform }: AppProps) {
         onAutoBuild={() => void runAutoBuild()}
         autoBuilding={autoBuilding}
       />
-      {detailsOpen && (
-        <SystemDetailsModal
-          companyName={design.metadata.companyName}
-          systemName={design.metadata.systemName}
-          onSave={saveDetails}
-          onClose={() => setDetailsOpen(false)}
-        />
-      )}
       {welcome && (
         <WelcomeScreen
           stored={welcome.stored}
@@ -708,11 +660,11 @@ export default function App({ platform }: AppProps) {
   );
 }
 
-/** "BOM_MAIN_LOOP.pdf" from a design named "Main Loop". */
-function bomFilename(design: DesignState): string {
-  const base = design.metadata.systemName
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^A-Za-z0-9]+/g, "_")
-    .toUpperCase();
-  return `BOM_${base || "UNTITLED"}.pdf`;
+/**
+ * What the exported BOM is called. A constant now that designs carry no name:
+ * the room's dimensions are the only thing that distinguishes one from
+ * another, and they belong in the document rather than the filename.
+ */
+function bomFilename(): string {
+  return "BOM.pdf";
 }

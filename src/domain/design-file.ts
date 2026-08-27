@@ -1,4 +1,3 @@
-import { DEFAULT_COMPANY_NAME, DEFAULT_SYSTEM_NAME } from "@/domain/design-state";
 import { clampRoom } from "@/domain/floors";
 import { reconstructDesign } from "@/domain/design-reconstruction";
 import type {
@@ -119,11 +118,6 @@ function parseMetadata(
   return {
     ok: true,
     metadata: {
-      // Names are forgiving like every other metadata field below. `filename`
-      // is what the system name was called before the company name joined it,
-      // and is still read so designs saved under the old key keep their name.
-      companyName: typeof value.companyName === "string" ? value.companyName : DEFAULT_COMPANY_NAME,
-      systemName: parseName(value.systemName) ?? parseName(value.filename) ?? DEFAULT_SYSTEM_NAME,
       // `buildArea` is what the room was called when it was the whole build
       // area; still read so stored designs keep their dimensions. A malformed
       // or missing room falls back to the default, clamped like any other.
@@ -139,11 +133,6 @@ function parseMetadata(
           : null
     }
   };
-}
-
-/** A stored name, or null when absent or blank so a fallback can take over. */
-function parseName(value: unknown): string | null {
-  return typeof value === "string" && value.trim() !== "" ? value : null;
 }
 
 function parseDims(value: unknown): Partial<BuildArea> | undefined {

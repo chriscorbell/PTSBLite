@@ -65,7 +65,7 @@ the build area, inside the room or out.
 **Room** — the space a design is built in and around: per-floor `height` and a `width` × `depth`
 footprint (the form labels `depth` **Length**; the code keeps `depth`), centered in the build area
 (`roomRect`). Stored as `metadata.room`; `metadata.buildArea` is the pre-rename key, still read on
-restore. Its floor draws brighter than the ground outside, and it is ringed by 1 ft **penetrable
+restore. It is the only thing that identifies one design from another — designs carry no name. Its floor draws brighter than the ground outside, and it is ringed by 1 ft **penetrable
 walls** (`roomWalls`) rising its full height — faintly translucent slabs in the floor separator's
 material, and, like penetrable obstacles, claiming no grid cells, so tubes pass through and
 nothing collides (ADR-0016). Hatch stays the mark of a placed obstacle; the room's structure
@@ -86,12 +86,6 @@ spanning the room's footprint — outside the room there is no drop ceiling to b
 per-floor height includes it. Drawn as a tinted band via `plenumBands`, and fully buildable — it
 restricts nothing. Auto-Build prefers carrying horizontal runs and bends inside it, and gives no
 such credit outside the room.
-
-**Company name / System name** — who a design is for, and what it is called. Both collected on the
-welcome screen, both editable afterwards from the top-bar label, which shows them as
-`Company: System` (or the system name alone when no company was given). The system name is the one
-the exported PDF is named from; company is optional and is simply omitted where it is blank.
-*Avoid:* "filename" — the pre-rename key for `systemName`, still read when restoring.
 
 **Ground plane** — `Y = 0`. Nothing may occupy a cell below it.
 

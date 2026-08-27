@@ -70,8 +70,10 @@ and plenum answers, are collected on the welcome screen and cannot be changed af
 one means starting a new design. `DesignMetadata` would hold an edit fine; what was deliberately
 removed is the UI and the resize path that dropped parts no longer fitting a shrunken area.
 
-The names are the exception, because nothing is placed relative to them: company and system name
-are collected on the same form and can be changed at any time from the top-bar label.
+**A design has no name.** No company name, no system name, no title anywhere — the room's
+dimensions are the only thing distinguishing one design from another, and the exported BOM is
+always `BOM.pdf`. Naming was built and then removed at the client's request; `DesignMetadata`
+would hold it fine, so this is a product decision rather than a limitation of the model.
 
 **No revision or version on a design.** `DesignMetadata` carried a `revision` string that printed
 on the PDF, but nothing could ever set it, so every export claimed "Revision 0.1". Tracking which

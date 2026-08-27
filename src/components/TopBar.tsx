@@ -4,9 +4,6 @@ import { Icons } from "@/components/Icons";
 
 export type TopBarProps = {
   onNew: () => void;
-  /** Shown beside the File menu; click to edit the names it is built from. */
-  documentLabel?: string;
-  onEditDocument: () => void;
   /** The product name shown in the brand slot. */
   productName: string;
   onUndo: () => void;
@@ -19,8 +16,6 @@ export type TopBarProps = {
 
 export function TopBar({
   onNew,
-  documentLabel,
-  onEditDocument,
   productName,
   onUndo,
   onRedo,
@@ -33,15 +28,6 @@ export function TopBar({
     <div className="topbar nosel">
       <div className="topbar__brand">{productName}</div>
       <FileMenu onNew={onNew} />
-      {documentLabel && (
-        <button
-          className="topbar__document topbar-no-drag nosel"
-          title="Edit system details"
-          onClick={onEditDocument}
-        >
-          {documentLabel}
-        </button>
-      )}
       <button
         className="topbtn icon topbar-no-drag"
         title="Undo (⌘Z)"

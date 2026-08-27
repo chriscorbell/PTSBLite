@@ -26,15 +26,12 @@ export function RightPanel({ open, onClose, design, footer }: RightPanelProps) {
         </button>
       </div>
       <div className="bom__meta">
-        {design.metadata.companyName.trim() !== "" && (
-          <div className="bom__meta-row">
-            <span>Company:</span>
-            <span className="bom__meta-value">{design.metadata.companyName}</span>
-          </div>
-        )}
         <div className="bom__meta-row">
-          <span>System:</span>
-          <span className="bom__meta-value">{design.metadata.systemName}</span>
+          <span>Room:</span>
+          <span className="bom__meta-value">
+            {design.metadata.room.width} × {design.metadata.room.depth} ×{" "}
+            {design.metadata.room.height} ft
+          </span>
         </div>
         <div className="bom__meta-row">
           <span>Path length:</span>

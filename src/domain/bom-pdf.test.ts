@@ -42,18 +42,15 @@ describe("generateBomPdf", () => {
     }
   });
 
-  it("carries the design's own identity", async () => {
+  it("carries the design's own dimensions", async () => {
+    // Designs have no name, so the room is what identifies one document from
+    // another; it has to survive onto the page.
     const design = designWith(sampleParts);
+    design.metadata = { ...design.metadata, room: { width: 44, depth: 22, height: 11 } };
     const text = extractText(await generateBomPdf(design));
-    expect(text).toContain(design.metadata.systemName);
-  });
-
-  it("names the company the system is for, when one was given", async () => {
-    const design = designWith(sampleParts);
-    design.metadata = { ...design.metadata, companyName: "Acme Health", systemName: "West Wing" };
-    const text = extractText(await generateBomPdf(design));
-    expect(text).toContain("Acme Health");
-    expect(text).toContain("West Wing");
+    expect(text).toContain("44");
+    expect(text).toContain("22");
+    expect(text).toContain("11");
   });
 
   it("names the product that generated it", async () => {
