@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
 import "@/components/TopBar.css";
 import { Icons } from "@/components/Icons";
 
@@ -10,8 +9,10 @@ export type TopBarProps = {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  bomOpen: boolean;
-  onToggleBom: () => void;
+  /** Routes the open ports. Anchored here rather than in the status bar,
+   * where the BOM now sits — the client asked for the two to trade places. */
+  onAutoBuild: () => void;
+  autoBuilding: boolean;
 };
 
 export function TopBar({
@@ -21,13 +22,17 @@ export function TopBar({
   onRedo,
   canUndo,
   canRedo,
-  bomOpen,
-  onToggleBom
+  onAutoBuild,
+  autoBuilding
 }: TopBarProps) {
   return (
     <div className="topbar nosel">
       <div className="topbar__brand">{productName}</div>
-      <FileMenu onNew={onNew} />
+      {/* "New" rather than a File menu that only ever held it: a menu with one
+          item is a click in front of the thing it contains. */}
+      <button className="topbtn topbar-no-drag" onClick={onNew}>
+        <Icons.New size={16} /> New
+      </button>
       <button
         className="topbtn icon topbar-no-drag"
         title="Undo (⌘Z)"
@@ -35,7 +40,7 @@ export function TopBar({
         onClick={onUndo}
         disabled={!canUndo}
       >
-        <Icons.Undo size={15} />
+        <Icons.Undo size={18} />
       </button>
       <button
         className="topbtn icon topbar-no-drag"
@@ -44,79 +49,17 @@ export function TopBar({
         onClick={onRedo}
         disabled={!canRedo}
       >
-        <Icons.Redo size={15} />
+        <Icons.Redo size={18} />
       </button>
       <div className="topbar__spacer" />
       <button
-        className={"topbtn topbar-no-drag" + (bomOpen ? " active" : "")}
-        title={bomOpen ? "Hide BOM" : "Show BOM"}
-        onClick={onToggleBom}
-        aria-pressed={bomOpen}
+        type="button"
+        className="topbtn accent topbar-no-drag"
+        onClick={onAutoBuild}
+        disabled={autoBuilding}
       >
-        <Icons.Bom size={14} /> BOM
+        <Icons.Auto size={16} /> {autoBuilding ? "Routing…" : "Auto-Build"}
       </button>
     </div>
-  );
-}
-
-function FileMenu({ onNew }: { onNew: () => void }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  const choose = (fn: () => void) => {
-    setOpen(false);
-    fn();
-  };
-
-  return (
-    <div ref={rootRef} className="topbar-menu">
-      <button
-        className={"topbtn topbar-no-drag" + (open ? " active" : "")}
-        aria-haspopup="true"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-      >
-        File {open ? <Icons.ChevU size={12} /> : <Icons.ChevD size={12} />}
-      </button>
-      {open && (
-        <div role="menu" className="topbar-menu__panel topbar-menu__panel--file topbar-no-drag">
-          <MenuItem onSelect={() => choose(onNew)} icon={<Icons.New size={14} />} label="New" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MenuItem({
-  onSelect,
-  icon,
-  label
-}: {
-  onSelect: () => void;
-  icon?: ReactNode;
-  label: string;
-}) {
-  return (
-    <button className="filemenu-item topbar-no-drag" role="menuitem" onClick={onSelect}>
-      {icon}
-      {label}
-    </button>
   );
 }

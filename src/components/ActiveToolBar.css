@@ -1,13 +1,13 @@
 .active-tool-bar {
   position: absolute;
-  bottom: 12px;
+  bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(11, 14, 19, 0.92);
   border: 1px solid var(--line-2);
   border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 12px;
+  padding: 9px 18px;
+  font-size: 14px;
   color: var(--text);
   display: flex;
   gap: 12px;
@@ -20,8 +20,8 @@
 }
 
 .active-tool-bar__dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--accent);
 }
@@ -55,8 +55,8 @@
 
 .active-tool-bar kbd {
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  padding: 1px 6px;
+  font-size: 12px;
+  padding: 2px 7px;
   border-radius: 3px;
   border: 1px solid var(--line-2);
   background: var(--panel-2);

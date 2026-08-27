@@ -106,7 +106,7 @@ describe("picking up where you left off", () => {
     await renderApp();
 
     fireEvent.click(screen.getByRole("button", { name: "New design" }));
-    fireEvent.click(screen.getByRole("button", { name: "Keep saved design" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep current design" }));
 
     // Backing out returns to the choice, with the saved design untouched.
     expect(screen.getByRole("dialog", { name: /Welcome back/ })).toBeTruthy();
@@ -305,8 +305,7 @@ describe("the welcome setup form", () => {
     await renderApp();
     createFirstDesign();
 
-    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "New" }));
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
 
     expect(screen.getByRole("dialog", { name: /New design/ })).toBeTruthy();
     expect(

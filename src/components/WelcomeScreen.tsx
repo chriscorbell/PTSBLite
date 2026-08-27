@@ -100,13 +100,10 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
             </span>
             <div className="modal__title">Start a new design?</div>
           </div>
-          <div className="welcome__message">
-            The design saved in this browser will be replaced once the new one is created. There is
-            no way to get it back.
-          </div>
+          <div className="welcome__message">Your current design will be lost.</div>
           <div className="modal__actions">
             <button className="topbtn" autoFocus onClick={() => setStage("choice")}>
-              Keep saved design
+              Keep current design
             </button>
             <button className="topbtn danger" onClick={() => setStage("setup")}>
               Start new design

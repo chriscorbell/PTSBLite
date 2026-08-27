@@ -157,6 +157,7 @@ export default function App({ platform }: AppProps) {
     title: string;
     message: string;
     confirmLabel: string;
+    cancelLabel?: string;
     onConfirm: () => void;
   } | null>(null);
   const [autoBuilding, setAutoBuilding] = useState(false);
@@ -410,8 +411,9 @@ export default function App({ platform }: AppProps) {
     }
     setConfirm({
       title: "Start a new design?",
-      message: "This replaces the design currently stored in this browser.",
+      message: "Your current design will be lost.",
       confirmLabel: "Start new design",
+      cancelLabel: "Keep current design",
       onConfirm: startNew
     });
   }, [design]);
@@ -588,8 +590,8 @@ export default function App({ platform }: AppProps) {
         onRedo={redo}
         canUndo={undoAvailable}
         canRedo={redoAvailable}
-        bomOpen={rightOpen}
-        onToggleBom={() => setRightOpen((o) => !o)}
+        onAutoBuild={() => void runAutoBuild()}
+        autoBuilding={autoBuilding}
       />
       <div className="app-main">
         <LeftRail
@@ -653,8 +655,8 @@ export default function App({ platform }: AppProps) {
         warnings={warnings}
         expanded={statusOpen}
         onToggle={() => setStatusOpen((s) => !s)}
-        onAutoBuild={() => void runAutoBuild()}
-        autoBuilding={autoBuilding}
+        bomOpen={rightOpen}
+        onToggleBom={() => setRightOpen((o) => !o)}
       />
       {welcome && (
         <WelcomeScreen
@@ -669,6 +671,7 @@ export default function App({ platform }: AppProps) {
           title={confirm.title}
           message={confirm.message}
           confirmLabel={confirm.confirmLabel}
+          cancelLabel={confirm.cancelLabel}
           danger
           onConfirm={() => {
             confirm.onConfirm();
