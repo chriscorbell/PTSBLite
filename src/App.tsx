@@ -48,6 +48,7 @@ import {
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
 import { Viewport } from "@/renderer/Viewport";
+import type { CameraView } from "@/renderer/camera-views";
 import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
 
 const STARTER_HINT: Hint = {
@@ -151,6 +152,10 @@ export default function App({ platform }: AppProps) {
   );
   const [exportError, setExportError] = useState<string | null>(null);
   const [finalizeOpen, setFinalizeOpen] = useState(false);
+  // The View menu's two settings: which angle the camera was last sent to, and
+  // whether height markers stay on rather than following the armed tool.
+  const [cameraView, setCameraView] = useState<CameraView | null>(null);
+  const [markersPinned, setMarkersPinned] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [confirm, setConfirm] = useState<{
     title: string;
@@ -584,7 +589,7 @@ export default function App({ platform }: AppProps) {
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
   // Heights are labelled only while a placement tool is armed: they answer the
   // question elevation raises, and would be clutter the rest of the time.
-  const markersOn = heightMarkersVisible(tool);
+  const markersOn = heightMarkersVisible(tool, markersPinned);
   const markers = useMemo(() => (markersOn ? heightMarkers(design) : []), [markersOn, design]);
   // Memoized for identity: the viewport rebuilds its ground group when this
   // prop changes, and the bands only actually change with the metadata.
@@ -614,6 +619,9 @@ export default function App({ platform }: AppProps) {
         canRedo={redoAvailable}
         onAutoBuild={() => void runAutoBuild()}
         autoBuilding={autoBuilding}
+        onView={(next) => setCameraView(next && { ...next })}
+        markersPinned={markersPinned}
+        onToggleMarkers={() => setMarkersPinned((on) => !on)}
       />
       <div className="app-main">
         <LeftRail
@@ -646,6 +654,7 @@ export default function App({ platform }: AppProps) {
             roomRect={room}
             roomWalls={walls}
             portMarkers={portMarkers}
+            view={cameraView}
           />
           <ViewportHUD
             scene={viewportScene}

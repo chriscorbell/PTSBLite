@@ -21,6 +21,12 @@ describe("when height markers show", () => {
     expect(heightMarkersVisible("cursor")).toBe(false);
     expect(heightMarkersVisible("erase")).toBe(false);
   });
+
+  it("shows them for any tool once the View menu pins them on", () => {
+    // The client asked for the automatic behaviour *and* a manual override.
+    expect(heightMarkersVisible("cursor", true)).toBe(true);
+    expect(heightMarkersVisible("erase", true)).toBe(true);
+  });
 });
 
 describe("heightMarkers", () => {

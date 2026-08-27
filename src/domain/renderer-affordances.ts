@@ -58,8 +58,13 @@ const ELEVATION_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>([
   "obstacle"
 ]);
 
-export function heightMarkersVisible(tool: ToolId): boolean {
-  return ELEVATION_TOOLS.has(tool);
+/**
+ * `always` is the View menu's override, which the client asked for alongside
+ * the automatic behaviour: "it could auto toggle on when you are elevating
+ * something [...] then we could add a view icon for manual on/off".
+ */
+export function heightMarkersVisible(tool: ToolId, always = false): boolean {
+  return always || ELEVATION_TOOLS.has(tool);
 }
 
 /**
