@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts } from "pdf-lib";
+import { PDFDocument, StandardFonts, type PDFPage } from "pdf-lib";
 import { bomRows, totalPathLength } from "@/domain/parts";
 import {
   DIM,
@@ -16,12 +16,27 @@ import {
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { DesignState } from "@/types";
 
+/** One rendered view of the design, as JPEG bytes, with the angle it was taken from. */
+export type BomPdfView = { label: string; jpeg: Uint8Array };
+
 export type BomPdfOptions = {
   /** Defaults to today. */
   date?: string;
   /** Named on the document, so a reader knows which tool produced it. */
   productName?: string;
+  /**
+   * Pictures of the system to append after the parts list. The client asked
+   * for these so the document says what was built and not only what it is made
+   * of. Empty, and the document is the parts list alone.
+   */
+  views?: BomPdfView[];
 };
+
+/** How wide a view is drawn, centred, with room for two on a page. */
+const VIEW_WIDTH = 460;
+const VIEW_GAP = 26;
+const VIEW_LABEL_GAP = 22;
+const VIEWS_PER_PAGE = 2;
 
 /**
  * Render a design's bill of materials to PDF bytes.
@@ -112,5 +127,31 @@ export async function generateBomPdf(
     color: MUT
   });
 
+  await drawViewPages(doc, p, options.views ?? []);
+
   return await doc.save({ useObjectStreams: false });
+}
+
+/**
+ * The pictures of the system, two to a page after the parts list.
+ *
+ * Each is captioned with the angle it was taken from, which is what makes a
+ * page of five near-identical shaded boxes navigable — and the captions match
+ * the View menu, so a reader can put the model on screen in the same pose.
+ */
+async function drawViewPages(doc: PDFDocument, p: Painter, views: BomPdfView[]): Promise<void> {
+  const x = (PAGE_WIDTH - VIEW_WIDTH) / 2;
+  for (let i = 0; i < views.length; i += VIEWS_PER_PAGE) {
+    const page: PDFPage = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    const painter: Painter = { ...p, page };
+    let y = PAGE_HEIGHT - MARGIN_TOP;
+    for (const view of views.slice(i, i + VIEWS_PER_PAGE)) {
+      const image = await doc.embedJpg(view.jpeg);
+      const height = (image.height / image.width) * VIEW_WIDTH;
+      drawText(painter, view.label, x, y - 9, { size: 9, color: MUT });
+      y -= VIEW_LABEL_GAP;
+      page.drawImage(image, { x, y: y - height, width: VIEW_WIDTH, height });
+      y -= height + VIEW_GAP;
+    }
+  }
 }

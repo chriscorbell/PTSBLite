@@ -38,7 +38,7 @@ import {
   VP
 } from "@/renderer/three-utils";
 import { type PlenumBand, type RoomRect } from "@/domain/floors";
-import type { CameraView } from "@/renderer/camera-views";
+import { STANDARD_VIEWS, type CameraView } from "@/renderer/camera-views";
 import type { FloorShadow, HeightMarker } from "@/domain/renderer-affordances";
 import { type PortMarker } from "@/domain/renderer-affordances";
 import { BUILD_AREA } from "@/domain/sparse-grid";
@@ -157,6 +157,31 @@ export function openingCameraDistance(area: CameraFootprint): number {
   return Math.max(MIN_CAMERA_DISTANCE, Math.min(maxCameraDistance(BUILD_AREA), proportional));
 }
 
+/**
+ * One rendered view of the design, as JPEG bytes.
+ *
+ * JPEG rather than PNG because these are photographs of a shaded scene, where
+ * the format costs a fraction of the bytes for no visible difference, and
+ * because `pdf-lib` embeds it directly.
+ */
+export type ViewportShot = { label: string; jpeg: Uint8Array };
+
+/** The pixel size each shot is rendered at, independent of the window. */
+const SHOT_WIDTH = 1280;
+const SHOT_HEIGHT = 800;
+const SHOT_QUALITY = 0.85;
+
+/**
+ * How far back a shot stands off the design.
+ *
+ * Fitting a bounding sphere of radius R into a vertical field of view f needs
+ * `R / sin(f / 2)`; the rest is margin, so nothing touches the edge of the
+ * picture. Shots frame the design rather than reusing wherever the visitor has
+ * the camera — the document should show the whole system however the screen
+ * happens to be pointed when the PDF is asked for.
+ */
+const SHOT_FIT_MARGIN = 1.15;
+
 type ViewportState = {
   renderer?: THREE.WebGLRenderer;
   scene3?: THREE.Scene;
@@ -176,6 +201,10 @@ type ViewportState = {
   maxDistance?: number;
   /** Re-sizes every height marker for the current camera distance. */
   syncMarkers?: () => void;
+  /** Renders the design from each standard angle. See `captureRef`. */
+  capture?: () => ViewportShot[];
+  /** The room's footprint at ground level, which every shot is framed to include. */
+  roomBounds?: THREE.Box3 | null;
   cleanup?: () => void;
 };
 
@@ -220,6 +249,15 @@ export type ViewportProps = {
    */
   focusY?: number;
   /**
+   * Filled in with a function that renders the design from every standard
+   * angle and hands back the pictures, for the exported PDF.
+   *
+   * A ref rather than a callback prop because this is something the viewport
+   * can be *asked to do*, not something it reports: nothing about the scene has
+   * changed when it is called, and the caller wants an answer back.
+   */
+  captureRef?: { current: (() => ViewportShot[]) | null };
+  /**
    * A named angle to point the camera at, or null for the opening framing.
    * A fresh object each time one is chosen, so picking the same view twice
    * re-applies it rather than silently doing nothing.
@@ -246,7 +284,8 @@ export function Viewport({
   roomRect = null,
   roomWalls = [],
   focusY = 0,
-  view = null
+  view = null,
+  captureRef
 }: ViewportProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<ViewportState>({});
@@ -267,6 +306,16 @@ export function Viewport({
   useEffect(() => {
     callbacksRef.current = { onPlace, onHover };
   }, [onPlace, onHover]);
+
+  // Published after the renderer exists, and taken back when it stops: a stale
+  // capture would draw into a canvas that is no longer on the page.
+  useEffect(() => {
+    if (!captureRef) return;
+    captureRef.current = () => stateRef.current.capture?.() ?? [];
+    return () => {
+      captureRef.current = null;
+    };
+  }, [captureRef]);
 
   // Snapping to a view turns the camera without moving it in or out: the zoom
   // is where the visitor put it, and a preset that reframed as well would
@@ -345,7 +394,8 @@ export function Viewport({
       ghostGroup.traverse(apply);
     }
 
-    function applyCamera() {
+    /** Put the camera where `cam` says, without asking for a frame. */
+    function positionCamera() {
       const r = cam.distance;
       camera.position.set(
         cam.target.x + r * Math.cos(cam.pitch) * Math.sin(cam.yaw),
@@ -353,6 +403,10 @@ export function Viewport({
         cam.target.z + r * Math.cos(cam.pitch) * Math.cos(cam.yaw)
       );
       camera.lookAt(cam.target);
+    }
+
+    function applyCamera() {
+      positionCamera();
       requestRender();
     }
     applyCamera();
@@ -393,6 +447,81 @@ export function Viewport({
     hoverPlane.rotation.x = -Math.PI / 2;
     scene3.add(hoverPlane);
 
+    /**
+     * Render the design from each standard angle and hand back the pictures.
+     *
+     * Everything transient is hidden first — the ghost, the port glows, the
+     * landing highlights and shadows, the height markers. What is on screen
+     * depends on which tool happens to be armed when the visitor asks for a
+     * PDF, and a document whose pictures change with that would be a poor
+     * record of the design.
+     *
+     * `toDataURL` is read in the same synchronous turn as the render it
+     * follows: the drawing buffer is not preserved between frames, so anything
+     * that let the browser present first would read back a cleared canvas.
+     */
+    function capture(): ViewportShot[] {
+      const transient = [ghostGroup, portsGroup, overlayGroup, planeGroup];
+      const wasVisible = transient.map((group) => group.visible);
+      const size = renderer.getSize(new THREE.Vector2());
+      const before = {
+        yaw: cam.yaw,
+        pitch: cam.pitch,
+        distance: cam.distance,
+        target: cam.target.clone(),
+        aspect: camera.aspect
+      };
+
+      // Frame the design and the room it is in, ignoring the ground, which
+      // spans the whole 300 ft build area and would shrink any room to a speck
+      // in the middle of it. The room is included so the five views are
+      // comparable — framing the parts alone gives every design a different
+      // scale, and a design with one blower an extreme close-up of it.
+      const bounds = new THREE.Box3();
+      bounds.expandByObject(partsGroup);
+      bounds.expandByObject(obstaclesGroup);
+      const room = stateRef.current.roomBounds;
+      if (room) bounds.union(room);
+      const sphere = bounds.isEmpty() ? null : bounds.getBoundingSphere(new THREE.Sphere());
+
+      try {
+        for (const group of transient) group.visible = false;
+        renderer.setSize(SHOT_WIDTH, SHOT_HEIGHT, false);
+        updateLineResolutions(scene3, SHOT_WIDTH, SHOT_HEIGHT);
+        camera.aspect = SHOT_WIDTH / SHOT_HEIGHT;
+        if (sphere) {
+          cam.target.copy(sphere.center);
+          cam.distance = Math.max(
+            MIN_CAMERA_DISTANCE,
+            (sphere.radius / Math.sin((CAMERA_FOV_DEG * Math.PI) / 360)) * SHOT_FIT_MARGIN
+          );
+        }
+
+        return STANDARD_VIEWS.map((standardView) => {
+          cam.yaw = standardView.yaw;
+          cam.pitch = standardView.pitch;
+          positionCamera();
+          camera.updateProjectionMatrix();
+          renderer.render(scene3, camera);
+          return {
+            label: standardView.label,
+            jpeg: jpegBytes(renderer.domElement.toDataURL("image/jpeg", SHOT_QUALITY))
+          };
+        });
+      } finally {
+        transient.forEach((group, i) => (group.visible = wasVisible[i]));
+        renderer.setSize(size.x, size.y, false);
+        updateLineResolutions(scene3, size.x, size.y);
+        camera.aspect = before.aspect;
+        camera.updateProjectionMatrix();
+        cam.yaw = before.yaw;
+        cam.pitch = before.pitch;
+        cam.distance = before.distance;
+        cam.target.copy(before.target);
+        applyCamera();
+      }
+    }
+
     stateRef.current = {
       renderer,
       scene3,
@@ -407,7 +536,8 @@ export function Viewport({
       portsGroup,
       hoverPlane,
       requestRender,
-      syncMarkers
+      syncMarkers,
+      capture
     };
 
     let drag = createViewportDragState();
@@ -625,6 +755,12 @@ export function Viewport({
     }
     s.scene3.add(ground);
     s.groundGroup = ground;
+    s.roomBounds = roomRect
+      ? new THREE.Box3(
+          new THREE.Vector3(roomRect.xMin, 0, roomRect.zMin),
+          new THREE.Vector3(roomRect.xMax, 0, roomRect.zMax)
+        )
+      : null;
 
     // The camera's reach belongs to the volume it is looking at, so it is set
     // here rather than where the camera is built — that effect deliberately
@@ -761,4 +897,12 @@ export function Viewport({
       onContextMenu={(e) => e.preventDefault()}
     />
   );
+}
+
+/** A `data:` URL's payload as bytes, which is what `pdf-lib` embeds. */
+function jpegBytes(dataUrl: string): Uint8Array {
+  const binary = atob(dataUrl.slice(dataUrl.indexOf(",") + 1));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }

@@ -47,7 +47,7 @@ import {
 } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
-import { Viewport } from "@/renderer/Viewport";
+import { Viewport, type ViewportShot } from "@/renderer/Viewport";
 import type { CameraView } from "@/renderer/camera-views";
 import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
 
@@ -169,6 +169,9 @@ export default function App({ platform }: AppProps) {
   const [autoBuildSummary, setAutoBuildSummary] = useState<AutoBuildSummary | null>(null);
   const [errorFlash, setErrorFlashRaw] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Filled in by the viewport. Null until it has a renderer, and again once it
+  // does not — a browser without WebGL exports the parts list on its own.
+  const captureRef = useRef<(() => ViewportShot[]) | null>(null);
 
   const selectTool = useCallback((next: ToolId) => {
     dispatchPlacement({ type: "select-tool", tool: next });
@@ -405,7 +408,10 @@ export default function App({ platform }: AppProps) {
 
   const exportBom = useCallback(async () => {
     try {
-      const bytes = await generateBomPdf(design, { productName: PRODUCT_NAME });
+      // Taken now rather than held from earlier: the design on screen when the
+      // PDF is asked for is the one the document should show.
+      const views = captureRef.current?.() ?? [];
+      const bytes = await generateBomPdf(design, { productName: PRODUCT_NAME, views });
       const result = await platform.savePdf(bytes, bomFilename());
       setExportError(result.error ? `Export failed: ${result.error}` : null);
     } catch (err) {
@@ -655,6 +661,7 @@ export default function App({ platform }: AppProps) {
             roomWalls={walls}
             portMarkers={portMarkers}
             view={cameraView}
+            captureRef={captureRef}
           />
           <ViewportHUD
             scene={viewportScene}

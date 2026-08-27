@@ -78,3 +78,39 @@ describe("generateBomPdf", () => {
     expect(text).toContain("no parts yet");
   });
 });
+
+describe("the views appended to a BOM", () => {
+  /**
+   * A 1x1 JPEG. Small enough to inline, and real enough that `embedJpg` parses
+   * it — the point of the test is that a view reaches the document at all.
+   */
+  const TINY_JPEG =
+    "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a" +
+    "HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA" +
+    "AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==";
+
+  function shot(label: string) {
+    return { label, jpeg: Uint8Array.from(atob(TINY_JPEG), (c) => c.charCodeAt(0)) };
+  }
+
+  it("adds a page for every two views, after the parts list", async () => {
+    const design = designWith(sampleParts);
+    const plain = await PDFDocument.load(await generateBomPdf(design));
+    const withViews = await PDFDocument.load(
+      await generateBomPdf(design, {
+        views: [shot("North-west"), shot("North-east"), shot("Top-down")]
+      })
+    );
+    expect(plain.getPageCount()).toBe(1);
+    expect(withViews.getPageCount()).toBe(3);
+  });
+
+  it("captions each view with the angle it was taken from", async () => {
+    const bytes = await generateBomPdf(designWith(sampleParts), {
+      views: [shot("North-west"), shot("Top-down")]
+    });
+    const text = extractText(Buffer.from(bytes));
+    expect(text).toContain("North-west");
+    expect(text).toContain("Top-down");
+  });
+});
