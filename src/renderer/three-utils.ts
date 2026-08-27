@@ -83,7 +83,12 @@ export type ResourceNode = THREE.Object3D & {
 export function disposeObject(object: THREE.Object3D): void {
   object.traverse((node) => {
     const { geometry, material } = node as ResourceNode;
-    geometry?.dispose();
+    // Every THREE.Sprite shares one static geometry owned by three.js, so
+    // disposing it here deletes the GPU buffer for sprites that have nothing
+    // to do with this object — including ones created later, which then build
+    // correctly and silently render nothing. Their material and texture are
+    // per-sprite and still ours to release.
+    if (!(node as THREE.Sprite).isSprite) geometry?.dispose();
     if (Array.isArray(material)) {
       for (const single of material) disposeMaterial(single);
     } else if (material) {

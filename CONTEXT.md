@@ -112,8 +112,14 @@ and bends in the plenum when the design has one.
 the count of 6 ft sections to purchase (`ceil(total tube feet / 6)`), distinct from the tube *parts*
 placed in the design.
 
+**Height marker** — a label reading a height in feet, drawn beside the thing it belongs to:
+every placed part, each plenum's drop ceiling, and a two-floor room's slab, plus the height the
+armed tool would place at (in the accent colour). Shown only while a placement tool is armed —
+`heightMarkersVisible` — since that is when elevation is the question on screen. Replaced a
+translucent plane that showed *where* the placement height was without saying what it was.
+
 **Elevation** — the Y level of the active placement plane, moved with `[` / `]` and shown beside
-the armed tool. Above the ground it is drawn as an accent-tinted plane in the viewport. In a
+the armed tool. In a
 two-floor design, the floor selector (or `1` / `2`) jumps it to a floor's base.
 
 **Free placement** — placement that does not require snapping to an open port (blower, and

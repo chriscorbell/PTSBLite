@@ -39,7 +39,11 @@ import {
 import { autoBuildOpenPortPair, type UnroutedPair } from "@/domain/pathfinder";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { BUILD_AREA } from "@/domain/sparse-grid";
-import { openPortMarkers } from "@/domain/renderer-affordances";
+import {
+  heightMarkers,
+  heightMarkersVisible,
+  openPortMarkers
+} from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
 import { Viewport } from "@/renderer/Viewport";
@@ -552,6 +556,10 @@ export default function App({ platform }: AppProps) {
   );
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
+  // Heights are labelled only while a placement tool is armed: they answer the
+  // question elevation raises, and would be clutter the rest of the time.
+  const markersOn = heightMarkersVisible(tool);
+  const markers = useMemo(() => (markersOn ? heightMarkers(design) : []), [markersOn, design]);
   // Memoized for identity: the viewport rebuilds its ground group when this
   // prop changes, and the bands only actually change with the metadata.
   const plenum = useMemo(() => plenumBands(design.metadata), [design.metadata]);
@@ -598,6 +606,8 @@ export default function App({ platform }: AppProps) {
             activeFloor={activeFloor}
             focusY={focusY}
             plenumBands={plenum}
+            heightMarkers={markers}
+            ghostHeight={markersOn ? activeElevation : null}
             roomRect={room}
             roomWalls={walls}
             portMarkers={portMarkers}

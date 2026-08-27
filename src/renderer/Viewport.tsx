@@ -18,7 +18,7 @@ import {
   partIdForObject
 } from "@/renderer/interaction";
 import {
-  buildElevationPlane,
+  buildHeightMarker,
   buildFloorSeparator,
   buildRoomFloor,
   buildRoomWalls,
@@ -36,6 +36,7 @@ import {
   VP
 } from "@/renderer/three-utils";
 import { type PlenumBand, type RoomRect } from "@/domain/floors";
+import type { HeightMarker } from "@/domain/renderer-affordances";
 import { type PortMarker } from "@/domain/renderer-affordances";
 import { BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, Ghost, Scene, ToolId, Vec3 } from "@/types";
@@ -155,6 +156,10 @@ export type ViewportProps = {
   activeFloor?: 1 | 2 | null;
   /** The plenum's Y range on each floor; empty when the design has none. */
   plenumBands?: PlenumBand[];
+  /** Heights to label in the scene; empty when markers are not being shown. */
+  heightMarkers?: HeightMarker[];
+  /** The elevation the armed tool would place at, labelled beside the ghost. */
+  ghostHeight?: number | null;
   /** The room's footprint; its floor patch, walls, slab and plenum span this. */
   roomRect?: RoomRect | null;
   /** The room's walls as cell boxes, derived beside the rect in floors.ts. */
@@ -181,6 +186,8 @@ export function Viewport({
   separatorY = null,
   activeFloor = null,
   plenumBands = [],
+  heightMarkers = [],
+  ghostHeight = null,
   roomRect = null,
   roomWalls = [],
   focusY = 0
@@ -596,13 +603,24 @@ export function Viewport({
         });
       }
       if (mesh) s.ghostGroup.add(mesh);
+      // The ghost's own marker, in the accent colour so the height being
+      // chosen stands out from the heights already placed around it.
+      if (mesh && ghostHeight !== null) {
+        const box = new THREE.Box3().setFromObject(mesh);
+        const marker = buildHeightMarker(
+          [(box.min.x + box.max.x) / 2, box.max.y + 0.9, (box.min.z + box.max.z) / 2],
+          ghostHeight,
+          { accent: true }
+        );
+        if (marker) s.ghostGroup.add(marker);
+      }
       if (s.renderer) {
         const size = s.renderer.getSize(new THREE.Vector2());
         updateLineResolutions(s.ghostGroup, size.x, size.y);
       }
     }
     s.requestRender?.();
-  }, [ghost]);
+  }, [ghost, ghostHeight]);
 
   useEffect(() => {
     const s = stateRef.current;
@@ -614,25 +632,21 @@ export function Viewport({
     s.requestRender?.();
   }, [landingCells, tool]);
 
+  // Height markers, and the hover plane the pointer casts onto. The plane a
+  // translucent sheet used to draw at this elevation is gone: it showed where
+  // the placement height was without ever saying what it was, and a label
+  // beside each thing answers the question the sheet only gestured at.
   useEffect(() => {
     const s = stateRef.current;
     if (!s.planeGroup || !s.hoverPlane) return;
     clearGroup(s.planeGroup);
     s.hoverPlane.position.y = activeElevation;
-    // Show the plane itself while a tool would place onto it above the ground;
-    // at ground level the ground grid already marks it, and the cursor and
-    // erase tools do not place on the plane at all.
-    const placesOnPlane = tool !== "cursor" && tool !== "erase";
-    if (placesOnPlane && activeElevation > 0) {
-      s.planeGroup.add(
-        buildElevationPlane(
-          { width: areaWidth, depth: areaDepth, height: areaHeight },
-          activeElevation
-        )
-      );
+    for (const marker of heightMarkers) {
+      const sprite = buildHeightMarker(marker.at, marker.feet);
+      if (sprite) s.planeGroup.add(sprite);
     }
     s.requestRender?.();
-  }, [activeElevation, tool, areaWidth, areaDepth, areaHeight]);
+  }, [activeElevation, heightMarkers]);
 
   useEffect(() => {
     const s = stateRef.current;

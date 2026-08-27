@@ -453,3 +453,95 @@ export function buildPortGlow(marker: PortMarker): THREE.Group {
   g.add(halo);
   return g;
 }
+
+/**
+ * A height marker: the elevation of something, drawn beside it in feet.
+ *
+ * A sprite carrying canvas-rendered text, so it always faces the camera and
+ * stays legible from any orbit — the elevation is a number to read, not a
+ * shape to interpret. It replaced a translucent plane spanning the whole build
+ * area, which showed *where* the placement height was without ever saying what
+ * it was, and which the client found harder to read than a label would be.
+ *
+ * Sized in screen space (`sizeAttenuation: false`) rather than world units: a
+ * marker is text to read, and text that shrinks with distance stops being
+ * readable at exactly the zoom where you most want to compare two heights.
+ *
+ * Note for anyone extending this: sprites share one geometry across the whole
+ * library, so a sprite must never have its geometry disposed. `disposeObject`
+ * knows that; a bespoke teardown would not.
+ */
+export function buildHeightMarker(
+  at: Vec3,
+  feet: number,
+  opts: { accent?: boolean } = {}
+): THREE.Sprite | null {
+  const label = `${Number.isInteger(feet) ? feet : feet.toFixed(1)} ft`;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  // happy-dom has no 2D context. Markers are decoration, so the scene builds
+  // without them rather than the viewport failing to mount under test.
+  if (!ctx) return null;
+
+  const scale = 4;
+  const font = `600 ${13 * scale}px ${MARKER_FONT}`;
+  ctx.font = font;
+  const padX = 7 * scale;
+  const padY = 4 * scale;
+  const textWidth = ctx.measureText(label).width;
+  canvas.width = Math.ceil(textWidth + padX * 2);
+  canvas.height = Math.ceil(18 * scale + padY * 2);
+
+  // Re-set after resizing: changing width/height resets the context state.
+  ctx.font = font;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const accent = !!opts.accent;
+  ctx.fillStyle = accent ? "rgba(11, 14, 19, 0.92)" : "rgba(11, 14, 19, 0.78)";
+  roundedRect(ctx, 0, 0, canvas.width, canvas.height, 5 * scale);
+  ctx.fill();
+  ctx.strokeStyle = accent ? "rgba(94, 234, 212, 0.85)" : "rgba(139, 149, 167, 0.5)";
+  ctx.lineWidth = 1.5 * scale;
+  roundedRect(ctx, 0, 0, canvas.width, canvas.height, 5 * scale);
+  ctx.stroke();
+  ctx.fillStyle = accent ? "#5eead4" : "#c8d0de";
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2 + scale * 0.5);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+      sizeAttenuation: false
+    })
+  );
+  // Screen-space units: three.js scales these by view distance, so a marker
+  // holds a constant on-screen height at any zoom.
+  const height = 0.055;
+  sprite.scale.set((canvas.width / canvas.height) * height, height, 1);
+  sprite.position.set(at[0], at[1], at[2]);
+  // Drawn after the design so a marker is never buried inside the part it labels.
+  sprite.renderOrder = 10;
+  return sprite;
+}
+
+const MARKER_FONT = "'Geist Variable', system-ui, -apple-system, sans-serif";
+
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
