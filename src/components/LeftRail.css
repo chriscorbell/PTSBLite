@@ -1,11 +1,11 @@
 .left-rail {
   position: relative;
-  width: 48px;
+  width: 64px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 8px 6px;
-  gap: 3px;
+  padding: 10px 8px;
+  gap: 4px;
   background: var(--panel);
   border-right: 1px solid var(--line);
   z-index: 5;
@@ -20,8 +20,8 @@
 .left-rail__clear-group {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-top: 2px;
+  gap: 4px;
+  margin-top: 3px;
 }
 
 /* Each rail button sits in a wrapper so the tooltip can hang off it. */
@@ -31,12 +31,12 @@
 
 .left-rail__button {
   width: 100%;
-  height: 34px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2px;
-  border-radius: 7px;
+  border-radius: 9px;
   background: transparent;
   color: var(--text-mut);
   border: 1px solid transparent;

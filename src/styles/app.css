@@ -94,15 +94,15 @@ body {
 .topbtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 6px;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 7px;
   background: transparent;
   color: var(--text-mut);
   border: 1px solid var(--line);
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.12s;
@@ -110,7 +110,7 @@ body {
   flex-shrink: 0;
 }
 .topbtn.icon {
-  width: 28px;
+  width: 36px;
   padding: 0;
   justify-content: center;
 }
@@ -126,15 +126,20 @@ body {
   border-color: var(--line);
   background: transparent;
 }
-.topbtn.active {
+/* `.active` is a toggle that is on; `.accent` is a button that is simply the
+   loudest thing in its bar. They look the same, so they say so once. */
+.topbtn.active,
+.topbtn.accent {
   background: color-mix(in oklab, var(--accent) 18%, transparent);
   color: var(--accent);
   border-color: color-mix(in oklab, var(--accent) 35%, transparent);
 }
-.topbtn.active:hover {
+.topbtn.active:hover,
+.topbtn.accent:hover:not(:disabled) {
   background: color-mix(in oklab, var(--accent) 26%, transparent);
   color: #fff;
 }
+
 .topbtn.primary {
   background: var(--accent);
   border-color: transparent;
@@ -176,29 +181,6 @@ body {
 .icon-btn:hover {
   color: var(--text);
   background: var(--panel-2);
-}
-
-.filemenu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-mut);
-  border: none;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  text-align: left;
-  white-space: nowrap;
-}
-.filemenu-item:hover {
-  background: var(--panel-2);
-  color: var(--text);
 }
 
 ::-webkit-scrollbar {

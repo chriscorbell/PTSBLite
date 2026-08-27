@@ -9,9 +9,11 @@ export type StatusBarProps = {
   warnings: Warning[];
   expanded: boolean;
   onToggle: () => void;
-  /** Opens the modal that asks which way to route. */
-  onAutoBuild: () => void;
-  autoBuilding: boolean;
+  /** Whether the bill of materials panel is showing. Anchored here rather than
+   * in the top bar, where Auto-Build now sits — the client asked for the two
+   * to trade places. */
+  bomOpen: boolean;
+  onToggleBom: () => void;
 };
 
 export function StatusBar({
@@ -19,8 +21,8 @@ export function StatusBar({
   warnings,
   expanded,
   onToggle,
-  onAutoBuild,
-  autoBuilding
+  bomOpen,
+  onToggleBom
 }: StatusBarProps) {
   const errors = warnings.filter((w) => w.level === "error").length;
   const warns = warnings.filter((w) => w.level === "warn").length;
@@ -81,11 +83,12 @@ export function StatusBar({
         <div className="status-bar__spacer" />
         <button
           type="button"
-          className="auto-build__run"
-          onClick={onAutoBuild}
-          disabled={autoBuilding}
+          className={"status-bar__bom" + (bomOpen ? " status-bar__bom--open" : "")}
+          onClick={onToggleBom}
+          aria-pressed={bomOpen}
+          title={bomOpen ? "Hide BOM" : "Show BOM"}
         >
-          <Icons.Auto size={13} /> {autoBuilding ? "Routing…" : "Auto-Build"}
+          <Icons.Bom size={15} /> BOM
         </button>
       </div>
     </div>

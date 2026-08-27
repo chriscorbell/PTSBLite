@@ -173,7 +173,7 @@ function BuildButton({
         aria-expanded={open}
         aria-pressed={active}
       >
-        <Icons.Hammer size={18} />
+        <Icons.Hammer size={24} />
       </button>
     </RailSlot>
   );
@@ -258,7 +258,7 @@ function ClearActionButton({
         aria-label={tooltip}
         disabled={disabled}
       >
-        <ItemIcon size={17} />
+        <ItemIcon size={23} />
       </button>
     </RailSlot>
   );
@@ -294,7 +294,7 @@ function RailButton({
         // Keyboard focus (Tab) still works and shows the ring via :focus-visible.
         onMouseDown={(e) => e.preventDefault()}
       >
-        <ItemIcon size={17} />
+        <ItemIcon size={23} />
       </button>
     </RailSlot>
   );

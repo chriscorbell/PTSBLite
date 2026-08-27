@@ -288,9 +288,8 @@ describe("a two-floor design", () => {
   it("gives the viewport the doubled volume and the separator level", async () => {
     await renderApp();
 
-    // Reopen the setup form via File → New and ask for a second floor.
-    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "New" }));
+    // Reopen the setup form via New and ask for a second floor.
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
     fireEvent.click(screen.getByLabelText(/Add 2nd floor/));
     fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
 
@@ -316,8 +315,7 @@ describe("a two-floor design", () => {
 
   it("jumps the placement plane between floors by key and by selector", async () => {
     await renderApp();
-    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "New" }));
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
     fireEvent.click(screen.getByLabelText(/Add 2nd floor/));
     fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
 
@@ -339,8 +337,7 @@ describe("a two-floor design", () => {
     await renderApp();
     expect(viewport.props?.plenumBands).toEqual([]);
 
-    fireEvent.click(screen.getByRole("button", { name: /^File/ }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "New" }));
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
     fireEvent.click(screen.getByLabelText(/Add 2nd floor/));
     fireEvent.click(screen.getByLabelText("Plenum (drop ceiling)"));
     fireEvent.change(screen.getByLabelText(/plenum height/i), { target: { value: "4" } });
