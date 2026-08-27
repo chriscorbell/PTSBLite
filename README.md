@@ -33,8 +33,12 @@ Deployment settings are in [docs/deploying.md](docs/deploying.md).
 
 ## Controls
 
+The app shows this list in a legend at the bottom-left of the viewport.
+
 | Input | Action |
 |---|---|
+| Left click | Place |
+| Right click | Erase |
 | Left-drag | Orbit |
 | Right-drag | Pan |
 | Wheel | Zoom |
