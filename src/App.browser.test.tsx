@@ -46,7 +46,7 @@ describe("PTSBLite", () => {
   it("shows no money anywhere on screen", async () => {
     await renderApp();
     createFirstDesign();
-    fireEvent.click(screen.getByRole("button", { name: "BOM" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finalize" }));
 
     const text = document.body.textContent ?? "";
     expect(text).not.toContain("$");
@@ -56,12 +56,12 @@ describe("PTSBLite", () => {
     expect(text).not.toMatch(/\bEACH\b/);
   });
 
-  it("offers a BOM export", async () => {
+  it("offers a BOM export from Finalize", async () => {
     await renderApp();
     createFirstDesign();
-    fireEvent.click(screen.getByRole("button", { name: "BOM" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finalize" }));
 
-    expect(screen.getByRole("button", { name: /Export PDF/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Download PDF/ })).toBeTruthy();
   });
 
   it("uses the PTSBLite name", async () => {
@@ -95,8 +95,8 @@ describe("picking up where you left off", () => {
     const dialog = screen.getByRole("dialog", { name: /Welcome back/ });
     fireEvent.click(within(dialog).getByRole("button", { name: /Continue design/ }));
 
-    fireEvent.click(screen.getByRole("button", { name: "BOM" }));
-    const bom = document.querySelector(".bom")?.textContent ?? "";
+    fireEvent.click(screen.getByRole("button", { name: "Finalize" }));
+    const bom = screen.getByRole("dialog", { name: "Finalize" }).textContent ?? "";
     expect(bom).toMatch(/Blower Unit/);
     expect(screen.queryByRole("dialog", { name: /Welcome back/ })).toBeNull();
   });
