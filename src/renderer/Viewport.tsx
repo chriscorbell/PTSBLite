@@ -22,6 +22,7 @@ import {
   buildHeightMarker,
   HEIGHT_MARKER_FEET,
   buildFloorSeparator,
+  buildRoomCeiling,
   buildRoomFloor,
   buildRoomWalls,
   buildGround,
@@ -224,6 +225,8 @@ export type ViewportProps = {
   portMarkers?: PortMarker[];
   /** Y level of a two-floor design's separator slab, or null for one floor. */
   separatorY?: number | null;
+  /** The Y the room's own ceiling sits at: the top of its walls. */
+  roomTop?: number | null;
   /** Which floor the placement plane is on; the other floor's grid dims. */
   activeFloor?: 1 | 2 | null;
   /** The plenum's Y range on each floor; empty when the design has none. */
@@ -277,6 +280,7 @@ export function Viewport({
   portMarkers = [],
   separatorY = null,
   activeFloor = null,
+  roomTop = null,
   plenumBands = [],
   heightMarkers = [],
   ghostHeight = null,
@@ -744,6 +748,7 @@ export function Viewport({
     if (roomRect) {
       ground.add(buildRoomFloor(roomRect, activeFloor === 2));
       ground.add(buildRoomWalls(roomWalls));
+      if (roomTop !== null) ground.add(buildRoomCeiling(roomRect, roomTop));
       if (separatorY !== null) {
         ground.add(buildFloorSeparator(roomRect, separatorY, activeFloor === 1));
       }
@@ -777,7 +782,17 @@ export function Viewport({
       s.applyCamera?.();
     }
     s.requestRender?.();
-  }, [areaWidth, areaDepth, areaHeight, separatorY, activeFloor, plenumBands, roomRect, roomWalls]);
+  }, [
+    areaWidth,
+    areaDepth,
+    areaHeight,
+    separatorY,
+    roomTop,
+    activeFloor,
+    plenumBands,
+    roomRect,
+    roomWalls
+  ]);
 
   // Frame the camera on the room: on first render, and again whenever a new
   // design brings a different one — the build area itself never changes size.

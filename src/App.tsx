@@ -18,6 +18,7 @@ import {
 import { canRedo, canUndo, designHistoryReducer, initDesignHistory } from "@/domain/design-history";
 import { designFromScene, emptyDesign, newOccupantId } from "@/domain/design-state";
 import {
+  roomHeightFeet,
   roomRect,
   roomWalls,
   floorAtElevation,
@@ -646,6 +647,7 @@ export default function App({ platform }: AppProps) {
             scene={viewportScene}
             buildArea={buildArea}
             separatorY={floorSeparatorY(design.metadata)}
+            roomTop={roomHeightFeet(design.metadata)}
             ghost={ghostState}
             tool={tool}
             onPlace={onPlace}

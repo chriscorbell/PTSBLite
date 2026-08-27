@@ -207,6 +207,50 @@ export function buildFloorSeparator(
 }
 
 /**
+ * The room's ceiling: the lid on the box its four walls make.
+ *
+ * Drawn in the walls' material rather than the separator's, and deliberately
+ * so. The slab between two floors is a real concrete floor you build on, and
+ * reads as one; this is the top of the room, and an opaque lid would hide the
+ * whole design from every angle above the horizon — including the top-down
+ * view the PDF is rendered from. Faint enough to look straight through, strong
+ * enough at the edges to close the shape.
+ */
+export function buildRoomCeiling(rect: RoomRect, top: number): THREE.Group {
+  const g = new THREE.Group();
+  const cx = (rect.xMin + rect.xMax) / 2;
+  const cz = (rect.zMin + rect.zMax) / 2;
+  const geom = new THREE.BoxGeometry(
+    rect.xMax - rect.xMin,
+    ROOM_CEILING_FEET,
+    rect.zMax - rect.zMin
+  );
+
+  const slab = new THREE.Mesh(
+    geom,
+    new THREE.MeshBasicMaterial({
+      color: VP.gridStrong,
+      transparent: true,
+      opacity: 0.07,
+      depthWrite: false
+    })
+  );
+  slab.position.set(cx, top + ROOM_CEILING_FEET / 2, cz);
+  g.add(slab);
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geom),
+    new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.55 })
+  );
+  edges.position.copy(slab.position);
+  g.add(edges);
+  return g;
+}
+
+/** How thick the ceiling is drawn. Scenery, so it claims no cells. */
+const ROOM_CEILING_FEET = 1;
+
+/**
  * A floor's plenum: the space between its drop ceiling and its top, tinted so
  * it reads differently from the room below while remaining fully buildable.
  * The line along the bottom face marks the drop ceiling itself. Amber rather
