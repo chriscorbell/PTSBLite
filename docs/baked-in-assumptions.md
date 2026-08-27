@@ -100,6 +100,11 @@ and keep. That is a deliberate decision, recorded in
 [ADR-0013](adr/0013-lite-publishes-placeholder-part-numbers.md), and it is the one place invented
 data reaches a customer-facing artifact on purpose. Issue #94.
 
+**The exported PDF carries pictures.** Five rendered views are captured from the live scene and
+embedded after the parts list ([ADR-0018](adr/0018-the-exported-bom-carries-rendered-views.md)).
+A document is now on the order of a megabyte rather than a few kilobytes, and a browser with no
+WebGL exports the parts list alone rather than failing.
+
 **Prices do not exist in this product.** The catalog cannot carry one: `loadPartRegistry` rejects
 `unitPrice`, and the BOM model has no price field
 ([ADR-0011](adr/0011-lite-has-no-commercial-data-path.md)). A requirement that adds money changes
@@ -120,10 +125,14 @@ and probably multi-select.
 
 **Copy, duplicate, array, mirror.** No bulk operations of any kind.
 
-**Part labels, camera buttons, and an About screen.** All three existed and were removed. The
-camera is still driven by dragging and the scroll wheel; there are no zoom or reset-view buttons.
-Nothing on screen names the running build, so `appVersion` on a stored design is the only way to
-identify it.
+**Part labels and an About screen.** Both existed and were removed. Nothing on screen names the
+running build, so `appVersion` on a stored design is the only way to identify it.
+
+**The camera has no free framing.** Dragging orbits, right-dragging pans, the wheel zooms, and the
+View menu snaps to one of five named angles or back to the opening framing
+(`renderer/camera-views.ts`). There is no way to save a view, to frame a selection, or to set a
+distance numerically, and the five angles are constants — they are also what the exported PDF is
+rendered from, so changing the list changes every document.
 
 **The plenum preference is a fixed bias, not a setting.** Auto-Build charges horizontal feet and
 bends outside the plenum extra during the search (`pathfinder.ts`), so long runs ride the band and

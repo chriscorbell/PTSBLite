@@ -28,7 +28,7 @@ express it, not the other way round.
 
 - New validation rules are additive. Existing thresholds are not tuning knobs.
 - The 300 ft cap has one home, `MAX_CENTERLINE_FEET`. User-facing copy must interpolate it rather
-  than restating "300ft". Enforced as of #52; `StatusBar`, `RightPanel` and the warning strings in
+  than restating "300ft". Enforced as of #52; `StatusBar`, `FinalizeModal` and the warning strings in
   `validation.ts` all interpolate it, and the left rail's tool labels read part names and numbers from
   the registry rather than repeating them.
 - Anything reading a spec-derived number from the catalog needs a validation guard, so a future
