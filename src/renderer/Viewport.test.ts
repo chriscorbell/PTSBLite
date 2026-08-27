@@ -16,7 +16,12 @@ import {
   moveViewportDrag
 } from "@/renderer/interaction";
 import { clearGroup } from "@/renderer/three-utils";
-import { cameraFarPlane, maxCameraDistance, openingCameraDistance } from "@/renderer/Viewport";
+import {
+  cameraFarPlane,
+  heightMarkerScale,
+  maxCameraDistance,
+  openingCameraDistance
+} from "@/renderer/Viewport";
 import { BUILD_AREA, DEFAULT_ROOM } from "@/domain/sparse-grid";
 
 const vec = (x: number, y: number, z: number): [number, number, number] => [x, y, z];
@@ -353,5 +358,43 @@ describe("where the camera opens", () => {
     // diagonals; the floor still guards anything smaller reaching this code.
     expect(openingCameraDistance({ width: 4, depth: 4 })).toBeCloseTo(Math.hypot(4, 4) * 1.6, 5);
     expect(openingCameraDistance({ width: 1, depth: 1 })).toBe(8);
+  });
+});
+
+describe("how big a height marker draws", () => {
+  const VIEWPORT = 760;
+  /** What the marker's on-screen height works out to at a given distance. */
+  const pixels = (distance: number) => {
+    const { feet } = heightMarkerScale(distance, VIEWPORT);
+    const perPixel = (2 * distance * Math.tan((38 * Math.PI) / 360)) / VIEWPORT;
+    return feet / perPixel;
+  };
+
+  it("shrinks with the part it labels through the working range", () => {
+    // The regression this guards: markers held a constant pixel size, so
+    // zooming out grew them relative to the part until they covered it.
+    // Doubling the distance must halve the marker on screen.
+    expect(pixels(120)).toBeCloseTo(pixels(60) / 2, 4);
+  });
+
+  it("frames the default room's opening view with a readable marker", () => {
+    const opening = openingCameraDistance(DEFAULT_ROOM);
+    expect(heightMarkerScale(opening, VIEWPORT).visible).toBe(true);
+    expect(pixels(opening)).toBeGreaterThan(11);
+  });
+
+  it("stops drawing once a marker would be too small to read", () => {
+    // Pulled right back over the build area a label is fuzz; the elevation is
+    // still shown beside the armed tool, so nothing is actually lost.
+    expect(heightMarkerScale(maxCameraDistance(BUILD_AREA), VIEWPORT).visible).toBe(false);
+  });
+
+  it("never lets a marker cover the part at close range", () => {
+    // Without the cap a world-sized marker fills a third of the screen at the
+    // closest the wheel allows.
+    for (const distance of [8, 12, 20]) {
+      expect(pixels(distance)).toBeLessThanOrEqual(64.001);
+    }
+    expect(heightMarkerScale(8, VIEWPORT).visible).toBe(true);
   });
 });
