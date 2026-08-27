@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { designFromScene } from "@/domain/design-state";
-import { floorShadows, heightMarkers, heightMarkersVisible } from "@/domain/renderer-affordances";
+import {
+  floorShadows,
+  heightMarkers,
+  heightMarkersVisible,
+  placedPartShadows
+} from "@/domain/renderer-affordances";
 import type { Ghost, Part } from "@/types";
 
 describe("when height markers show", () => {
@@ -47,18 +52,37 @@ describe("heightMarkers", () => {
       { room: { width: 20, depth: 20, height: 30 }, multiFloor: true, plenumHeightFeet: 4 }
     );
     const markers = heightMarkers(design);
-    const keys = markers.map((m) => m.key);
-    expect(keys).toContain("plenum-1");
-    expect(keys).toContain("plenum-2");
-    expect(keys).toContain("separator");
-    // Floor 1's drop ceiling is 4 ft below the 30 ft slab.
-    expect(markers.find((m) => m.key === "plenum-1")?.feet).toBe(26);
-    expect(markers.find((m) => m.key === "separator")?.feet).toBe(30);
+    const byKey = new Map(markers.map((m) => [m.key, m]));
+    // Floor 1's drop ceiling is 4 ft below the 30 ft slab; the room's own top
+    // is both floors plus the 1 ft slab between them.
+    expect(byKey.get("plenum-1")?.feet).toBe(26);
+    expect(byKey.get("plenum-2")?.feet).toBe(57);
+    expect(byKey.get("separator")?.feet).toBe(30);
+    expect(byKey.get("ceiling")?.feet).toBe(61);
   });
 
-  it("omits plenum and separator levels a design does not have", () => {
-    const markers = heightMarkers(designFromScene({ parts: [], obstacles: [] }));
-    expect(markers).toEqual([]);
+  it("names the structural levels, so stacked numbers are not a guess", () => {
+    const design = designFromScene(
+      { parts: [], obstacles: [] },
+      { room: { width: 20, depth: 20, height: 30 }, multiFloor: true, plenumHeightFeet: 4 }
+    );
+    const byKey = new Map(heightMarkers(design).map((m) => [m.key, m.label]));
+    expect(byKey.get("plenum-1")).toBe("Drop ceiling");
+    expect(byKey.get("separator")).toBe("Floor 1 ceiling");
+    expect(byKey.get("ceiling")).toBe("Floor 2 ceiling");
+  });
+
+  it("marks the ceiling even when there is no plenum or second floor", () => {
+    // Every room has a top, and the client asked for the ceiling by name.
+    const markers = heightMarkers(
+      designFromScene({ parts: [], obstacles: [] }, { room: { width: 20, depth: 20, height: 12 } })
+    );
+    expect(markers).toEqual([{ key: "ceiling", at: [10, 12, 10], feet: 12, label: "Ceiling" }]);
+  });
+
+  it("leaves a part's marker unlabelled", () => {
+    const markers = heightMarkers(designFromScene({ parts, obstacles: [] }));
+    expect(markers.find((m) => m.key === "b1")?.label).toBeUndefined();
   });
 });
 
@@ -78,7 +102,7 @@ describe("floorShadows", () => {
 
   it("shades the cell under a single-cell part, on the ground", () => {
     const ghost: Ghost = { type: "blower", cell: [3, 9, -4], dir: [1, 0, 0] };
-    expect(floorShadows(ghost, oneFloor)).toEqual([{ y: 0, cells: [[3, 0, -4]] }]);
+    expect(floorShadows(ghost, oneFloor)).toEqual([{ y: 0, live: true, cells: [[3, 0, -4]] }]);
   });
 
   it("shades every column a multi-cell part occupies", () => {
@@ -117,5 +141,59 @@ describe("floorShadows", () => {
   it("never lights an upper storey a single-floor design does not have", () => {
     const high: Ghost = { type: "blower", cell: [2, 40, 2], dir: [1, 0, 0] };
     expect(floorShadows(high, oneFloor).map((s) => s.y)).toEqual([0]);
+  });
+});
+
+describe("placedPartShadows", () => {
+  const oneFloor = { room: { width: 20, depth: 20, height: 30 }, multiFloor: false };
+  const twoFloor = { room: { width: 20, depth: 20, height: 30 }, multiFloor: true };
+
+  it("shades the floor under a part that is above it", () => {
+    const parts: Part[] = [{ id: "b1", type: "blower", cell: [3, 9, -4], dir: [1, 0, 0] }];
+    expect(placedPartShadows(designFromScene({ parts, obstacles: [] }, oneFloor))).toEqual([
+      { y: 0, live: false, cells: [[3, 0, -4]] }
+    ]);
+  });
+
+  it("shades nothing for a part sitting on the floor", () => {
+    // "if it's not on the ground obviously" -- a part on the floor is already
+    // where its shadow would be.
+    const parts: Part[] = [{ id: "b1", type: "blower", cell: [3, 0, -4], dir: [1, 0, 0] }];
+    expect(placedPartShadows(designFromScene({ parts, obstacles: [] }, oneFloor))).toEqual([]);
+  });
+
+  it("merges the columns of every part on one plane", () => {
+    // Two parts sharing a column produce one square, not two overlapping ones.
+    const parts: Part[] = [
+      { id: "b1", type: "blower", cell: [0, 5, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [0, 9, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [1, 9, 0], axis: [1, 0, 0] }
+    ];
+    const [ground] = placedPartShadows(designFromScene({ parts, obstacles: [] }, oneFloor));
+    expect(ground.cells).toEqual([
+      [0, 0, 0],
+      [1, 0, 0]
+    ]);
+  });
+
+  it("casts onto the floor a part stands over, not every floor below it", () => {
+    // Floor 2 starts at 31 in a 30 ft room. A part up there belongs to that
+    // floor's plan; repeating it on the ground would double the marks.
+    const parts: Part[] = [{ id: "b1", type: "blower", cell: [2, 35, 2], dir: [1, 0, 0] }];
+    expect(placedPartShadows(designFromScene({ parts, obstacles: [] }, twoFloor))).toEqual([
+      { y: 31, live: false, cells: [[2, 31, 2]] }
+    ]);
+  });
+
+  it("traces every column of an elevated run", () => {
+    const parts: Part[] = [
+      { id: "st1", type: "tube", from: [0.5, 5.5, 0.5], to: [3.5, 5.5, 0.5], length: 3 }
+    ];
+    const [ground] = placedPartShadows(designFromScene({ parts, obstacles: [] }, oneFloor));
+    expect(ground.cells).toEqual([
+      [0, 0, 0],
+      [1, 0, 0],
+      [2, 0, 0]
+    ]);
   });
 });

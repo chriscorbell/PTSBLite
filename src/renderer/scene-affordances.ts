@@ -331,10 +331,27 @@ export function buildElevationPlane(area: BuildArea, elevation: number): THREE.G
  * about where something already is, and the two must not be confused at a
  * glance.
  */
-export function buildFloorShadow(cells: Vec3[], y: number): THREE.Group {
+/**
+ * The squares under a part, on the floor it stands over.
+ *
+ * `live` is the armed part's own shadow: accent-coloured and brighter, so the
+ * one the visitor is aiming stands out from the ones already placed. A placed
+ * part's takes the neutral grey of the parts themselves and stays quiet — a
+ * finished design can have hundreds of these, and they are a reference, not
+ * the subject.
+ */
+export function buildFloorShadow(
+  cells: Vec3[],
+  y: number,
+  opts: { live?: boolean } = {}
+): THREE.Group {
   const g = new THREE.Group();
   if (cells.length === 0) return g;
 
+  const live = opts.live ?? true;
+  const color = live ? VP.accent : VP.tube;
+  const fillOpacity = live ? 0.1 : 0.09;
+  const lineOpacity = live ? 0.6 : 0.45;
   const outline: number[] = [];
   for (const cell of cells) {
     const x0 = cell[0] + 0.08;
@@ -349,9 +366,9 @@ export function buildFloorShadow(cells: Vec3[], y: number): THREE.Group {
     const fill = new THREE.Mesh(
       new THREE.PlaneGeometry(0.84, 0.84),
       new THREE.MeshBasicMaterial({
-        color: VP.accent,
+        color,
         transparent: true,
-        opacity: 0.1,
+        opacity: fillOpacity,
         depthWrite: false,
         side: THREE.DoubleSide
       })
@@ -361,7 +378,7 @@ export function buildFloorShadow(cells: Vec3[], y: number): THREE.Group {
     fill.position.set(cell[0] + 0.5, y + 0.02, cell[2] + 0.5);
     g.add(fill);
   }
-  g.add(buildGroundLines(outline, VP.accent, 0.6, y + 0.022));
+  g.add(buildGroundLines(outline, color, lineOpacity, y + 0.022));
   return g;
 }
 
@@ -519,9 +536,12 @@ export function buildPortGlow(marker: PortMarker): THREE.Group {
 export function buildHeightMarker(
   at: Vec3,
   feet: number,
-  opts: { accent?: boolean } = {}
+  opts: { accent?: boolean; label?: string } = {}
 ): THREE.Sprite | null {
-  const label = `${Number.isInteger(feet) ? feet : feet.toFixed(1)} ft`;
+  const height = `${Number.isInteger(feet) ? feet : feet.toFixed(1)} ft`;
+  // Structural levels say what they are; a part's marker is just the number,
+  // read next to the part it belongs to.
+  const label = opts.label ? `${opts.label} · ${height}` : height;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   // happy-dom has no 2D context. Markers are decoration, so the scene builds
