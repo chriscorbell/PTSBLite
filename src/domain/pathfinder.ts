@@ -98,6 +98,32 @@ export type AutoBuildPathResult =
 const SEARCH_MARGIN = 12;
 const MAX_ROUTE_EXPANSIONS = 120_000;
 
+/**
+ * What the search expects to pay for one more foot toward the goal.
+ *
+ * A* only searches quickly while its estimate of the work remaining grows about
+ * as fast as the real cost does. Plain Manhattan distance did, once — every
+ * straight step cost exactly 1. The plenum bias broke that: a horizontal step
+ * outside the band now costs `1 + OUT_OF_PLENUM_STRAIGHT_PENALTY`, so the
+ * estimate under-stated the remainder of an out-of-plenum route threefold, the
+ * search degenerated towards Dijkstra, and two terminals 48 ft apart in an
+ * ordinary 60 ft room exhausted the expansion budget and routed nothing at all.
+ *
+ * Charging the estimate what the steps actually cost restores the guidance.
+ * Vertical travel stays at 1 because risers are never penalized, which is also
+ * what stops the estimate from talking the search out of climbing into the
+ * band. It is no longer an under-estimate, so a route is no longer guaranteed
+ * to be the cheapest one — though on the case above it is: raising the
+ * expansion budget until the admissible estimate can finish returns the same
+ * route, five times slower. A route that is occasionally a little long is in
+ * any case checked against the 300 ft cap like any other, and beats no route.
+ */
+function remainingCostEstimate(cell: Vec3, goal: Vec3, horizontalStepCost: number): number {
+  const horizontal = Math.abs(cell[0] - goal[0]) + Math.abs(cell[2] - goal[2]);
+  const vertical = Math.abs(cell[1] - goal[1]);
+  return horizontal * horizontalStepCost + vertical;
+}
+
 type OpenRouteEntry = {
   state: RouteState;
   priority: number;
@@ -279,11 +305,14 @@ function routeBetween(
 ): RouteOutcome {
   const goal: RouteState = { cell: target.from, dir: vNeg(target.dir) };
   const start: RouteState = { cell: source.cell, dir: source.dir };
+  // Without a plenum nothing is penalized and a foot costs a foot, which is the
+  // estimate this used before the bias existed.
+  const horizontalStepCost = plenum === null ? 1 : 1 + OUT_OF_PLENUM_STRAIGHT_PENALTY;
   const open: OpenRouteEntry[] = [];
   let sequence = 0;
   pushOpenEntry(open, {
     state: start,
-    priority: manhattan(start.cell, goal.cell),
+    priority: remainingCostEstimate(start.cell, goal.cell, horizontalStepCost),
     searchCost: 0,
     sequence: sequence++
   });
@@ -324,7 +353,8 @@ function routeBetween(
       cameFrom.set(nextKey, { previous: currentKey, edge: next.edge });
       pushOpenEntry(open, {
         state: next.state,
-        priority: nextSearchCost + manhattan(next.state.cell, goal.cell),
+        priority:
+          nextSearchCost + remainingCostEstimate(next.state.cell, goal.cell, horizontalStepCost),
         searchCost: nextSearchCost,
         sequence: sequence++
       });
