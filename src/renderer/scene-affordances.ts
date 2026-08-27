@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { TUBE_R, VP } from "@/renderer/three-utils";
-import { buildObstacleMesh } from "@/renderer/design-meshes";
 import { boundsFromBuildArea } from "@/domain/sparse-grid";
 import type { PortMarker } from "@/domain/renderer-affordances";
 import type { RoomRect } from "@/domain/floors";
@@ -94,15 +93,43 @@ export function buildRoomFloor(rect: RoomRect, dimmed = false): THREE.Group {
 }
 
 /**
- * The room's walls, drawn with the penetrable obstacle's own mesh so the
- * steel-blue hatch keeps one meaning everywhere: tubes pass through this.
- * Like penetrable obstacles they claim no grid cells; unlike them they are
- * scenery — no part of the design, not erasable, absent from the BOM.
+ * The room's walls: faintly translucent slabs in the separator's material, so
+ * walls and ceiling read as one structure. No hatch — that stays the mark of
+ * an obstacle a visitor placed. Fill sits below the slab's opacity because a
+ * viewer looks through two walls at once, and no depth writes, so the room's
+ * interior stays legible from any angle. Like penetrable obstacles the walls
+ * claim no grid cells; unlike them they are scenery — no part of the design,
+ * not erasable, absent from the BOM.
  */
 export function buildRoomWalls(walls: Array<{ min: Vec3; max: Vec3 }>): THREE.Group {
   const g = new THREE.Group();
   for (const wall of walls) {
-    g.add(buildObstacleMesh(wall.min, wall.max, { penetrable: true }));
+    const sx = wall.max[0] - wall.min[0] + 1;
+    const sy = wall.max[1] - wall.min[1] + 1;
+    const sz = wall.max[2] - wall.min[2] + 1;
+    const geom = new THREE.BoxGeometry(sx, sy, sz);
+    const slab = new THREE.Mesh(
+      geom,
+      new THREE.MeshBasicMaterial({
+        color: VP.gridStrong,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false
+      })
+    );
+    slab.position.set(
+      (wall.min[0] + wall.max[0] + 1) / 2,
+      (wall.min[1] + wall.max[1] + 1) / 2,
+      (wall.min[2] + wall.max[2] + 1) / 2
+    );
+    g.add(slab);
+
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geom),
+      new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.7 })
+    );
+    edges.position.copy(slab.position);
+    g.add(edges);
   }
   return g;
 }
