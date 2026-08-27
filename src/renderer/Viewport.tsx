@@ -19,6 +19,7 @@ import {
 } from "@/renderer/interaction";
 import {
   buildHeightMarker,
+  HEIGHT_MARKER_FEET,
   buildFloorSeparator,
   buildRoomFloor,
   buildRoomWalls,
@@ -72,6 +73,20 @@ const DEFAULT_MAX_CAMERA_DISTANCE = 140;
 /** How close the camera may be pushed, wherever the distance is being set. */
 const MIN_CAMERA_DISTANCE = 8;
 
+/** The camera's vertical field of view. Also what marker sizing is derived from. */
+const CAMERA_FOV_DEG = 38;
+
+/**
+ * The on-screen bounds a height marker is kept inside.
+ *
+ * Below the minimum a label is fuzz rather than text, and drawing it only adds
+ * noise to a view that has zoomed past the detail it belongs to. Above the
+ * maximum it starts covering the part it is describing — the failure that
+ * screen-space sizing had at every zoom level.
+ */
+const MARKER_MIN_PIXELS = 11;
+const MARKER_MAX_PIXELS = 64;
+
 /**
  * What the camera distances are derived from. The footprint alone: height
  * changes what the camera looks at, not how far back it has to stand, and
@@ -111,6 +126,30 @@ export function cameraFarPlane(area: BuildArea): number {
  * says where you are. Opening on the room as an object in the build area is
  * the mental model the room exists to teach.
  */
+/** World feet spanned by one screen pixel at `distance`, for this camera. */
+function feetPerPixel(distance: number, viewportHeight: number): number {
+  const halfFov = (CAMERA_FOV_DEG * Math.PI) / 360;
+  return (2 * distance * Math.tan(halfFov)) / Math.max(1, viewportHeight);
+}
+
+/**
+ * How tall a height marker should stand, and whether it is worth drawing.
+ *
+ * World-scaled through the range that matters, so a marker shrinks with the
+ * part it labels rather than growing to cover it. Clamped at the near end so
+ * it cannot fill the screen when the camera is right on top of a part, and
+ * dropped at the far end once it would be too small to read — at which point
+ * the elevation is still on screen beside the armed tool, so nothing is lost.
+ */
+export function heightMarkerScale(
+  distance: number,
+  viewportHeight: number
+): { feet: number; visible: boolean } {
+  const perPixel = feetPerPixel(distance, viewportHeight);
+  const feet = Math.min(HEIGHT_MARKER_FEET, MARKER_MAX_PIXELS * perPixel);
+  return { feet, visible: feet / perPixel >= MARKER_MIN_PIXELS };
+}
+
 export function openingCameraDistance(area: CameraFootprint): number {
   const proportional = Math.hypot(area.width, area.depth) * 1.6;
   return Math.max(MIN_CAMERA_DISTANCE, Math.min(maxCameraDistance(BUILD_AREA), proportional));
@@ -133,6 +172,8 @@ type ViewportState = {
   requestRender?: () => void;
   /** How far the camera may pull back, derived from the current build area. */
   maxDistance?: number;
+  /** Re-sizes every height marker for the current camera distance. */
+  syncMarkers?: () => void;
   cleanup?: () => void;
 };
 
@@ -232,7 +273,7 @@ export function Viewport({
     // spent as far/near — with the far plane spanning the whole build area, a
     // 0.1 near left too little resolution to keep coplanar ground layers
     // apart. The camera can come no closer than 8 ft, so nothing is clipped.
-    const camera = new THREE.PerspectiveCamera(38, w / h, 0.5, 200);
+    const camera = new THREE.PerspectiveCamera(CAMERA_FOV_DEG, w / h, 0.5, 200);
     const cam = {
       yaw: DEFAULT_CAMERA_FRAMING.yaw,
       pitch: DEFAULT_CAMERA_FRAMING.pitch,
@@ -257,6 +298,25 @@ export function Viewport({
         renderer.render(scene3, camera);
       });
     };
+
+    /**
+     * Height markers are world-scaled, so their on-screen size changes with
+     * every zoom. Re-applied here rather than per frame: the camera is the
+     * only thing that moves them, and this runs exactly when it does.
+     */
+    function syncMarkers() {
+      const size = renderer.getSize(new THREE.Vector2());
+      const { feet, visible } = heightMarkerScale(cam.distance, size.y);
+      const apply = (node: THREE.Object3D) => {
+        const sprite = node as THREE.Sprite;
+        if (!sprite.isSprite) return;
+        sprite.visible = visible;
+        const aspect = (sprite.userData.markerAspect as number | undefined) ?? 1;
+        sprite.scale.set(aspect * feet, feet, 1);
+      };
+      planeGroup.traverse(apply);
+      ghostGroup.traverse(apply);
+    }
 
     function applyCamera() {
       const r = cam.distance;
@@ -319,7 +379,8 @@ export function Viewport({
       planeGroup,
       portsGroup,
       hoverPlane,
-      requestRender
+      requestRender,
+      syncMarkers
     };
 
     let drag = createViewportDragState();
@@ -614,6 +675,7 @@ export function Viewport({
         );
         if (marker) s.ghostGroup.add(marker);
       }
+      s.syncMarkers?.();
       if (s.renderer) {
         const size = s.renderer.getSize(new THREE.Vector2());
         updateLineResolutions(s.ghostGroup, size.x, size.y);
@@ -645,6 +707,9 @@ export function Viewport({
       const sprite = buildHeightMarker(marker.at, marker.feet);
       if (sprite) s.planeGroup.add(sprite);
     }
+    // A sprite is built at its full world size; the camera decides what that
+    // should be right now, so size it before it is ever drawn.
+    s.syncMarkers?.();
     s.requestRender?.();
   }, [activeElevation, heightMarkers]);
 
