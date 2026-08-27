@@ -9,6 +9,7 @@ import {
   resizeObstaclePlacementHeight,
   obstacleVolumeCells,
   placeObstacleVolume,
+  restOnObstacles,
   setObstaclePlacementFootprint,
   startObstaclePlacement
 } from "@/domain/obstacle-placement";
@@ -216,5 +217,60 @@ describe("penetrable obstacles", () => {
     });
     const solidGhost = obstaclePlacementGhost(draft, [2, 0, 2]);
     expect(solidGhost && "penetrable" in solidGhost).toBe(false);
+  });
+});
+
+describe("resting on an obstacle", () => {
+  /** A solid block from `baseY` up, three cells square around the origin. */
+  function withShelf(baseY: number, height: number, penetrable = false) {
+    const design = emptyDesign();
+    const placed = placeObstacleVolume(design, {
+      id: "o1",
+      cornerA: [-1, baseY, -1],
+      cornerB: [1, baseY + height - 1, 1],
+      kind: penetrable ? "penetrable" : "impenetrable"
+    });
+    if (!placed.ok) throw new Error(placed.message);
+    return placed.design;
+  }
+
+  it("steps a part up onto the obstacle it was aimed at", () => {
+    // The client built a shelf out of an impenetrable volume and expected to
+    // stand a blower on it; refusing the click answered nothing.
+    const design = withShelf(0, 4);
+    expect(restOnObstacles(design, [0, 0, 0], BUILD_AREA)).toEqual([0, 4, 0]);
+  });
+
+  it("leaves a clear cell alone", () => {
+    const design = withShelf(0, 4);
+    expect(restOnObstacles(design, [5, 0, 5], BUILD_AREA)).toEqual([5, 0, 5]);
+    // Above the shelf is already clear; nothing to climb.
+    expect(restOnObstacles(design, [0, 9, 0], BUILD_AREA)).toEqual([0, 9, 0]);
+  });
+
+  it("ignores penetrable volumes, which claim no cells", () => {
+    const design = withShelf(0, 4, true);
+    expect(restOnObstacles(design, [0, 0, 0], BUILD_AREA)).toEqual([0, 0, 0]);
+  });
+
+  it("climbs a stack rather than only its first volume", () => {
+    let design = withShelf(0, 4);
+    const second = placeObstacleVolume(design, {
+      id: "o2",
+      cornerA: [-1, 4, -1],
+      cornerB: [1, 6, 1],
+      kind: "impenetrable"
+    });
+    if (!second.ok) throw new Error(second.message);
+    design = second.design;
+    expect(restOnObstacles(design, [0, 0, 0], BUILD_AREA)).toEqual([0, 7, 0]);
+  });
+
+  it("refuses rather than lifting a part out of the build area", () => {
+    // A volume reaching the ceiling has no top to stand on. The unchanged cell
+    // goes on to be rejected the way it always was.
+    const area: BuildArea = { width: 20, depth: 20, height: 8 };
+    const design = withShelf(0, 8);
+    expect(restOnObstacles(design, [0, 0, 0], area)).toEqual([0, 0, 0]);
   });
 });
