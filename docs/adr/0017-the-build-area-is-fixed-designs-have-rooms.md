@@ -28,8 +28,10 @@ The room is derived scenery, not an occupant:
 - Its floor draws a step brighter than the ground outside; the brightness border is what marks
   where the room ends.
 - Four 1 ft walls (`roomWalls`) ring the footprint inside its own dimensions, rising the room's
-  full height. They render with the penetrable obstacle's mesh and, like penetrable obstacles
-  (ADR-0016), claim **no grid cells**: tubes route through walls, and validation stays out of it.
+  full height. They render as faintly translucent slabs in the floor separator's material — walls
+  and ceiling read as one structure, and hatch stays the mark of a placed obstacle. Like
+  penetrable obstacles (ADR-0016) they claim **no grid cells**: tubes route through walls, and
+  validation stays out of it.
 - The floor separator and the plenum bands span the room's footprint, not the build area, and the
   Auto-Build plenum bias only credits cells inside the room's footprint.
 - A two-floor room is derived (ADR-0015) and capped by `clampRoom` so both floors plus the

@@ -66,8 +66,10 @@ the build area, inside the room or out.
 footprint (the form labels `depth` **Length**; the code keeps `depth`), centered in the build area
 (`roomRect`). Stored as `metadata.room`; `metadata.buildArea` is the pre-rename key, still read on
 restore. Its floor draws brighter than the ground outside, and it is ringed by 1 ft **penetrable
-walls** (`roomWalls`) rising its full height — drawn like penetrable obstacles and, like them,
-claiming no grid cells, so tubes pass through and nothing collides (ADR-0016). `height` is
+walls** (`roomWalls`) rising its full height — faintly translucent slabs in the floor separator's
+material, and, like penetrable obstacles, claiming no grid cells, so tubes pass through and
+nothing collides (ADR-0016). Hatch stays the mark of a placed obstacle; the room's structure
+carries none. `height` is
 per-floor; a two-floor room is twice that plus the floor separator, derived by `roomHeightFeet` and
 never stored (ADR-0015), and capped so both floors fit the build area (`clampRoom`). Set on the
 welcome screen when the design is created, and fixed for its lifetime: there is no way to resize an
