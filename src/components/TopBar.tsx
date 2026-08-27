@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from "react";
 import "@/components/TopBar.css";
 import { Icons } from "@/components/Icons";
+import { STANDARD_VIEWS, type CameraView } from "@/renderer/camera-views";
 
 export type TopBarProps = {
   onNew: () => void;
@@ -13,6 +15,11 @@ export type TopBarProps = {
    * where the BOM now sits — the client asked for the two to trade places. */
   onAutoBuild: () => void;
   autoBuilding: boolean;
+  /** Point the camera at one of the named angles, or back at the default. */
+  onView: (view: CameraView | null) => void;
+  /** Whether height markers are pinned on rather than following the tool. */
+  markersPinned: boolean;
+  onToggleMarkers: () => void;
 };
 
 export function TopBar({
@@ -23,7 +30,10 @@ export function TopBar({
   canUndo,
   canRedo,
   onAutoBuild,
-  autoBuilding
+  autoBuilding,
+  onView,
+  markersPinned,
+  onToggleMarkers
 }: TopBarProps) {
   return (
     <div className="topbar nosel">
@@ -33,6 +43,7 @@ export function TopBar({
       <button className="topbtn topbar-no-drag" onClick={onNew}>
         <Icons.New size={16} /> New
       </button>
+      <ViewMenu onView={onView} markersPinned={markersPinned} onToggleMarkers={onToggleMarkers} />
       <button
         className="topbtn icon topbar-no-drag"
         title="Undo (⌘Z)"
@@ -60,6 +71,94 @@ export function TopBar({
       >
         <Icons.Auto size={16} /> {autoBuilding ? "Routing…" : "Auto-Build"}
       </button>
+    </div>
+  );
+}
+
+/**
+ * The View menu: the named angles to snap the camera to, and whether height
+ * markers stay on. Both were asked for as "features as part of a View menu".
+ */
+function ViewMenu({
+  onView,
+  markersPinned,
+  onToggleMarkers
+}: {
+  onView: (view: CameraView | null) => void;
+  markersPinned: boolean;
+  onToggleMarkers: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const choose = (fn: () => void) => {
+    setOpen(false);
+    fn();
+  };
+
+  return (
+    <div ref={rootRef} className="topbar-menu">
+      <button
+        className={"topbtn topbar-no-drag" + (open ? " active" : "")}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        View {open ? <Icons.ChevU size={13} /> : <Icons.ChevD size={13} />}
+      </button>
+      {open && (
+        <div role="menu" className="topbar-menu__panel topbar-no-drag">
+          <button
+            role="menuitemcheckbox"
+            aria-checked={markersPinned}
+            className="viewmenu-item"
+            onClick={() => choose(onToggleMarkers)}
+          >
+            <span className="viewmenu-item__check">
+              {markersPinned && <Icons.Check size={12} />}
+            </span>
+            Always show height markers
+          </button>
+          <div className="topbar-menu__divider" />
+          {STANDARD_VIEWS.map((view) => (
+            <button
+              key={view.id}
+              role="menuitem"
+              className="viewmenu-item"
+              onClick={() => choose(() => onView(view))}
+            >
+              <span className="viewmenu-item__check" />
+              {view.label}
+            </button>
+          ))}
+          <div className="topbar-menu__divider" />
+          <button
+            role="menuitem"
+            className="viewmenu-item"
+            onClick={() => choose(() => onView(null))}
+          >
+            <span className="viewmenu-item__check" />
+            Reset view
+          </button>
+        </div>
+      )}
     </div>
   );
 }

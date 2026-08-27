@@ -38,6 +38,7 @@ import {
   VP
 } from "@/renderer/three-utils";
 import { type PlenumBand, type RoomRect } from "@/domain/floors";
+import type { CameraView } from "@/renderer/camera-views";
 import type { FloorShadow, HeightMarker } from "@/domain/renderer-affordances";
 import { type PortMarker } from "@/domain/renderer-affordances";
 import { BUILD_AREA } from "@/domain/sparse-grid";
@@ -218,6 +219,12 @@ export type ViewportProps = {
    * outside the build area.
    */
   focusY?: number;
+  /**
+   * A named angle to point the camera at, or null for the opening framing.
+   * A fresh object each time one is chosen, so picking the same view twice
+   * re-applies it rather than silently doing nothing.
+   */
+  view?: CameraView | null;
 };
 
 export function Viewport({
@@ -238,7 +245,8 @@ export function Viewport({
   floorShadows = [],
   roomRect = null,
   roomWalls = [],
-  focusY = 0
+  focusY = 0,
+  view = null
 }: ViewportProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<ViewportState>({});
@@ -259,6 +267,18 @@ export function Viewport({
   useEffect(() => {
     callbacksRef.current = { onPlace, onHover };
   }, [onPlace, onHover]);
+
+  // Snapping to a view turns the camera without moving it in or out: the zoom
+  // is where the visitor put it, and a preset that reframed as well would
+  // throw that away every time they looked from another side.
+  useEffect(() => {
+    const s = stateRef.current;
+    if (!s.cam || !s.applyCamera) return;
+    s.cam.yaw = view ? view.yaw : DEFAULT_CAMERA_FRAMING.yaw;
+    s.cam.pitch = view ? view.pitch : DEFAULT_CAMERA_FRAMING.pitch;
+    s.applyCamera();
+    s.syncMarkers?.();
+  }, [view]);
 
   useEffect(() => {
     const mount = mountRef.current;
