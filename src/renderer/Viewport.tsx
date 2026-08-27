@@ -220,8 +220,12 @@ export function Viewport({
     const scene3 = new THREE.Scene();
 
     // Near/far are placeholders: the build-area effect sizes the far plane to
-    // the volume actually being drawn, and runs on first render too.
-    const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 200);
+    // the volume actually being drawn, and runs on first render too. The near
+    // plane is 0.5 rather than the customary 0.1 because depth precision is
+    // spent as far/near — with the far plane spanning the whole build area, a
+    // 0.1 near left too little resolution to keep coplanar ground layers
+    // apart. The camera can come no closer than 8 ft, so nothing is clipped.
+    const camera = new THREE.PerspectiveCamera(38, w / h, 0.5, 200);
     const cam = {
       yaw: DEFAULT_CAMERA_FRAMING.yaw,
       pitch: DEFAULT_CAMERA_FRAMING.pitch,
