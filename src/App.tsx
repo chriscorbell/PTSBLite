@@ -40,6 +40,7 @@ import { autoBuildOpenPortPair, type UnroutedPair } from "@/domain/pathfinder";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { BUILD_AREA } from "@/domain/sparse-grid";
 import {
+  floorShadows,
   heightMarkers,
   heightMarkersVisible,
   openPortMarkers
@@ -566,6 +567,12 @@ export default function App({ platform }: AppProps) {
   // Memoized for identity like the bands: the viewport rebuilds its ground
   // group when these change, and the room only actually changes with a new
   // design.
+  // Where the armed part sits over the floors below it. Keyed to the ghost, so
+  // it follows the pointer and the elevation keys without touching the design.
+  const shadows = useMemo(
+    () => floorShadows(ghostState, design.metadata),
+    [ghostState, design.metadata]
+  );
   const room = useMemo(() => roomRect(design.metadata), [design.metadata]);
   const walls = useMemo(() => roomWalls(design.metadata), [design.metadata]);
 
@@ -608,6 +615,7 @@ export default function App({ platform }: AppProps) {
             plenumBands={plenum}
             heightMarkers={markers}
             ghostHeight={markersOn ? activeElevation : null}
+            floorShadows={shadows}
             roomRect={room}
             roomWalls={walls}
             portMarkers={portMarkers}

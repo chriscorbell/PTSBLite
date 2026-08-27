@@ -18,6 +18,7 @@ import {
   partIdForObject
 } from "@/renderer/interaction";
 import {
+  buildFloorShadow,
   buildHeightMarker,
   HEIGHT_MARKER_FEET,
   buildFloorSeparator,
@@ -37,7 +38,7 @@ import {
   VP
 } from "@/renderer/three-utils";
 import { type PlenumBand, type RoomRect } from "@/domain/floors";
-import type { HeightMarker } from "@/domain/renderer-affordances";
+import type { FloorShadow, HeightMarker } from "@/domain/renderer-affordances";
 import { type PortMarker } from "@/domain/renderer-affordances";
 import { BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, Ghost, Scene, ToolId, Vec3 } from "@/types";
@@ -201,6 +202,8 @@ export type ViewportProps = {
   heightMarkers?: HeightMarker[];
   /** The elevation the armed tool would place at, labelled beside the ghost. */
   ghostHeight?: number | null;
+  /** Where the armed part sits over the floors beneath it; empty when none. */
+  floorShadows?: FloorShadow[];
   /** The room's footprint; its floor patch, walls, slab and plenum span this. */
   roomRect?: RoomRect | null;
   /** The room's walls as cell boxes, derived beside the rect in floors.ts. */
@@ -229,6 +232,7 @@ export function Viewport({
   plenumBands = [],
   heightMarkers = [],
   ghostHeight = null,
+  floorShadows = [],
   roomRect = null,
   roomWalls = [],
   focusY = 0
@@ -691,8 +695,11 @@ export function Viewport({
     for (const cell of landingCells) {
       s.overlayGroup.add(buildLandingCellHighlight(cell, tool));
     }
+    for (const shadow of floorShadows) {
+      s.overlayGroup.add(buildFloorShadow(shadow.cells, shadow.y));
+    }
     s.requestRender?.();
-  }, [landingCells, tool]);
+  }, [landingCells, tool, floorShadows]);
 
   // Height markers, and the hover plane the pointer casts onto. The plane a
   // translucent sheet used to draw at this elevation is gone: it showed where
