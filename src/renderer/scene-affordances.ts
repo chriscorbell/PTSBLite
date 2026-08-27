@@ -322,6 +322,49 @@ export function buildElevationPlane(area: BuildArea, elevation: number): THREE.G
   return g;
 }
 
+/**
+ * The shadow an armed part casts onto a floor below it: one square per column
+ * it occupies, drawn on the floor plane itself.
+ *
+ * Deliberately quieter than a landing highlight and outlined rather than
+ * filled. A landing cell is somewhere you may click; this is only a statement
+ * about where something already is, and the two must not be confused at a
+ * glance.
+ */
+export function buildFloorShadow(cells: Vec3[], y: number): THREE.Group {
+  const g = new THREE.Group();
+  if (cells.length === 0) return g;
+
+  const outline: number[] = [];
+  for (const cell of cells) {
+    const x0 = cell[0] + 0.08;
+    const x1 = cell[0] + 0.92;
+    const z0 = cell[2] + 0.08;
+    const z1 = cell[2] + 0.92;
+    outline.push(x0, 0, z0, x1, 0, z0);
+    outline.push(x1, 0, z0, x1, 0, z1);
+    outline.push(x1, 0, z1, x0, 0, z1);
+    outline.push(x0, 0, z1, x0, 0, z0);
+
+    const fill = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.84, 0.84),
+      new THREE.MeshBasicMaterial({
+        color: VP.accent,
+        transparent: true,
+        opacity: 0.1,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      })
+    );
+    fill.rotation.x = -Math.PI / 2;
+    // Above the floor's own grid lines, which are drawn at the plane itself.
+    fill.position.set(cell[0] + 0.5, y + 0.02, cell[2] + 0.5);
+    g.add(fill);
+  }
+  g.add(buildGroundLines(outline, VP.accent, 0.6, y + 0.022));
+  return g;
+}
+
 export function buildLandingCellHighlight(cell: Vec3, tool: ToolId): THREE.Group {
   const g = new THREE.Group();
   g.userData.landingCell = cell;

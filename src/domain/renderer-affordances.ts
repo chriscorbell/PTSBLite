@@ -1,6 +1,9 @@
-import { floorSeparatorY, plenumBands, roomRect } from "@/domain/floors";
+import { bendFootprint } from "@/domain/bend-placement";
+import { floorBaseElevation, floorSeparatorY, plenumBands, roomRect } from "@/domain/floors";
+import { obstacleVolumeCells } from "@/domain/obstacle-placement";
 import { computeTopology, type Port } from "@/domain/topology";
-import type { DesignState, Part, ToolId, Vec3 } from "@/types";
+import { tubeCells } from "@/domain/vec3";
+import type { DesignMetadata, DesignState, Ghost, Part, ToolId, Vec3 } from "@/types";
 
 export type PortMarker = {
   partId: string;
@@ -112,5 +115,61 @@ function partElevation(part: Part): number {
       return Math.floor(part.from[1]);
     case "bend":
       return Math.floor(part.entry[1]);
+  }
+}
+
+/** Cells to shade on one horizontal plane, directly beneath an armed part. */
+export type FloorShadow = { y: number; cells: Vec3[] };
+
+/**
+ * Where an armed part sits over the floors below it.
+ *
+ * A ghost hovering at elevation gives no sense of its position on the floor —
+ * the perspective that makes a 3D view readable is the same one that makes
+ * "which cell is that above?" unanswerable. Shading the columns it occupies,
+ * down on the floor itself, answers it without the visitor moving the camera.
+ *
+ * A shadow is cast onto every floor at or below the part: always the ground,
+ * and a two-floor room's upper storey once the part has reached it. Both,
+ * deliberately — from above, the upper floor says where the part is in the
+ * room it is being built in, and the ground says where it is in the building.
+ */
+export function floorShadows(ghost: Ghost | null, metadata: DesignMetadata): FloorShadow[] {
+  if (!ghost) return [];
+  const cells = ghostFootprint(ghost);
+  if (cells.length === 0) return [];
+
+  // One square per occupied column, however tall the part is: a shadow is a
+  // footprint, so a vertical tube shades the single cell it stands in.
+  const columns = new Map<string, Vec3>();
+  let lowest = Infinity;
+  for (const cell of cells) {
+    columns.set(`${cell[0]}|${cell[2]}`, cell);
+    lowest = Math.min(lowest, cell[1]);
+  }
+
+  const planes = [0];
+  if (metadata.multiFloor) {
+    const upper = floorBaseElevation(metadata, 2);
+    if (lowest >= upper) planes.push(upper);
+  }
+  return planes.map((y) => ({
+    y,
+    cells: [...columns.values()].map((cell): Vec3 => [cell[0], y, cell[2]])
+  }));
+}
+
+/** The cells an armed part would occupy, whatever kind of part it is. */
+function ghostFootprint(ghost: Ghost): Vec3[] {
+  switch (ghost.type) {
+    case "blower":
+    case "terminal":
+      return [ghost.cell];
+    case "tube":
+      return tubeCells(ghost.from, ghost.to);
+    case "bend":
+      return bendFootprint({ id: "ghost", ...ghost });
+    case "obstacle":
+      return obstacleVolumeCells(ghost.min, ghost.max);
   }
 }

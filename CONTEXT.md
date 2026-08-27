@@ -104,6 +104,12 @@ tool. Derived from open ports.
 
 **Ghost** — the translucent preview of the part that would be placed at the hovered cell.
 
+**Floor shadow** — the columns an armed part occupies, shaded on the floor beneath it
+(`floorShadows`). Cast on every floor at or below the part: always the ground, plus a two-floor
+room's upper storey once the part has reached it. Answers "which cell is that above?", which
+perspective alone cannot. Quieter than a landing cell and outlined rather than filled, because a
+landing cell is somewhere you may click and this only reports where something already is.
+
 **Auto-Build** — the routing pass that connects open port pairs automatically. One behavior, no
 modes: shortest path with a per-bend penalty, plus a soft preference for carrying horizontal runs
 and bends in the plenum when the design has one.
