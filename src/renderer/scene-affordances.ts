@@ -157,9 +157,11 @@ export function buildRoomWalls(walls: Array<{ min: Vec3; max: Vec3 }>): THREE.Gr
  * foot upward from `separatorY`. Purely visual: it occupies no grid cells, so
  * tubes can pass through it to reach the storey above.
  *
- * Translucent, without depth writes, so the lower floor stays legible through
- * it from above. Its top face carries the same grid as the ground, because it
- * is the second storey's floor and placement happens on it.
+ * Solid enough to read as structure — it is a real concrete floor, unlike the
+ * walls, which only mark where the room is — but still translucent and without
+ * depth writes, so the storey below stays legible through it from above. Its
+ * top face carries the same grid as the ground, because it is the second
+ * storey's floor and placement happens on it.
  */
 export function buildFloorSeparator(
   rect: RoomRect,
@@ -177,7 +179,7 @@ export function buildFloorSeparator(
     new THREE.MeshBasicMaterial({
       color: VP.gridStrong,
       transparent: true,
-      opacity: 0.28 * fade,
+      opacity: 0.5 * fade,
       depthWrite: false
     })
   );
@@ -186,7 +188,7 @@ export function buildFloorSeparator(
 
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(slab.geometry),
-    new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.8 * fade })
+    new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.9 * fade })
   );
   edges.position.copy(slab.position);
   g.add(edges);
