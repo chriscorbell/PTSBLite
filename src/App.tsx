@@ -26,7 +26,7 @@ import {
   plenumBands
 } from "@/domain/floors";
 import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
-import { type ObstacleKind } from "@/domain/obstacle-placement";
+import { restOnObstacles, type ObstacleKind } from "@/domain/obstacle-placement";
 import {
   attemptPlacement,
   commitObstacleDraft,
@@ -365,19 +365,37 @@ export default function App({ platform }: AppProps) {
     [buildArea]
   );
 
+  /**
+   * Where the pointer's cell actually lands. A blower or terminal aimed at an
+   * impenetrable obstacle steps up on top of it rather than being refused —
+   * the client builds shelves out of them and stands equipment on top. Tubes
+   * and bends continue from a port and are left alone, and the obstacle tool
+   * has to be able to draw over what is already there.
+   */
+  const restingCell = useCallback(
+    (cell: Vec3): Vec3 =>
+      tool === "blower" || tool === "terminal" ? restOnObstacles(design, cell, buildArea) : cell,
+    [tool, design, buildArea]
+  );
+
+  const onHover = useCallback(
+    (cell: Vec3) => dispatchPlacement({ type: "hover", cell: restingCell(cell) }),
+    [restingCell]
+  );
+
   const onPlace = useCallback(
     (cell: Vec3, target?: { partId?: string }) => {
       const { session, result } = attemptPlacement(
         placement,
         design,
-        cell,
+        restingCell(cell),
         newOccupantId(design, "p"),
         target?.partId
       );
       dispatchPlacement({ type: "apply-attempt", session });
       applyPlacementResult(result);
     },
-    [applyPlacementResult, design, placement]
+    [applyPlacementResult, design, placement, restingCell]
   );
 
   const exportBom = useCallback(async () => {
@@ -557,6 +575,11 @@ export default function App({ platform }: AppProps) {
     [buildArea, design.metadata]
   );
 
+  // What the armed part would be placed at. Usually the plane the elevation
+  // keys move, but a part resting on an obstacle sits above it — reporting the
+  // plane there would name a height the part is not going to.
+  const ghostElevation = placement.hoverCell?.[1] ?? activeElevation;
+
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
   // Heights are labelled only while a placement tool is armed: they answer the
   // question elevation raises, and would be clutter the rest of the time.
@@ -610,14 +633,14 @@ export default function App({ platform }: AppProps) {
             ghost={ghostState}
             tool={tool}
             onPlace={onPlace}
-            onHover={(cell) => dispatchPlacement({ type: "hover", cell })}
+            onHover={onHover}
             landingCells={landingCells}
             activeElevation={activeElevation}
             activeFloor={activeFloor}
             focusY={focusY}
             plenumBands={plenum}
             heightMarkers={markers}
-            ghostHeight={markersOn ? activeElevation : null}
+            ghostHeight={markersOn ? ghostElevation : null}
             floorShadows={shadows}
             roomRect={room}
             roomWalls={walls}
@@ -645,7 +668,7 @@ export default function App({ platform }: AppProps) {
             design={design}
             footer={<BomExportFooter onExport={exportBom} />}
           />
-          <ActiveToolBar tool={tool} elevation={activeElevation} floor={activeFloor} />
+          <ActiveToolBar tool={tool} elevation={ghostElevation} floor={activeFloor} />
         </div>
       </div>
       <StatusBar

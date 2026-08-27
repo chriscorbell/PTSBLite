@@ -163,6 +163,47 @@ export function obstacleVolumeCells(cornerA: Vec3, cornerB: Vec3): Vec3[] {
   return cells;
 }
 
+/**
+ * Where a part aimed at `cell` comes to rest: on top of whatever solid volume
+ * is already there, or at `cell` itself when nothing is.
+ *
+ * Aiming at an impenetrable obstacle used to be a flat refusal — the cells are
+ * claimed, so nothing could go there. The client had built a shelf out of one
+ * and wanted to stand a blower on it, which is what a solid volume in a room
+ * is for. Stepping up onto it is the answer to the same gesture. The step
+ * repeats so a stack of obstacles is climbed rather than only its first
+ * volume.
+ *
+ * Impenetrable volumes only: a penetrable one claims no cells and exists to be
+ * built through (ADR-0016). A clear cell, or a lift that would leave the build
+ * area, comes back unchanged and is refused exactly as before.
+ */
+export function restOnObstacles(design: DesignState, cell: Vec3, area: BuildArea): Vec3 {
+  let y = cell[1];
+  // Each step clears at least one volume and cannot re-enter one it has passed,
+  // so the obstacle count bounds the climb.
+  for (let step = 0; step <= design.obstacles.length; step++) {
+    const top = solidTopAt(design, cell[0], y, cell[2]);
+    if (top === null) return y === cell[1] ? cell : [cell[0], y, cell[2]];
+    y = top + 1;
+    if (y > clampElevation(y, area)) return cell;
+  }
+  return cell;
+}
+
+/** The highest impenetrable obstacle covering this cell, or null if none does. */
+function solidTopAt(design: DesignState, x: number, y: number, z: number): number | null {
+  let top: number | null = null;
+  for (const o of design.obstacles) {
+    if (o.penetrable) continue;
+    if (x < o.min[0] || x > o.max[0]) continue;
+    if (y < o.min[1] || y > o.max[1]) continue;
+    if (z < o.min[2] || z > o.max[2]) continue;
+    if (top === null || o.max[1] > top) top = o.max[1];
+  }
+  return top;
+}
+
 export function placeObstacleVolume(
   design: DesignState,
   {
