@@ -11,62 +11,6 @@
   border-bottom: 1px solid var(--line);
 }
 
-.status-bar__validation-heading {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-dim);
-  letter-spacing: 0.6px;
-  margin-bottom: 6px;
-}
-
-.status-bar__warnings {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.status-bar__warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--ink-2);
-}
-
-.status-bar__warning-badge {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--warn);
-  background: color-mix(in oklab, var(--warn) 18%, transparent);
-}
-.status-bar__warning--error .status-bar__warning-badge {
-  color: var(--danger);
-  background: color-mix(in oklab, var(--danger) 18%, transparent);
-}
-
-.status-bar__warning-text {
-  flex: 1;
-}
-
-.status-bar__warning-title {
-  font-size: 12px;
-  color: var(--text);
-  font-weight: 500;
-}
-
-.status-bar__warning-detail {
-  font-size: 11px;
-  color: var(--text-mut);
-  margin-top: 2px;
-}
-
 .status-bar__row {
   height: 44px;
   display: flex;
@@ -188,7 +132,7 @@
   background: var(--danger);
 }
 
-.status-bar__bom {
+.status-bar__finalize {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -205,13 +149,8 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.status-bar__bom:hover {
+.status-bar__finalize:hover {
   color: var(--text);
   border-color: var(--line-2);
   background: var(--panel-2);
-}
-.status-bar__bom--open {
-  background: color-mix(in oklab, var(--accent) 18%, transparent);
-  color: var(--accent);
-  border-color: color-mix(in oklab, var(--accent) 35%, transparent);
 }

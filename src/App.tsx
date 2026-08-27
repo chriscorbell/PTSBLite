@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ActiveToolBar } from "@/components/ActiveToolBar";
-import { BomExportFooter } from "@/components/BomExportFooter";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LeftRail } from "@/components/LeftRail";
-import { RightPanel } from "@/components/RightPanel";
+import { FinalizeModal } from "@/components/FinalizeModal";
 import { StatusBar } from "@/components/StatusBar";
 import { TopBar } from "@/components/TopBar";
 import { ViewportHUD } from "@/components/ViewportHUD";
@@ -151,7 +150,7 @@ export default function App({ platform }: AppProps) {
     storedSession.status === "unreadable" ? UNREADABLE_SESSION_MESSAGE : null
   );
   const [exportError, setExportError] = useState<string | null>(null);
-  const [rightOpen, setRightOpen] = useState(false);
+  const [finalizeOpen, setFinalizeOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [confirm, setConfirm] = useState<{
     title: string;
@@ -664,12 +663,6 @@ export default function App({ platform }: AppProps) {
             onObstacleConfirm={commitObstacle}
             onObstacleCancel={cancelObstacleDraft}
           />
-          <RightPanel
-            open={rightOpen}
-            onClose={() => setRightOpen(false)}
-            design={design}
-            footer={<BomExportFooter onExport={exportBom} />}
-          />
           <ActiveToolBar tool={tool} elevation={ghostElevation} floor={activeFloor} />
         </div>
       </div>
@@ -678,9 +671,16 @@ export default function App({ platform }: AppProps) {
         warnings={warnings}
         expanded={statusOpen}
         onToggle={() => setStatusOpen((s) => !s)}
-        bomOpen={rightOpen}
-        onToggleBom={() => setRightOpen((o) => !o)}
+        onFinalize={() => setFinalizeOpen(true)}
       />
+      {finalizeOpen && (
+        <FinalizeModal
+          design={design}
+          warnings={warnings}
+          onClose={() => setFinalizeOpen(false)}
+          onExport={exportBom}
+        />
+      )}
       {welcome && (
         <WelcomeScreen
           stored={welcome.stored}

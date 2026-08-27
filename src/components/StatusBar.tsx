@@ -1,4 +1,5 @@
 import { Icons } from "@/components/Icons";
+import { ValidationSummary } from "@/components/ValidationSummary";
 import { totalPathLength } from "@/domain/parts";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { DesignState, Warning } from "@/types";
@@ -9,21 +10,13 @@ export type StatusBarProps = {
   warnings: Warning[];
   expanded: boolean;
   onToggle: () => void;
-  /** Whether the bill of materials panel is showing. Anchored here rather than
-   * in the top bar, where Auto-Build now sits — the client asked for the two
-   * to trade places. */
-  bomOpen: boolean;
-  onToggleBom: () => void;
+  /** Opens the Finalize dialog, which is where the bill of materials lives.
+   * Anchored here rather than in the top bar, where Auto-Build now sits — the
+   * client asked for the two to trade places. */
+  onFinalize: () => void;
 };
 
-export function StatusBar({
-  design,
-  warnings,
-  expanded,
-  onToggle,
-  bomOpen,
-  onToggleBom
-}: StatusBarProps) {
+export function StatusBar({ design, warnings, expanded, onToggle, onFinalize }: StatusBarProps) {
   const errors = warnings.filter((w) => w.level === "error").length;
   const warns = warnings.filter((w) => w.level === "warn").length;
   const len = totalPathLength(design);
@@ -33,25 +26,7 @@ export function StatusBar({
     <div className="status-bar nosel">
       {expanded && warnings.length > 0 && (
         <div className="status-bar__validation">
-          <div className="status-bar__validation-heading">VALIDATION</div>
-          <div className="status-bar__warnings">
-            {warnings.map((w) => (
-              <div
-                key={w.id}
-                className={`status-bar__warning${
-                  w.level === "error" ? " status-bar__warning--error" : ""
-                }`}
-              >
-                <div className="status-bar__warning-badge">
-                  <Icons.Warn size={11} />
-                </div>
-                <div className="status-bar__warning-text">
-                  <div className="status-bar__warning-title">{w.title}</div>
-                  <div className="status-bar__warning-detail">{w.detail}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ValidationSummary warnings={warnings} />
         </div>
       )}
 
@@ -81,14 +56,8 @@ export function StatusBar({
         <Meta label="PARTS" value={`${design.parts.length}`} />
 
         <div className="status-bar__spacer" />
-        <button
-          type="button"
-          className={"status-bar__bom" + (bomOpen ? " status-bar__bom--open" : "")}
-          onClick={onToggleBom}
-          aria-pressed={bomOpen}
-          title={bomOpen ? "Hide BOM" : "Show BOM"}
-        >
-          <Icons.Bom size={15} /> BOM
+        <button type="button" className="status-bar__finalize" onClick={onFinalize}>
+          <Icons.Bom size={15} /> Finalize
         </button>
       </div>
     </div>
