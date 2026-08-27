@@ -56,21 +56,34 @@ cells, so tubes pass through it (ADR-0016). Either kind costs nothing and appear
 **Cell** — one grid position. **1 cell = 1 ft** on every axis. Cell coordinates are integers;
 `cellCenter` offsets by 0.5 for rendering and for the endpoints stored on tubes and bends.
 
-**Build area** — the buildable volume of a design, in feet: `width` (X) × `depth` (Z) footprint
-centered on the origin, rising `height` (Y) from the ground plane. The welcome form labels `depth`
-**Length**, the word someone measuring a room uses; the code keeps `depth` throughout. `height` is per-floor; a
-two-floor design builds in twice that plus the floor separator, derived by `effectiveBuildArea`
-and never stored (ADR-0015). Set on the welcome screen when the design is created, and fixed for
-its lifetime: there is no way to resize an existing design.
+**Build area** — the fixed volume every design exists in: 300 × 300 × 100 ft (`BUILD_AREA`),
+centered on the origin, rising from the ground plane. Not configurable and not stored — what a
+visitor sizes on the welcome screen is their **room** (ADR-0017). Parts may be placed anywhere in
+the build area, inside the room or out.
+*Avoid:* using "build area" for the typed dimensions — that is the room.
 
-**Floor separator** — the 1 ft structural slab between the floors of a two-floor design
-(`FLOOR_SEPARATOR_FEET`). Drawn in the viewport, but it occupies no grid cells: tubes pass through
-it to reach the second floor, so it deliberately does not collide like an obstacle.
+**Room** — the space a design is built in and around: per-floor `height` and a `width` × `depth`
+footprint (the form labels `depth` **Length**; the code keeps `depth`), centered in the build area
+(`roomRect`). Stored as `metadata.room`; `metadata.buildArea` is the pre-rename key, still read on
+restore. Its floor draws brighter than the ground outside, and it is ringed by 1 ft **penetrable
+walls** (`roomWalls`) rising its full height — drawn like penetrable obstacles and, like them,
+claiming no grid cells, so tubes pass through and nothing collides (ADR-0016). `height` is
+per-floor; a two-floor room is twice that plus the floor separator, derived by `roomHeightFeet` and
+never stored (ADR-0015), and capped so both floors fit the build area (`clampRoom`). Set on the
+welcome screen when the design is created, and fixed for its lifetime: there is no way to resize an
+existing room.
+
+**Floor separator** — the 1 ft structural slab between the floors of a two-floor room
+(`FLOOR_SEPARATOR_FEET`), spanning the room's footprint. Drawn in the viewport, but it occupies no
+grid cells: tubes pass through it to reach the second floor, so it deliberately does not collide
+like an obstacle.
 
 **Plenum** — the space between a floor's drop ceiling and its top, `plenumHeightFeet` tall,
-occupying the top of each floor (directly under the separator slab on floor 1). The declared
-per-floor height includes it. Drawn as a tinted band via `plenumBands`, and fully buildable —
-it restricts nothing. Auto-Build prefers carrying horizontal runs and bends inside it.
+occupying the top of each of the room's floors (directly under the separator slab on floor 1) and
+spanning the room's footprint — outside the room there is no drop ceiling to be above. The declared
+per-floor height includes it. Drawn as a tinted band via `plenumBands`, and fully buildable — it
+restricts nothing. Auto-Build prefers carrying horizontal runs and bends inside it, and gives no
+such credit outside the room.
 
 **Company name / System name** — who a design is for, and what it is called. Both collected on the
 welcome screen, both editable afterwards from the top-bar label, which shows them as

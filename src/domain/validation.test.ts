@@ -20,9 +20,9 @@ const baseParts: Part[] = [
 function designWith(
   parts: Part[],
   obstacles: DesignState["obstacles"] = [],
-  buildArea?: BuildArea
+  room?: BuildArea
 ): DesignState {
-  return designFromScene({ parts, obstacles }, buildArea ? { buildArea } : undefined);
+  return designFromScene({ parts, obstacles }, room ? { room } : undefined);
 }
 
 /**

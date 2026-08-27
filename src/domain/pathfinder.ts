@@ -1,5 +1,11 @@
 import { placeBend, validBendOrientations } from "@/domain/bend-placement";
-import { plenumBands, type PlenumBand } from "@/domain/floors";
+import {
+  inRoomFootprint,
+  plenumBands,
+  roomRect,
+  type PlenumBand,
+  type RoomRect
+} from "@/domain/floors";
 import { partRegistry, type BendFootprint } from "@/domain/part-registry";
 import { totalPathLength } from "@/domain/parts";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
@@ -185,8 +191,16 @@ function bendFits(design: DesignState, cells: Vec3[]): boolean {
   );
 }
 
-function inPlenum(bands: PlenumBand[], y: number): boolean {
-  return bands.some((band) => y >= band.base && y < band.top);
+/**
+ * The plenum is a volume, not a Y range: the bands span the room's footprint,
+ * and a cell outside the room at drop-ceiling height is just open air — the
+ * bias must not credit it.
+ */
+type PlenumVolume = { rect: RoomRect; bands: PlenumBand[] };
+
+function inPlenum(plenum: PlenumVolume, cell: Vec3): boolean {
+  if (!inRoomFootprint(plenum.rect, cell)) return false;
+  return plenum.bands.some((band) => cell[1] >= band.base && cell[1] < band.top);
 }
 
 function arcCost(): number {
@@ -198,7 +212,7 @@ function neighbors(
   state: RouteState,
   source: Port,
   target: Port,
-  plenum: PlenumBand[]
+  plenum: PlenumVolume | null
 ): Array<{ state: RouteState; edge: RouteEdge; cost: number; searchCost: number }> {
   const goalCell = target.from;
   if (!cellIsOpenForRoute(design, state.cell, goalCell) && !vEq(state.cell, source.cell)) {
@@ -215,7 +229,7 @@ function neighbors(
     inSearchBounds(straightCell, source, target)
   ) {
     const horizontal = state.dir[1] === 0;
-    const penalized = plenum.length > 0 && horizontal && !inPlenum(plenum, straightCell[1]);
+    const penalized = plenum !== null && horizontal && !inPlenum(plenum, straightCell);
     const to = { cell: straightCell, dir: state.dir };
     result.push({
       state: to,
@@ -240,7 +254,7 @@ function neighbors(
     // A bend counts as in the plenum when any of its cells is: the bend that
     // climbs out of a riser into the band straddles the boundary, and charging
     // it would tax exactly the turn the bias exists to encourage.
-    const penalized = plenum.length > 0 && !cells.some((cell) => inPlenum(plenum, cell[1]));
+    const penalized = plenum !== null && !cells.some((cell) => inPlenum(plenum, cell));
     const to = { cell: exitPortCell, dir: footprint.outDir };
     result.push({
       state: to,
@@ -260,7 +274,7 @@ function routeBetween(
   design: DesignState,
   source: Port,
   target: Port,
-  plenum: PlenumBand[],
+  plenum: PlenumVolume | null,
   maxExpansions: number
 ): RouteOutcome {
   const goal: RouteState = { cell: target.from, dir: vNeg(target.dir) };
@@ -378,7 +392,7 @@ function planBestRoute(
   design: DesignState,
   oriented: { source: Port; target: Port },
   pool: Port[],
-  plenum: PlenumBand[],
+  plenum: PlenumVolume | null,
   maxExpansions: number
 ): { best: PlannedBest | null; hitSearchLimit: boolean } {
   const sourceOptions = pool.filter((p) => p.partId === oriented.source.partId);
@@ -494,7 +508,9 @@ export function autoBuildOpenPortPair(
 ): AutoBuildPathResult {
   const budget = options.maxBudgetFeet ?? MAX_CENTERLINE_FEET;
   const maxExpansions = options.maxExpansions ?? MAX_ROUTE_EXPANSIONS;
-  const plenum = plenumBands(design.metadata);
+  const bands = plenumBands(design.metadata);
+  const plenum: PlenumVolume | null =
+    bands.length > 0 ? { rect: roomRect(design.metadata), bands } : null;
   const existingLength = totalPathLength(design);
 
   let currentDesign = design;

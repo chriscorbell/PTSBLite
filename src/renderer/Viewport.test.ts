@@ -16,14 +16,8 @@ import {
   moveViewportDrag
 } from "@/renderer/interaction";
 import { clearGroup } from "@/renderer/three-utils";
-import {
-  cameraFarPlane,
-  DEFAULT_CAMERA_FRAMING,
-  maxCameraDistance,
-  openingCameraDistance
-} from "@/renderer/Viewport";
-import { BUILD_AREA_LIMITS, DEFAULT_BUILD_AREA } from "@/domain/sparse-grid";
-import { effectiveBuildArea } from "@/domain/floors";
+import { cameraFarPlane, maxCameraDistance, openingCameraDistance } from "@/renderer/Viewport";
+import { BUILD_AREA, DEFAULT_ROOM } from "@/domain/sparse-grid";
 
 const vec = (x: number, y: number, z: number): [number, number, number] => [x, y, z];
 
@@ -304,74 +298,60 @@ describe("three.js integration points", () => {
 });
 
 describe("how far the camera may pull back", () => {
-  const LARGEST = {
-    width: BUILD_AREA_LIMITS.width.max,
-    depth: BUILD_AREA_LIMITS.depth.max,
-    height: BUILD_AREA_LIMITS.height.max
-  };
-
-  it("leaves the default design framed exactly as before", () => {
-    // 140 was the fixed limit for every design; scaling it must not pull the
-    // common case further out than it already went.
-    expect(maxCameraDistance(DEFAULT_BUILD_AREA)).toBe(140);
-  });
-
-  it("pulls back far enough to frame the largest footprint whole", () => {
+  it("pulls back far enough to frame the whole build area", () => {
     // A 38 degree vertical field needs span / (2 * tan(19deg)) to fit a span.
-    const needed = Math.hypot(LARGEST.width, LARGEST.depth) / (2 * Math.tan((19 * Math.PI) / 180));
-    expect(maxCameraDistance(LARGEST)).toBeGreaterThan(needed);
+    const needed =
+      Math.hypot(BUILD_AREA.width, BUILD_AREA.depth) / (2 * Math.tan((19 * Math.PI) / 180));
+    expect(maxCameraDistance(BUILD_AREA)).toBeGreaterThan(needed);
   });
 
-  it("keeps the far plane clear of the volume at full pull-back", () => {
-    // The regression this guards: a fixed far plane of 200 clipped the back off
-    // anything larger than the default build area.
-    for (const area of [DEFAULT_BUILD_AREA, LARGEST]) {
-      const halfDiagonal = Math.hypot(area.width, area.depth) / 2;
-      expect(cameraFarPlane(area)).toBeGreaterThan(maxCameraDistance(area) + halfDiagonal);
-    }
-  });
-
-  it("accounts for the doubled height of a two-floor design", () => {
-    const twoFloor = effectiveBuildArea({
-      companyName: "",
-      systemName: "s",
-      buildArea: LARGEST,
-      multiFloor: true,
-      plenumHeightFeet: null
-    });
-    expect(cameraFarPlane(twoFloor)).toBeGreaterThan(maxCameraDistance(twoFloor) + twoFloor.height);
+  it("keeps the far plane clear of the build area at full pull-back", () => {
+    // The regression this guards: a fixed far plane of 200 clipped the back
+    // off anything larger than the old default build area.
+    const halfDiagonal = Math.hypot(BUILD_AREA.width, BUILD_AREA.depth) / 2;
+    expect(cameraFarPlane(BUILD_AREA)).toBeGreaterThan(
+      maxCameraDistance(BUILD_AREA) + halfDiagonal
+    );
   });
 });
 
 describe("where the camera opens", () => {
-  const LARGEST = { width: BUILD_AREA_LIMITS.width.max, depth: BUILD_AREA_LIMITS.depth.max };
+  const LARGEST = { width: BUILD_AREA.width, depth: BUILD_AREA.depth };
 
-  it("opens the default design exactly where it always did", () => {
-    // The ratio against the default footprint is 1, so this must not drift.
-    expect(openingCameraDistance(DEFAULT_BUILD_AREA)).toBe(DEFAULT_CAMERA_FRAMING.distance);
+  it("opens outside the default room's walls, not inside them", () => {
+    // The regression this guards: the wall-less era's opening distance of 38
+    // sat inside the room once walls existed, filling the frame with hatch.
+    // 1.6 diagonals — maxCameraDistance's own see-it-whole multiple — stands
+    // clear of the 60 x 60 footprint with margin.
+    const opening = openingCameraDistance(DEFAULT_ROOM);
+    expect(opening).toBeCloseTo(Math.hypot(60, 60) * 1.6, 5);
+    expect(opening).toBeGreaterThan(Math.hypot(30, 30)); // past the near corner
   });
 
-  it("stands further back for a larger footprint", () => {
-    // The regression this guards: a fixed opening distance showed a 300 ft
-    // design as a corner of itself, with nothing hinting the rest was there.
-    expect(openingCameraDistance(LARGEST)).toBeGreaterThan(DEFAULT_CAMERA_FRAMING.distance);
+  it("stands further back for a larger room", () => {
+    expect(openingCameraDistance(LARGEST)).toBeGreaterThan(openingCameraDistance(DEFAULT_ROOM));
   });
 
-  it("opens on the same fraction of the floor at any size", () => {
+  it("frames every room at the same multiple of its diagonal", () => {
     const ratio =
-      Math.hypot(LARGEST.width, LARGEST.depth) /
-      Math.hypot(DEFAULT_BUILD_AREA.width, DEFAULT_BUILD_AREA.depth);
-    expect(openingCameraDistance(LARGEST)).toBeCloseTo(DEFAULT_CAMERA_FRAMING.distance * ratio, 5);
+      Math.hypot(LARGEST.width, LARGEST.depth) / Math.hypot(DEFAULT_ROOM.width, DEFAULT_ROOM.depth);
+    expect(openingCameraDistance(LARGEST)).toBeCloseTo(
+      openingCameraDistance(DEFAULT_ROOM) * ratio,
+      5
+    );
   });
 
   it("never opens beyond where the visitor could scroll back to", () => {
-    for (const area of [DEFAULT_BUILD_AREA, LARGEST, { width: 4, depth: 4 }]) {
-      expect(openingCameraDistance(area)).toBeLessThanOrEqual(maxCameraDistance(area));
+    // The wheel's limit is the build area's; no room may open past it.
+    for (const room of [DEFAULT_ROOM, LARGEST, { width: 4, depth: 4 }]) {
+      expect(openingCameraDistance(room)).toBeLessThanOrEqual(maxCameraDistance(BUILD_AREA));
     }
   });
 
-  it("keeps the smallest design off the camera's nose", () => {
-    // 4 x 4 scales to well under the 8 ft minimum the wheel also enforces.
-    expect(openingCameraDistance({ width: 4, depth: 4 })).toBe(8);
+  it("keeps a degenerate footprint off the camera's nose", () => {
+    // The smallest legal room (4 x 4) already clears the 8 ft minimum at 1.6
+    // diagonals; the floor still guards anything smaller reaching this code.
+    expect(openingCameraDistance({ width: 4, depth: 4 })).toBeCloseTo(Math.hypot(4, 4) * 1.6, 5);
+    expect(openingCameraDistance({ width: 1, depth: 1 })).toBe(8);
   });
 });

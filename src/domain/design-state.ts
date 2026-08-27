@@ -1,11 +1,6 @@
-import {
-  SparseGrid,
-  boundsFromBuildArea,
-  clampBuildArea,
-  DEFAULT_BUILD_AREA
-} from "@/domain/sparse-grid";
+import { SparseGrid, boundsFromBuildArea, BUILD_AREA } from "@/domain/sparse-grid";
 import { reconstructDesign } from "@/domain/design-reconstruction";
-import { effectiveBuildArea } from "@/domain/floors";
+import { clampRoom } from "@/domain/floors";
 import type { DesignMetadata, DesignState, Scene } from "@/types";
 
 export const DEFAULT_SYSTEM_NAME = "Untitled system";
@@ -42,11 +37,12 @@ export function newOccupantId(
 }
 
 function withMetadata(meta?: Partial<DesignMetadata>): DesignMetadata {
+  const multiFloor = meta?.multiFloor ?? false;
   return {
     companyName: meta?.companyName ?? DEFAULT_COMPANY_NAME,
     systemName: meta?.systemName ?? DEFAULT_SYSTEM_NAME,
-    buildArea: meta?.buildArea ? clampBuildArea(meta.buildArea) : { ...DEFAULT_BUILD_AREA },
-    multiFloor: meta?.multiFloor ?? false,
+    room: clampRoom(meta?.room, multiFloor),
+    multiFloor,
     plenumHeightFeet: meta?.plenumHeightFeet ?? null
   };
 }
@@ -57,7 +53,7 @@ export function emptyDesign(meta?: Partial<DesignMetadata>): DesignState {
     parts: [],
     obstacles: [],
     metadata,
-    grid: new SparseGrid(boundsFromBuildArea(effectiveBuildArea(metadata)))
+    grid: new SparseGrid(boundsFromBuildArea(BUILD_AREA))
   };
 }
 

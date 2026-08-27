@@ -5,7 +5,7 @@ import App from "@/App";
 import { serializeDesign } from "@/domain/design-file";
 import { emptyDesign } from "@/domain/design-state";
 import { webPlatform } from "@/platform/web";
-import { BUILD_AREA_LIMITS } from "@/domain/sparse-grid";
+import { ROOM_LIMITS } from "@/domain/sparse-grid";
 import type { Part } from "@/types";
 
 vi.mock("@/renderer/Viewport", () => ({
@@ -82,8 +82,8 @@ describe("picking up where you left off", () => {
     await waitFor(() => {
       const saved = window.localStorage.getItem(SESSION_KEY);
       expect(saved).not.toBeNull();
-      const parsed = JSON.parse(saved ?? "") as { metadata: { buildArea: { width: number } } };
-      expect(parsed.metadata.buildArea.width).toBe(40);
+      const parsed = JSON.parse(saved ?? "") as { metadata: { room: { width: number } } };
+      expect(parsed.metadata.room.width).toBe(40);
     });
     expect(download).not.toHaveBeenCalled();
   });
@@ -187,12 +187,12 @@ describe("the welcome setup form", () => {
       expect(saved).not.toBeNull();
       const parsed = JSON.parse(saved ?? "") as {
         metadata: {
-          buildArea: { width: number };
+          room: { width: number };
           multiFloor: boolean;
           plenumHeightFeet: number | null;
         };
       };
-      expect(parsed.metadata.buildArea.width).toBe(40);
+      expect(parsed.metadata.room.width).toBe(40);
       expect(parsed.metadata.multiFloor).toBe(true);
       expect(parsed.metadata.plenumHeightFeet).toBe(4);
     });
@@ -238,7 +238,7 @@ describe("the welcome setup form", () => {
 
       fireEvent.change(width, { target: { value: "9999" } });
       fireEvent.blur(width);
-      expect(width.value).toBe(String(BUILD_AREA_LIMITS.width.max));
+      expect(width.value).toBe(String(ROOM_LIMITS.width.max));
 
       fireEvent.change(width, { target: { value: "1" } });
       fireEvent.blur(width);
@@ -266,9 +266,9 @@ describe("the welcome setup form", () => {
         const saved = window.localStorage.getItem(SESSION_KEY);
         expect(saved).not.toBeNull();
         const parsed = JSON.parse(saved ?? "") as {
-          metadata: { buildArea: { width: number; depth: number; height: number } };
+          metadata: { room: { width: number; depth: number; height: number } };
         };
-        expect(parsed.metadata.buildArea).toEqual({ width: 12, depth: 150, height: 8 });
+        expect(parsed.metadata.room).toEqual({ width: 12, depth: 150, height: 8 });
       });
     });
   });

@@ -16,6 +16,9 @@ export const VP = {
   grid: 0x1f2530,
   gridStrong: 0x2a3140,
   ground: 0x10141b,
+  // The room's floor, a step brighter than the ground outside it so the room
+  // reads as a place without shouting over the parts placed in it.
+  groundRoom: 0x1a202b,
   accent: 0x5eead4,
   accentDim: 0x2e7e78,
   warn: 0xf4b43a,

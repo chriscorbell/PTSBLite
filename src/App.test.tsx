@@ -294,14 +294,19 @@ describe("a two-floor design", () => {
     fireEvent.click(screen.getByLabelText("Add 2nd floor"));
     fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
 
-    // Default height 30 per floor: 61 ft in all, slab starting at Y = 30.
-    expect(viewport.props?.buildArea).toMatchObject({ height: 61 });
+    // Default room: 30 ft per floor, slab starting at Y = 30. The viewport's
+    // volume is the fixed build area regardless — floors live in the room.
+    expect(viewport.props?.buildArea).toMatchObject({ width: 300, depth: 300, height: 100 });
     expect(viewport.props?.separatorY).toBe(30);
+    expect(viewport.props?.roomRect).toEqual({ xMin: -30, xMax: 30, zMin: -30, zMax: 30 });
+    // Four penetrable walls, spanning both floors of the room.
+    expect(viewport.props?.roomWalls).toHaveLength(4);
+    expect(viewport.props?.roomWalls?.every((w) => w.max[1] === 60)).toBe(true);
   });
 
   it("passes no separator for a single-floor design", async () => {
     await renderApp();
-    expect(viewport.props?.buildArea).toMatchObject({ height: 30 });
+    expect(viewport.props?.buildArea).toMatchObject({ height: 100 });
     expect(viewport.props?.separatorY).toBeNull();
     // No second floor: no selector, and the floor keys do nothing.
     expect(screen.queryByRole("button", { name: "Floor 2" })).toBeNull();

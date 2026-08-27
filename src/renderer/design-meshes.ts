@@ -378,7 +378,10 @@ export function buildObstacleMesh(
   // independently bends the diagonals. `place` lifts (u, v) into the face's
   // 3D plane, offset slightly outward so the lines never z-fight the box.
   const lines: number[] = [];
-  const step = 0.6;
+  // The hatch spacing grows with the box. A fixed 0.6 ft was tuned for
+  // furniture-sized obstacles; across a 60 ft room wall it packs hundreds of
+  // diagonals per face and dissolves into moiré at any distance.
+  const step = Math.max(0.6, Math.max(sx, sy, sz) / 40);
   const hatchFace = (
     u0: number,
     u1: number,

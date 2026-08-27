@@ -285,7 +285,7 @@ describe("Pathfinder plenum preference", () => {
   // fixture keeps its ports far enough apart that carrying the run in the
   // plenum beats staying on the ground even after paying for the risers.
   const PLENUM_META = {
-    buildArea: { width: 60, depth: 60, height: 8 },
+    room: { width: 60, depth: 60, height: 8 },
     plenumHeightFeet: 4
   };
   const farParts: Part[] = [
@@ -336,6 +336,25 @@ describe("Pathfinder plenum preference", () => {
     // feet they would move off the ground, so the hop stays a straight shot.
     expect(result.parts.every((part) => part.type === "tube")).toBe(true);
     expect(horizontalTubeLevels(result.parts)).toEqual([0]);
+    expect(validate(result.design)).toEqual([]);
+  });
+
+  it("gives no plenum credit outside the room", () => {
+    // The same long run, at plenum height for a room it is nowhere near:
+    // drop-ceiling space exists only over the room's footprint, so out there
+    // the bias has nothing to prefer and the route stays flat on the ground.
+    const meta = { room: { width: 20, depth: 20, height: 8 }, plenumHeightFeet: 4 };
+    const outside: Part[] = [
+      { id: "b1", type: "blower", cell: [40, 0, 40], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [41, 0, 40], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [105, 0, 40], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(designFromScene({ parts: outside, obstacles: [] }, meta));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.parts.every((part) => part.type === "tube")).toBe(true);
+    expect(horizontalTubeLevels(result.parts).every((y) => y === 0)).toBe(true);
     expect(validate(result.design)).toEqual([]);
   });
 
