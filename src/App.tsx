@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ActiveToolBar } from "@/components/ActiveToolBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ControlsLegend } from "@/components/ControlsLegend";
 import { LeftRail } from "@/components/LeftRail";
 import { FinalizeModal } from "@/components/FinalizeModal";
 import { StatusBar } from "@/components/StatusBar";
@@ -679,6 +680,7 @@ export default function App({ platform }: AppProps) {
             onObstacleConfirm={commitObstacle}
             onObstacleCancel={cancelObstacleDraft}
           />
+          <ControlsLegend />
           <ActiveToolBar tool={tool} elevation={ghostElevation} floor={activeFloor} />
         </div>
       </div>
