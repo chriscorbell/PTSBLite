@@ -110,9 +110,10 @@ export function buildRoomFloor(rect: RoomRect, dimmed = false): THREE.Group {
 /**
  * The room's walls: faintly translucent slabs in the separator's material, so
  * walls and ceiling read as one structure. No hatch — that stays the mark of
- * an obstacle a visitor placed. Fill sits below the slab's opacity because a
- * viewer looks through two walls at once, and no depth writes, so the room's
- * interior stays legible from any angle. Like penetrable obstacles the walls
+ * an obstacle a visitor placed. Fill sits well below the slab's opacity: a
+ * viewer looks through two walls at once from outside, so their tint compounds,
+ * and the walls exist to say where the room is rather than to be looked at. No
+ * depth writes either, so the interior stays legible from any angle. Like penetrable obstacles the walls
  * claim no grid cells; unlike them they are scenery — no part of the design,
  * not erasable, absent from the BOM.
  */
@@ -128,7 +129,7 @@ export function buildRoomWalls(walls: Array<{ min: Vec3; max: Vec3 }>): THREE.Gr
       new THREE.MeshBasicMaterial({
         color: VP.gridStrong,
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.07,
         depthWrite: false
       })
     );
@@ -141,7 +142,9 @@ export function buildRoomWalls(walls: Array<{ min: Vec3; max: Vec3 }>): THREE.Gr
 
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(geom),
-      new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.7 })
+      // The edges carry the room's shape now that the faces barely tint, so
+      // they stay stronger than the fill rather than fading with it.
+      new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.55 })
     );
     edges.position.copy(slab.position);
     g.add(edges);
