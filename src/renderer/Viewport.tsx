@@ -202,7 +202,10 @@ export type ViewportProps = {
   heightMarkers?: HeightMarker[];
   /** The elevation the armed tool would place at, labelled beside the ghost. */
   ghostHeight?: number | null;
-  /** Where the armed part sits over the floors beneath it; empty when none. */
+  /**
+   * Where parts sit over the floors beneath them — the armed one, and every
+   * placed one at elevation. Empty when nothing is above a floor.
+   */
   floorShadows?: FloorShadow[];
   /** The room's footprint; its floor patch, walls, slab and plenum span this. */
   roomRect?: RoomRect | null;
@@ -696,7 +699,7 @@ export function Viewport({
       s.overlayGroup.add(buildLandingCellHighlight(cell, tool));
     }
     for (const shadow of floorShadows) {
-      s.overlayGroup.add(buildFloorShadow(shadow.cells, shadow.y));
+      s.overlayGroup.add(buildFloorShadow(shadow.cells, shadow.y, { live: shadow.live }));
     }
     s.requestRender?.();
   }, [landingCells, tool, floorShadows]);
@@ -711,7 +714,7 @@ export function Viewport({
     clearGroup(s.planeGroup);
     s.hoverPlane.position.y = activeElevation;
     for (const marker of heightMarkers) {
-      const sprite = buildHeightMarker(marker.at, marker.feet);
+      const sprite = buildHeightMarker(marker.at, marker.feet, { label: marker.label });
       if (sprite) s.planeGroup.add(sprite);
     }
     // A sprite is built at its full world size; the camera decides what that

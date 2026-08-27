@@ -43,7 +43,8 @@ import {
   floorShadows,
   heightMarkers,
   heightMarkersVisible,
-  openPortMarkers
+  openPortMarkers,
+  placedPartShadows
 } from "@/domain/renderer-affordances";
 import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
@@ -567,11 +568,13 @@ export default function App({ platform }: AppProps) {
   // Memoized for identity like the bands: the viewport rebuilds its ground
   // group when these change, and the room only actually changes with a new
   // design.
-  // Where the armed part sits over the floors below it. Keyed to the ghost, so
-  // it follows the pointer and the elevation keys without touching the design.
+  // Where parts sit over the floors below them. The placed ones change only
+  // with the design; the armed one is keyed to the ghost, so it follows the
+  // pointer and the elevation keys without touching the design.
+  const placedShadows = useMemo(() => placedPartShadows(design), [design]);
   const shadows = useMemo(
-    () => floorShadows(ghostState, design.metadata),
-    [ghostState, design.metadata]
+    () => [...placedShadows, ...floorShadows(ghostState, design.metadata)],
+    [placedShadows, ghostState, design.metadata]
   );
   const room = useMemo(() => roomRect(design.metadata), [design.metadata]);
   const walls = useMemo(() => roomWalls(design.metadata), [design.metadata]);

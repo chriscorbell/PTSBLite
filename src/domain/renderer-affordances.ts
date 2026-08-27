@@ -1,5 +1,11 @@
 import { bendFootprint } from "@/domain/bend-placement";
-import { floorBaseElevation, floorSeparatorY, plenumBands, roomRect } from "@/domain/floors";
+import {
+  floorBaseElevation,
+  floorSeparatorY,
+  plenumBands,
+  roomHeightFeet,
+  roomRect
+} from "@/domain/floors";
 import { obstacleVolumeCells } from "@/domain/obstacle-placement";
 import { computeTopology, type Port } from "@/domain/topology";
 import { tubeCells } from "@/domain/vec3";
@@ -30,6 +36,12 @@ export type HeightMarker = {
   key: string;
   at: Vec3;
   feet: number;
+  /**
+   * What the level is, for the room's own structure. Parts carry none: a bare
+   * number beside something you just placed is unambiguous, whereas three bare
+   * numbers stacked in a corner of the room are not.
+   */
+  label?: string;
 };
 
 /**
@@ -66,23 +78,25 @@ export function heightMarkers(design: DesignState): HeightMarker[] {
     feet: partElevation(part)
   }));
 
+  const { multiFloor } = design.metadata;
   const rect = roomRect(design.metadata);
   // The corner nearest the opening camera, so structural labels read at a
   // glance. The far corner put them at the top of the frame, where the HUD's
   // own banners sit over the canvas and hid them entirely.
   const cornerX = rect.xMax;
   const cornerZ = rect.zMax;
+  const level = (key: string, feet: number, label: string) => {
+    markers.push({ key, at: [cornerX, feet, cornerZ], feet, label });
+  };
+
   for (const band of plenumBands(design.metadata)) {
-    markers.push({
-      key: `plenum-${band.floor}`,
-      at: [cornerX, band.base, cornerZ],
-      feet: band.base
-    });
+    level(`plenum-${band.floor}`, band.base, "Drop ceiling");
   }
   const separator = floorSeparatorY(design.metadata);
-  if (separator !== null) {
-    markers.push({ key: "separator", at: [cornerX, separator, cornerZ], feet: separator });
-  }
+  if (separator !== null) level("separator", separator, "Floor 1 ceiling");
+  // The room's own top. Without it the upper plenum says where it begins and
+  // nothing says where it ends, and "ceiling" was on the client's list.
+  level("ceiling", roomHeightFeet(design.metadata), multiFloor ? "Floor 2 ceiling" : "Ceiling");
   return markers;
 }
 
@@ -118,8 +132,13 @@ function partElevation(part: Part): number {
   }
 }
 
-/** Cells to shade on one horizontal plane, directly beneath an armed part. */
-export type FloorShadow = { y: number; cells: Vec3[] };
+/** Cells to shade on one horizontal plane, directly beneath a part. */
+export type FloorShadow = {
+  y: number;
+  cells: Vec3[];
+  /** The armed part's own shadow, which is drawn louder than a placed part's. */
+  live: boolean;
+};
 
 /**
  * Where an armed part sits over the floors below it.
@@ -155,8 +174,66 @@ export function floorShadows(ghost: Ghost | null, metadata: DesignMetadata): Flo
   }
   return planes.map((y) => ({
     y,
+    live: true,
     cells: [...columns.values()].map((cell): Vec3 => [cell[0], y, cell[2]])
   }));
+}
+
+/**
+ * Where every placed part sits over the floor beneath it.
+ *
+ * The same question the ghost's shadow answers, asked of a design that is
+ * already built: at a glance, a run of tube 20 ft up says nothing about which
+ * cells it crosses. Together these read as a plan of the system projected down
+ * onto the floor it was built above.
+ *
+ * One plane per part rather than the ghost's two — the floor it stands over is
+ * the grid it was placed on, and a second copy of every part on the ground
+ * would double the marks in a finished design for no extra answer. Parts
+ * sitting on that floor cast nothing: the client asked for this "if it's not
+ * on the ground obviously".
+ */
+export function placedPartShadows(design: DesignState): FloorShadow[] {
+  const planes = new Map<number, Map<string, Vec3>>();
+  for (const part of design.parts) {
+    const cells = partFootprint(part);
+    if (cells.length === 0) continue;
+    const lowest = Math.min(...cells.map((cell) => cell[1]));
+    const y = floorBeneath(design.metadata, lowest);
+    if (lowest <= y) continue;
+    const columns = planes.get(y) ?? new Map<string, Vec3>();
+    planes.set(y, columns);
+    for (const cell of cells) columns.set(`${cell[0]}|${cell[2]}`, cell);
+  }
+  return [...planes.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([y, columns]) => ({
+      y,
+      live: false,
+      cells: [...columns.values()].map((cell): Vec3 => [cell[0], y, cell[2]])
+    }));
+}
+
+/** The floor a part at this elevation stands over. */
+function floorBeneath(metadata: DesignMetadata, elevation: number): number {
+  if (metadata.multiFloor) {
+    const upper = floorBaseElevation(metadata, 2);
+    if (elevation >= upper) return upper;
+  }
+  return 0;
+}
+
+/** The cells a placed part occupies, whatever kind of part it is. */
+function partFootprint(part: Part): Vec3[] {
+  switch (part.type) {
+    case "blower":
+    case "terminal":
+      return [part.cell];
+    case "tube":
+      return tubeCells(part.from, part.to);
+    case "bend":
+      return bendFootprint(part);
+  }
 }
 
 /** The cells an armed part would occupy, whatever kind of part it is. */
