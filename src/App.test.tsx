@@ -79,11 +79,14 @@ describe("tool selection by keyboard", () => {
     fireEvent.keyDown(window, { key: "o" });
     expect(screen.getByText("Obstacle volume")).toBeTruthy();
 
+    // Scoped to the tool pill: the controls legend also names the erase tool,
+    // and it is on screen whatever tool is armed.
+    const pill = { selector: ".active-tool-bar__tool" };
     fireEvent.keyDown(window, { key: "x" });
-    expect(screen.getByText("Erase")).toBeTruthy();
+    expect(screen.getByText("Erase", pill)).toBeTruthy();
 
     fireEvent.keyDown(window, { key: "v" });
-    expect(screen.queryByText("Erase")).not.toBeTruthy();
+    expect(screen.queryByText("Erase", pill)).not.toBeTruthy();
   });
 
   it("returns to the cursor tool on Escape", async () => {
