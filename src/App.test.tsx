@@ -353,6 +353,23 @@ describe("a two-floor design", () => {
     ]);
   });
 
+  it("labels heights only while a placement tool is armed", async () => {
+    await renderApp();
+
+    // Nothing armed: no markers, and no ghost height to label.
+    expect(viewport.props?.heightMarkers).toEqual([]);
+    expect(viewport.props?.ghostHeight).toBeNull();
+
+    fireEvent.keyDown(window, { key: "o" });
+    fireEvent.keyDown(window, { key: "]" });
+    expect(viewport.props?.ghostHeight).toBe(1);
+
+    // Back to the cursor and the scene goes quiet again.
+    fireEvent.keyDown(window, { key: "v" });
+    expect(viewport.props?.heightMarkers).toEqual([]);
+    expect(viewport.props?.ghostHeight).toBeNull();
+  });
+
   it("shows the elevation beside the armed tool", async () => {
     await renderApp();
 
