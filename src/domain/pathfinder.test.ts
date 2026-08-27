@@ -373,6 +373,36 @@ describe("Pathfinder plenum preference", () => {
   });
 });
 
+describe("routing across a room with a plenum", () => {
+  it("routes a pair the width of an ordinary room apart", () => {
+    // Two terminals about 48 ft apart in a 60 ft room, which is what the
+    // client's own layout looked like. The plenum bias made a horizontal step
+    // outside the band cost three times what the distance estimate charged
+    // for it, so the search lost its guidance, exhausted the expansion budget
+    // and returned nothing at all — and told the visitor to move the endpoints
+    // closer, in a room they had just sized.
+    const parts: Part[] = [
+      { id: "b1", type: "blower", cell: [-8, 0, 21], dir: [0, 1, 0] },
+      { id: "t1", type: "terminal", cell: [-8, 1, 21], axis: [0, 1, 0] },
+      { id: "t2", type: "terminal", cell: [24, 0, -16], axis: [0, 1, 0] }
+    ];
+    const design = designFromScene(
+      { parts, obstacles: [] },
+      { room: { width: 60, depth: 60, height: 30 }, multiFloor: true, plenumHeightFeet: 3 }
+    );
+
+    const result = autoBuildOpenPortPair(design);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.unroutedPairs).toEqual([]);
+    // The two ports are 48 ft apart on the floor plan and a foot apart
+    // vertically; anything near that is a sane route rather than a detour.
+    expect(totalPathLength(result.parts)).toBeLessThan(75);
+    expect(validate(result.design)).toEqual([]);
+  });
+});
+
 describe("why Auto-Build failed", () => {
   const farApart: Part[] = [
     { id: "b1", type: "blower", cell: [-25, 0, -25], dir: [1, 0, 0] },
