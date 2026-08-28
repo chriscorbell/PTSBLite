@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { designFromScene } from "@/domain/design-state";
 import {
   floorShadows,
+  ghostElevation,
   heightMarkers,
   heightMarkersVisible,
   placedPartShadows
@@ -84,6 +85,36 @@ describe("heightMarkers", () => {
       designFromScene({ parts: [], obstacles: [] }, { room: { width: 20, depth: 20, height: 12 } })
     );
     expect(markers).toEqual([{ key: "ceiling", at: [10, 12, 10], feet: 12, label: "Ceiling" }]);
+  });
+
+  it("labels a riser at its top, where the marker hangs", () => {
+    // A vertical tube used to float its marker at mid-height while reporting
+    // the elevation of its foot: two different numbers in one label. How far
+    // up the riser reaches is the number worth having.
+    const riser: Part[] = [
+      { id: "r1", type: "tube", from: [0.5, 0.5, 0.5], to: [0.5, 6.5, 0.5], length: 6 }
+    ];
+    const marker = heightMarkers(designFromScene({ parts: riser, obstacles: [] }))[0];
+    expect(marker.feet).toBe(6);
+    expect(marker.at[1]).toBeGreaterThan(6);
+  });
+
+  it("still labels a horizontal run at the level it runs on", () => {
+    const flat: Part[] = [
+      { id: "f1", type: "tube", from: [2.5, 6.5, 0.5], to: [8.5, 6.5, 0.5], length: 6 }
+    ];
+    expect(heightMarkers(designFromScene({ parts: flat, obstacles: [] }))[0].feet).toBe(6);
+  });
+
+  it("measures an obstacle by the surface you could stand something on", () => {
+    // A 5 ft volume standing on the floor occupies cells 0..4; its top is 5 ft
+    // up, which is also what a blower resting on it reports.
+    const design = designFromScene({
+      parts: [],
+      obstacles: [{ id: "o1", min: [0, 0, 0], max: [2, 4, 2] }]
+    });
+    const marker = heightMarkers(design).find((m) => m.key === "o1");
+    expect(marker?.feet).toBe(5);
   });
 
   it("leaves a part's marker unlabelled", () => {
@@ -201,5 +232,18 @@ describe("placedPartShadows", () => {
       [1, 0, 0],
       [2, 0, 0]
     ]);
+  });
+});
+
+describe("ghostElevation", () => {
+  it("reports where the armed part would land", () => {
+    expect(ghostElevation({ type: "blower", cell: [0, 7, 0], dir: [1, 0, 0] })).toBe(7);
+    expect(ghostElevation({ type: "tube", from: [0.5, 0.5, 0.5], to: [0.5, 4.5, 0.5] })).toBe(4);
+  });
+
+  it("reports an obstacle draft's own top, not the placement plane", () => {
+    // The plane stays where the elevation keys left it while the HUD steppers
+    // move the box; reading the plane reported 0 however tall the box was.
+    expect(ghostElevation({ type: "obstacle", min: [0, 0, 0], max: [2, 4, 2] })).toBe(5);
   });
 });
