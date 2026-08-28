@@ -430,6 +430,20 @@ function orientPorts(design: DesignState, a: Port, b: Port): { source: Port; tar
  * the system unconnected. The client saw exactly that: manual tubing on the
  * "A" side worked and the same tubing on the "B" side did not.
  */
+/**
+ * The open ports Auto-Build could actually build from.
+ *
+ * A port's cell is where the next part would go, and some of them are nowhere:
+ * a terminal standing on the floor faces up, so its other port points down into
+ * a cell at Y = -1 that no part can ever occupy. Left in the pool such a port
+ * competes for pairing on distance like any other, wins when it happens to be
+ * nearest, routes nowhere, and takes the pairing that would have worked down
+ * with it.
+ */
+function reachablePorts(design: DesignState, ports: Port[]): Port[] {
+  return ports.filter((port) => design.grid.withinBounds(port.cell));
+}
+
 function pickClosestPair(pool: Port[], topology: Topology): { a: Port; b: Port } | null {
   let best: { i: number; j: number; dist: number } | null = null;
   for (let i = 0; i < pool.length; i++) {
@@ -572,7 +586,7 @@ export function autoBuildOpenPortPair(
 
   let currentDesign = design;
   let topology = computeTopology(design);
-  let pool = topology.openPorts();
+  let pool = reachablePorts(design, topology.openPorts());
   const allParts: Part[] = [];
   const unroutedPairs: UnroutedPair[] = [];
   let addedCost = 0;
@@ -614,6 +628,7 @@ export function autoBuildOpenPortPair(
     // The route just placed merged two runs into one, so the next pair has to
     // be chosen against the design as it now stands.
     topology = computeTopology(currentDesign);
+    pool = reachablePorts(currentDesign, pool);
     pool = pool.filter((p) => p !== best.source && p !== best.target);
   }
 
