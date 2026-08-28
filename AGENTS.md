@@ -27,8 +27,11 @@ Every PR must leave `pnpm run check` green.
 ## The three things most likely to be wrong
 
 **1. Authoritative spec versus placeholder data.** The 300 ft centerline cap, 6 ft tube stock,
-90° bends at 3 ft radius, 1 cell = 1 ft, and Terminal 1 flush against the blower come from the real
-PTS specification. Do not change them without a cited source. Part names and numbers are
+90° bends at 3 ft radius, and 1 cell = 1 ft come from the real PTS specification. Do not change them
+without a cited source. Terminal 1 flush against the blower was on this list and should not have
+been — the client withdrew it
+([ADR-0019](docs/adr/0019-a-valid-system-has-a-blower-at-each-end.md)), which is the process working:
+the rule was flagged, questioned, and sourced rather than quietly edited. Part names and numbers are
 placeholders. See [ADR-0001](docs/adr/0001-engineering-constraints-are-authoritative.md).
 
 User-facing copy must interpolate engineering constants rather than restating them.

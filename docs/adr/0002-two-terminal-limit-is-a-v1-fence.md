@@ -1,6 +1,7 @@
 # ADR-0002: The two-terminal limit is a v1 scope fence, not an invariant
 
-- **Status:** Accepted
+- **Status:** Accepted; partly superseded by
+  [ADR-0019](0019-a-valid-system-has-a-blower-at-each-end.md)
 - **Date:** 2026-07-25
 
 ## Context
@@ -20,8 +21,13 @@ equally permanent.
 The **exactly-two-terminals** limit is a **v1 product scope fence**. Multi-station support is
 expected; its shape is not yet designed.
 
-The blower/Terminal-1 **adjacency** requirement is separate and *is* spec-derived (ADR-0001) — it
-constrains how a blower meets its terminal, whatever the eventual station count.
+~~The blower/Terminal-1 **adjacency** requirement is separate and *is* spec-derived (ADR-0001) — it
+constrains how a blower meets its terminal, whatever the eventual station count.~~
+
+**Withdrawn 2026-08-28.** Adjacency was never spec-derived. The client states that tubing between a
+blower and its terminal is a real configuration ("remoting the blower"), and that a valid system has
+a blower at *each* end. See [ADR-0019](0019-a-valid-system-has-a-blower-at-each-end.md). The
+two-terminal count above is unaffected and remains a v1 fence.
 
 ## Consequences
 

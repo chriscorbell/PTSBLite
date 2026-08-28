@@ -35,11 +35,15 @@ Obstacles are **not** parts. Modelled by `Part`.
 *Avoid:* "component", "element", "piece".
 
 **Blower** — the unit that drives air through the system. Has exactly one **port**, facing `dir`.
+A complete system has one at **each** end; see ADR-0019.
+
+**Remoting the blower** — running tubing and bends between a blower and its terminal rather than
+seating them together. The client's term. A legal layout, not a fault.
 
 **Terminal** — a send/receive station. Has exactly two ports, on the `axis` and its negation.
-- **Terminal 1** — the terminal seated directly against the blower outlet, with zero tubing between
-  them. Spec-required adjacency; see ADR-0001.
-- **Terminal 2** — the terminal at the far end of the run.
+- **Terminal 1** — the terminal on the blower-1 side of the run. Usually seated against the blower
+  outlet, but tubing and bends may sit between them (see *remoting the blower*).
+- **Terminal 2** — the terminal at the far end of the run, before any tubing to blower 2.
 
 **Tube** — a straight run. Stocked in 6 ft lengths; shorter runs are cut on site.
 
@@ -131,7 +135,8 @@ the armed tool. In a
 two-floor design, the floor selector (or `1` / `2`) jumps it to a floor's base.
 
 **Free placement** — placement that does not require snapping to an open port (blower, and
-Terminal 2). Contrast with tube/bend/Terminal 1, which must land on a port.
+Terminal 2). Contrast with tube/bend/Terminal 1, which must land on a port. *(Terminal 1's
+port-snapping follows from the adjacency rule ADR-0019 withdrew; it is still what the code does.)*
 
 ## Architecture
 
