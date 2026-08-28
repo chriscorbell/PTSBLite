@@ -6,6 +6,7 @@ import {
   PATHFINDER_SEARCH_LIMIT_MESSAGE
 } from "@/domain/pathfinder";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
+import { placeTube } from "@/domain/tube-placement";
 import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
 import { validate } from "@/domain/validation";
 import type { DesignState, Obstacle, Part, Vec3 } from "@/types";
@@ -370,6 +371,57 @@ describe("Pathfinder plenum preference", () => {
     // while totalPathLength computes the true arc, 4.7124 — a gap that predates
     // the bias and is a few hundredths across a whole route.
     expect(result.cost).toBeCloseTo(totalPathLength(result.parts), 1);
+  });
+});
+
+describe("completing a system that already has manual tubing", () => {
+  const base: Part[] = [
+    { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
+    { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
+    { id: "t2", type: "terminal", cell: [20, 0, 0], axis: [1, 0, 0] }
+  ];
+
+  /** The design with one manual tube run out of `sourcePartId` from `cell`. */
+  function withStub(sourcePartId: string, cell: Vec3): DesignState {
+    const placed = placeTube(designWith(base), { id: "manual", cell, sourcePartId });
+    if (!placed.ok) throw new Error(placed.message);
+    return placed.design;
+  }
+
+  it("joins a manual stub on the far side to the rest of the system", () => {
+    // Running tube out of Terminal 2 leaves that stub's free end and the
+    // terminal's own outer port 8 ft apart, closer to each other than either is
+    // to the blower side 11 ft away. Choosing purely on proximity turned the
+    // stub back into the terminal it came from — a U-turn of four bends — and
+    // left the blower side unconnected. The client hit exactly this: manual
+    // tubing on the "A" side worked, the same tubing on the "B" side did not.
+    const result = autoBuildOpenPortPair(withStub("t2", [19, 0, 0]));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.unroutedPairs).toEqual([]);
+    expect(result.parts.filter((part) => part.type === "bend")).toEqual([]);
+    expect(validate(result.design)).toEqual([]);
+  });
+
+  it("still joins a manual stub on the blower side", () => {
+    const result = autoBuildOpenPortPair(withStub("t1", [2, 0, 0]));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.unroutedPairs).toEqual([]);
+    expect(validate(result.design)).toEqual([]);
+  });
+
+  it("never joins two ends of the same run to each other", () => {
+    // Only one run exists, so there is nothing to connect it to and nothing
+    // sensible to do — closing it into a loop is not an improvement.
+    const stub = withStub("t2", [19, 0, 0]);
+    const lone = designWith(stub.parts.filter((part) => part.id !== "b1" && part.id !== "t1"));
+
+    const result = autoBuildOpenPortPair(lone);
+
+    expect(result.ok).toBe(false);
   });
 });
 

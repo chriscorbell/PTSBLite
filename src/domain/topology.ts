@@ -119,10 +119,44 @@ export function computePartPorts(part: Part, registry: PartRegistry = partRegist
   return ports;
 }
 
-function computeConnectedKeys(ports: Port[]): Set<string> {
+/**
+ * Which ports are joined to another, and which parts those joins group into
+ * runs.
+ *
+ * The runs come out of the same pass because they are the same relation seen
+ * from the other side: two parts are on one run exactly when a chain of joined
+ * ports leads from one to the other. Callers that need to know whether two open
+ * ports face each other across a gap — or are already two ends of the same
+ * piece of pipework — need both.
+ */
+function computeTopologyRelations(ports: Port[]): {
+  connected: Set<string>;
+  runByPart: Map<string, string>;
+} {
   const connected = new Set<string>();
+  const parent = new Map<string, string>();
+
+  const find = (id: string): string => {
+    let root = parent.get(id) ?? id;
+    while (root !== (parent.get(root) ?? root)) root = parent.get(root) ?? root;
+    // Path compression, so a long run does not walk its whole length per query.
+    let cursor = id;
+    while (cursor !== root) {
+      const next = parent.get(cursor) ?? cursor;
+      parent.set(cursor, root);
+      cursor = next;
+    }
+    return root;
+  };
+  const union = (a: string, b: string) => {
+    const rootA = find(a);
+    const rootB = find(b);
+    if (rootA !== rootB) parent.set(rootA, rootB);
+  };
+
   const byFrom = new Map<string, Port[]>();
   for (const p of ports) {
+    parent.set(p.partId, parent.get(p.partId) ?? p.partId);
     const k = cellKey(p.from);
     const arr = byFrom.get(k);
     if (arr) arr.push(p);
@@ -139,10 +173,14 @@ function computeConnectedKeys(ports: Port[]): Set<string> {
       if (!vEq(b.dir, vNeg(a.dir))) continue;
       connected.add(portKey(a));
       connected.add(portKey(b));
+      union(a.partId, b.partId);
       break;
     }
   }
-  return connected;
+
+  const runByPart = new Map<string, string>();
+  for (const partId of parent.keys()) runByPart.set(partId, find(partId));
+  return { connected, runByPart };
 }
 
 export class Topology {
@@ -150,6 +188,7 @@ export class Topology {
   private readonly partPorts = new Map<string, Port[]>();
   private _ports: Port[] = [];
   private _connected = new Set<string>();
+  private _runByPart = new Map<string, string>();
 
   constructor(items: Array<Part | Port> = [], registry: PartRegistry = partRegistry) {
     this.registry = registry;
@@ -181,9 +220,20 @@ export class Topology {
     return this.openPorts().filter((p) => vEq(p.cell, cell));
   }
 
+  /**
+   * An identifier shared by every part reachable from this one through joined
+   * ports. Two open ports with the same run are already two ends of the same
+   * pipework, so joining them would close a loop rather than extend the system.
+   */
+  runOf(partId: string): string {
+    return this._runByPart.get(partId) ?? partId;
+  }
+
   private rebuild(): void {
     this._ports = [...this.partPorts.values()].flat();
-    this._connected = computeConnectedKeys(this._ports);
+    const relations = computeTopologyRelations(this._ports);
+    this._connected = relations.connected;
+    this._runByPart = relations.runByPart;
   }
 }
 

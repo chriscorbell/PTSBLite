@@ -10,7 +10,7 @@ import { partRegistry, type BendFootprint } from "@/domain/part-registry";
 import { totalPathLength } from "@/domain/parts";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import { placeTube } from "@/domain/tube-placement";
-import { computeTopology, type Port } from "@/domain/topology";
+import { computeTopology, type Port, type Topology } from "@/domain/topology";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import type { BlowerPart, DesignState, Part, Vec3 } from "@/types";
 import { cellKey, manhattan, vAdd, vEq, vNeg, vScale } from "@/domain/vec3";
@@ -403,11 +403,23 @@ function orientPorts(design: DesignState, a: Port, b: Port): { source: Port; tar
   return keyA <= keyB ? { source: a, target: b } : { source: b, target: a };
 }
 
-function pickClosestPair(pool: Port[]): { a: Port; b: Port } | null {
+/**
+ * The two open ports worth joining next: the closest pair that are not already
+ * two ends of the same run.
+ *
+ * The run check is what stops Auto-Build eating its own tail. Manually running
+ * tube out of Terminal 2 leaves that stub's free end and the terminal's own
+ * outer port close together, and closer to each other than either is to the
+ * blower side of the system — so raw proximity joined the stub back into the
+ * terminal it came from, in a U-turn of four bends, and left the far side of
+ * the system unconnected. The client saw exactly that: manual tubing on the
+ * "A" side worked and the same tubing on the "B" side did not.
+ */
+function pickClosestPair(pool: Port[], topology: Topology): { a: Port; b: Port } | null {
   let best: { i: number; j: number; dist: number } | null = null;
   for (let i = 0; i < pool.length; i++) {
     for (let j = i + 1; j < pool.length; j++) {
-      if (pool[i].partId === pool[j].partId) continue;
+      if (topology.runOf(pool[i].partId) === topology.runOf(pool[j].partId)) continue;
       const dist = manhattan(pool[i].cell, pool[j].cell);
       if (!best || dist < best.dist) {
         best = { i, j, dist };
@@ -544,13 +556,14 @@ export function autoBuildOpenPortPair(
   const existingLength = totalPathLength(design);
 
   let currentDesign = design;
-  let pool = computeTopology(design).openPorts();
+  let topology = computeTopology(design);
+  let pool = topology.openPorts();
   const allParts: Part[] = [];
   const unroutedPairs: UnroutedPair[] = [];
   let addedCost = 0;
 
   while (pool.length >= 2) {
-    const closest = pickClosestPair(pool);
+    const closest = pickClosestPair(pool, topology);
     if (!closest) break;
     const oriented = orientPorts(currentDesign, closest.a, closest.b);
     const { best, hitSearchLimit } = planBestRoute(
@@ -583,6 +596,9 @@ export function autoBuildOpenPortPair(
     currentDesign = result.design;
     allParts.push(...result.parts);
     addedCost += result.cost;
+    // The route just placed merged two runs into one, so the next pair has to
+    // be chosen against the design as it now stands.
+    topology = computeTopology(currentDesign);
     pool = pool.filter((p) => p !== best.source && p !== best.target);
   }
 
