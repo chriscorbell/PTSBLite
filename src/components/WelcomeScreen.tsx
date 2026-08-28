@@ -7,14 +7,15 @@ import type { BuildArea, DesignState } from "@/types";
 import "@/components/WelcomeScreen.css";
 
 /**
- * Room axes in the words a visitor measuring one would use. The domain keeps
- * calling the Z axis `depth`; only the label says "Length". `hint` carries what
- * the dismissed warning box used to say about that axis, next to the field it
- * actually constrains rather than in a paragraph below the whole form.
+ * Room axes in the words a visitor measuring one would use, in the order they
+ * are spoken: length, then width, then height. The domain keeps calling the Z
+ * axis `depth`; only the label says "Length". `hint` carries what the dismissed
+ * warning box used to say about that axis, next to the field it actually
+ * constrains rather than in a paragraph below the whole form.
  */
 const ROOM_AXES: { key: keyof BuildArea; label: string; hint?: string }[] = [
-  { key: "width", label: "Width" },
   { key: "depth", label: "Length" },
+  { key: "width", label: "Width" },
   { key: "height", label: "Height", hint: "Floor to ceiling, including plenum" }
 ];
 
@@ -24,6 +25,9 @@ const ROOM_AXES: { key: keyof BuildArea; label: string; hint?: string }[] = [
  * nothing stored starts at the form and never sees the first two.
  */
 type Stage = "choice" | "confirm-new" | "setup";
+
+/** What the plenum height field starts on, per the client. */
+const DEFAULT_PLENUM_FEET = 2;
 
 /** What the setup form collects before a design exists. */
 export type DesignSetup = {
@@ -58,7 +62,7 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
   const [room, setRoom] = useState<BuildArea>({ ...DEFAULT_ROOM });
   const [multiFloor, setMultiFloor] = useState(false);
   const [hasPlenum, setHasPlenum] = useState(false);
-  const [plenumHeightFeet, setPlenumHeightFeet] = useState(3);
+  const [plenumHeightFeet, setPlenumHeightFeet] = useState(DEFAULT_PLENUM_FEET);
 
   if (stage === "choice" && stored) {
     return (
@@ -148,13 +152,15 @@ export function WelcomeScreen({ stored, greeting, onContinue, onCreate }: Welcom
           {hasPlenum && (
             <label className="welcome__plenum" htmlFor="plenum-height">
               <span className="welcome__label">Approximate plenum height</span>
-              <NumberInput
-                id="plenum-height"
-                className="welcome__input welcome__input--narrow"
-                value={plenumHeightFeet}
-                min={1}
-                onChange={setPlenumHeightFeet}
-              />
+              <span className="welcome__unit-field">
+                <NumberInput
+                  id="plenum-height"
+                  className="welcome__input welcome__input--unit welcome__input--narrow"
+                  value={plenumHeightFeet}
+                  min={1}
+                  onChange={setPlenumHeightFeet}
+                />
+              </span>
             </label>
           )}
           <p className="welcome__callout">

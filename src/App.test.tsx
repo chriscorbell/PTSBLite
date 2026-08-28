@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Vec3 } from "@/types";
 import type { ViewportProps } from "@/renderer/Viewport";
 import type { Platform } from "@/platform/types";
+import { DEFAULT_ROOM } from "@/domain/sparse-grid";
 
 // The real Viewport builds a WebGLRenderer, which happy-dom cannot provide. It
 // is also the only part of the tree that needs a GPU, so mocking just this
@@ -296,14 +297,20 @@ describe("a two-floor design", () => {
     fireEvent.click(screen.getByLabelText(/Add 2nd floor/));
     fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
 
-    // Default room: 30 ft per floor, slab starting at Y = 30. The viewport's
-    // volume is the fixed build area regardless — floors live in the room.
+    // The slab starts at the top of floor 1, and the viewport's volume is the
+    // fixed build area regardless — floors live in the room, not the volume.
+    const { width, depth, height } = DEFAULT_ROOM;
     expect(viewport.props?.buildArea).toMatchObject({ width: 300, depth: 300, height: 100 });
-    expect(viewport.props?.separatorY).toBe(30);
-    expect(viewport.props?.roomRect).toEqual({ xMin: -30, xMax: 30, zMin: -30, zMax: 30 });
-    // Four penetrable walls, spanning both floors of the room.
+    expect(viewport.props?.separatorY).toBe(height);
+    expect(viewport.props?.roomRect).toEqual({
+      xMin: -width / 2,
+      xMax: width / 2,
+      zMin: -depth / 2,
+      zMax: depth / 2
+    });
+    // Four penetrable walls, spanning both floors of the room and the slab.
     expect(viewport.props?.roomWalls).toHaveLength(4);
-    expect(viewport.props?.roomWalls?.every((w) => w.max[1] === 60)).toBe(true);
+    expect(viewport.props?.roomWalls?.every((w) => w.max[1] === height * 2)).toBe(true);
   });
 
   it("passes no separator for a single-floor design", async () => {
@@ -322,18 +329,20 @@ describe("a two-floor design", () => {
     fireEvent.click(screen.getByLabelText(/Add 2nd floor/));
     fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
 
+    // Floor 2 starts one slab above floor 1's ceiling.
+    const floorTwo = DEFAULT_ROOM.height + 1;
     fireEvent.keyDown(window, { key: "2" });
-    expect(viewport.props?.activeElevation).toBe(31);
+    expect(viewport.props?.activeElevation).toBe(floorTwo);
     expect(viewport.props?.activeFloor).toBe(2);
     // The camera follows the floor, or the new plane is edge-on and unclickable.
-    expect(viewport.props?.focusY).toBe(31);
+    expect(viewport.props?.focusY).toBe(floorTwo);
 
     fireEvent.click(screen.getByRole("button", { name: "Floor 1" }));
     expect(viewport.props?.activeElevation).toBe(0);
     expect(viewport.props?.activeFloor).toBe(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Floor 2" }));
-    expect(viewport.props?.activeElevation).toBe(31);
+    expect(viewport.props?.activeElevation).toBe(floorTwo);
   });
 
   it("hands the viewport the plenum bands a design declares", async () => {
@@ -346,10 +355,13 @@ describe("a two-floor design", () => {
     fireEvent.change(screen.getByLabelText(/plenum height/i), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
 
-    // Default 30 ft floors: bands under the slab at 30 and at floor 2's top.
+    // A 4 ft band at the top of each floor: under the slab, and under the
+    // room's own ceiling.
+    const perFloor = DEFAULT_ROOM.height;
+    const floorTwoBase = perFloor + 1;
     expect(viewport.props?.plenumBands).toEqual([
-      { floor: 1, base: 26, top: 30 },
-      { floor: 2, base: 57, top: 61 }
+      { floor: 1, base: perFloor - 4, top: perFloor },
+      { floor: 2, base: floorTwoBase + perFloor - 4, top: floorTwoBase + perFloor }
     ]);
   });
 
@@ -400,11 +412,15 @@ describe("Auto-Build", () => {
     await renderApp();
     const partCount = () =>
       (document.querySelector(".status-bar")?.textContent ?? "").match(/PARTS(\d+)/)?.[1];
-    const clearButton = () =>
-      screen.getByRole<HTMLButtonElement>("button", { name: "Clear Auto-Build" });
+    // The clearing actions live in the erase drawer, which has to be opened.
+    const clearButton = () => {
+      fireEvent.click(screen.getByRole("button", { name: "Erase" }));
+      return screen.getByRole<HTMLButtonElement>("button", { name: /Clear Auto-Build/ });
+    };
 
-    // Nothing routed yet: the rail button is present but cannot be used.
+    // Nothing routed yet: the action is listed but cannot be used.
     expect(clearButton().disabled).toBe(true);
+    fireEvent.keyDown(document, { key: "Escape" });
 
     // A blower and its two terminals, placed the way the 3D canvas would.
     fireEvent.click(screen.getByRole("button", { name: "Build" }));
@@ -422,9 +438,10 @@ describe("Auto-Build", () => {
     const routed = Number(partCount());
     expect(routed).toBeGreaterThan(3);
 
-    // Clearing asks first, like the rail's other destructive buttons.
-    expect(clearButton().disabled).toBe(false);
-    fireEvent.click(clearButton());
+    // Clearing asks first, like the drawer's other destructive actions.
+    const armed = clearButton();
+    expect(armed.disabled).toBe(false);
+    fireEvent.click(armed);
     const dialog = screen.getByRole("dialog", { name: "Clear Auto-Build" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Clear Auto-Build" }));
 
@@ -442,8 +459,14 @@ describe("left rail accessibility", () => {
     // These carried their label only in a hover tooltip, which no assistive
     // technology reads and no keyboard user can summon (issue #33).
     expect(screen.getByRole("button", { name: "Build" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Clear All Parts" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Clear All Obstacles" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Obstacle" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Erase" })).toBeTruthy();
+
+    // The clearing actions moved into the erase drawer, where they carry a
+    // visible label rather than an icon and a tooltip.
+    fireEvent.click(screen.getByRole("button", { name: "Erase" }));
+    expect(screen.getByRole("button", { name: /Clear all parts/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Clear all obstacles/ })).toBeTruthy();
   });
 
   it("reports which tool is active rather than only colouring it", async () => {

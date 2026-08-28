@@ -327,10 +327,12 @@ describe("where the camera opens", () => {
     // The regression this guards: the wall-less era's opening distance of 38
     // sat inside the room once walls existed, filling the frame with hatch.
     // 1.6 diagonals — maxCameraDistance's own see-it-whole multiple — stands
-    // clear of the 60 x 60 footprint with margin.
+    // clear of the room's footprint with margin, whatever that footprint is.
+    const { width, depth } = DEFAULT_ROOM;
     const opening = openingCameraDistance(DEFAULT_ROOM);
-    expect(opening).toBeCloseTo(Math.hypot(60, 60) * 1.6, 5);
-    expect(opening).toBeGreaterThan(Math.hypot(30, 30)); // past the near corner
+    expect(opening).toBeCloseTo(Math.hypot(width, depth) * 1.6, 5);
+    // Past the near corner, so the camera is outside the walls rather than in.
+    expect(opening).toBeGreaterThan(Math.hypot(width / 2, depth / 2));
   });
 
   it("stands further back for a larger room", () => {

@@ -17,11 +17,69 @@
   margin: 4px 8px;
 }
 
-.left-rail__clear-group {
+.left-rail__drawer-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 10px 0;
+}
+
+/* A row in the erase drawer: glyph, what it does, and how much it would take. */
+.erase-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-sans);
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+.erase-card + .erase-card {
+  margin-top: 6px;
+}
+.erase-card:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+}
+.erase-card[aria-pressed="true"] {
+  background: color-mix(in oklab, var(--accent) 12%, var(--panel-2));
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  color: var(--accent);
+}
+.erase-card--danger:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--danger) 45%, transparent);
+  color: var(--danger);
+}
+.erase-card:disabled {
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.erase-card__icon {
+  flex-shrink: 0;
+}
+
+.erase-card__text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 3px;
+  min-width: 0;
+}
+
+.erase-card__label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.erase-card__detail {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 1px;
 }
 
 /* Each rail button sits in a wrapper so the tooltip can hang off it. */

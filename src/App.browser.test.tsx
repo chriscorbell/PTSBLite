@@ -76,14 +76,16 @@ describe("picking up where you left off", () => {
     await renderApp();
 
     const dialog = screen.getByRole("dialog", { name: /Welcome to PTSBLite/ });
-    fireEvent.change(within(dialog).getByLabelText("Width"), { target: { value: "40" } });
+    // A width the form does not already offer, so the design is genuinely
+    // changed rather than merely accepted.
+    fireEvent.change(within(dialog).getByLabelText("Width"), { target: { value: "44" } });
     fireEvent.click(within(dialog).getByRole("button", { name: /Create design/ }));
 
     await waitFor(() => {
       const saved = window.localStorage.getItem(SESSION_KEY);
       expect(saved).not.toBeNull();
       const parsed = JSON.parse(saved ?? "") as { metadata: { room: { width: number } } };
-      expect(parsed.metadata.room.width).toBe(40);
+      expect(parsed.metadata.room.width).toBe(44);
     });
     expect(download).not.toHaveBeenCalled();
   });

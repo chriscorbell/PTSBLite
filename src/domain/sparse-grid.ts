@@ -21,7 +21,12 @@ export const GROUND_PLANE_Y = 0;
  */
 export const BUILD_AREA: BuildArea = { width: 300, depth: 300, height: 100 };
 
-export const DEFAULT_ROOM: BuildArea = { width: 60, depth: 60, height: 30 };
+/**
+ * What the setup form starts on. The client's figures: a 60 x 40 ft room at a
+ * 12 ft ceiling is the shape of the job he sizes most often, and a form that
+ * opens on it is one most visitors can accept unchanged.
+ */
+export const DEFAULT_ROOM: BuildArea = { width: 40, depth: 60, height: 12 };
 
 /**
  * Sane bounds for the room a visitor can type, in feet. A guard rail, not a
