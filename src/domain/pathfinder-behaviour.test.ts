@@ -188,19 +188,19 @@ describe("what Auto-Build does, layout by layout", () => {
     });
   });
 
-  it("gives up on a manual stub on the far side, 40 ft from the blower", () => {
-    // A live bug, recorded rather than asserted as correct. The pairing is now
-    // right — the stub is not joined back into its own terminal — but the
-    // search still exhausts its expansion budget between two upward-facing
-    // ports 40 ft apart and reports that it gave up. Same class of failure as
-    // the one the heuristic fix addressed, so the heuristic is still not
-    // guiding well enough in every geometry.
+  it("completes a system with a manual stub on the far side", () => {
+    // This row recorded a failure until the pool started excluding ports that
+    // point nowhere. Terminal 2 stands on the floor facing up, so its other
+    // port aimed down into Y = -1; that port was nearer the blower side than
+    // the stub's real open end, so it won the pairing, routed nowhere, and took
+    // the pairing that would have worked down with it. 734 ms of futile search
+    // became 12 ms and a route.
     const base = design(system([20, 0, 20]), ONE_FLOOR);
     expect(run(withStub(base, "t2", [20, 1, 20]))).toEqual({
-      routed: false,
-      bends: 0,
-      feet: 0,
-      band: "none",
+      routed: true,
+      bends: 2,
+      feet: 47.42,
+      band: "outside",
       warnings: 0
     });
   });
