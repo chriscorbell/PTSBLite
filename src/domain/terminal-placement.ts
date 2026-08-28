@@ -52,14 +52,12 @@ export function terminalPlacementGhost({
   design,
   cell,
   memory,
-  rotationSteps,
-  verticalRotationSteps = 0
+  rotationSteps
 }: {
   design: DesignState;
   cell: Vec3;
   memory: FreePlacementMemory;
   rotationSteps: number;
-  verticalRotationSteps?: number;
 }): Ghost | null {
   const mode = terminalPlacementMode(design);
   if (mode.kind === "terminal-2") {
@@ -68,8 +66,7 @@ export function terminalPlacementGhost({
       design,
       cell,
       memory,
-      rotationSteps,
-      verticalRotationSteps
+      rotationSteps
     });
   }
   if (mode.kind !== "terminal-1" || !vEq(cell, mode.landing.cell)) return null;
@@ -102,14 +99,12 @@ export function placeTerminal(
     id,
     cell,
     memory,
-    rotationSteps,
-    verticalRotationSteps = 0
+    rotationSteps
   }: {
     id: string;
     cell: Vec3;
     memory: FreePlacementMemory;
     rotationSteps: number;
-    verticalRotationSteps?: number;
   }
 ): PlaceFreePartResult {
   const mode = terminalPlacementMode(design);
@@ -131,8 +126,7 @@ export function placeTerminal(
     design,
     cell,
     memory,
-    rotationSteps,
-    verticalRotationSteps
+    rotationSteps
   });
   return placeFreePart(design, {
     id,

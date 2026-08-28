@@ -134,12 +134,12 @@ export function placementSessionReducer(
 
     case "rotate":
       if (isFreePlacementTool(session.tool)) {
-        const rotation = session.freePlacementRotation;
+        // One ring of five orientations, so shift-R is simply the other way
+        // round it. It used to toggle up/down on a separate axis, which left a
+        // blower that had been turned sideways unable to point back up.
         return {
           ...session,
-          freePlacementRotation: action.reverse
-            ? { ...rotation, verticalSteps: rotation.verticalSteps + 1 }
-            : { horizontalSteps: rotation.horizontalSteps + 1, verticalSteps: 0 }
+          freePlacementRotation: session.freePlacementRotation + (action.reverse ? -1 : 1)
         };
       }
       return {
@@ -237,8 +237,7 @@ export function attemptPlacement(
         id: occupantId,
         cell,
         memory: session.freePlacementMemory,
-        rotationSteps: session.freePlacementRotation.horizontalSteps,
-        verticalRotationSteps: session.freePlacementRotation.verticalSteps
+        rotationSteps: session.freePlacementRotation
       });
       if (!placed.ok) return unchanged({ status: "error", message: placed.message });
       const axis = placed.part.type === "terminal" ? placed.part.axis : null;
@@ -262,8 +261,7 @@ export function attemptPlacement(
         design,
         cell,
         memory: session.freePlacementMemory,
-        rotationSteps: session.freePlacementRotation.horizontalSteps,
-        verticalRotationSteps: session.freePlacementRotation.verticalSteps
+        rotationSteps: session.freePlacementRotation
       });
       const orientation =
         preview?.type === "blower" ? preview.dir : session.freePlacementMemory.blower;
@@ -377,16 +375,14 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
         design,
         cell: hoverCell,
         memory: session.freePlacementMemory,
-        rotationSteps: session.freePlacementRotation.horizontalSteps,
-        verticalRotationSteps: session.freePlacementRotation.verticalSteps
+        rotationSteps: session.freePlacementRotation
       });
     case "terminal":
       return terminalPlacementGhost({
         design,
         cell: hoverCell,
         memory: session.freePlacementMemory,
-        rotationSteps: session.freePlacementRotation.horizontalSteps,
-        verticalRotationSteps: session.freePlacementRotation.verticalSteps
+        rotationSteps: session.freePlacementRotation
       });
     case "tube":
       return tubePlacementGhost(design, hoverCell);
