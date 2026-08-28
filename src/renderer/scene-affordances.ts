@@ -638,11 +638,14 @@ const MARKER_FONT = "'Geist Variable', system-ui, -apple-system, sans-serif";
 
 /**
  * How tall a height marker stands in the world, in feet, before the viewport
- * clamps it at either end of the zoom range. Comparable to the parts it
- * labels — a cell is 1 ft — so it reads as attached to one rather than
- * floating over the scene.
+ * clamps it at either end of the zoom range. About a cell tall, so it reads as
+ * attached to the part rather than floating over the scene. Trimmed from 1.8,
+ * which the client found too big — but only so far: below about 1.3 a marker
+ * drops under the legibility floor at the distance the default room opens at,
+ * and vanishes. What actually stopped them covering the parts is the offset in
+ * `partMarkerAnchor` and the tighter on-screen cap in the viewport.
  */
-export const HEIGHT_MARKER_FEET = 1.8;
+export const HEIGHT_MARKER_FEET = 1.5;
 
 function roundedRect(
   ctx: CanvasRenderingContext2D,

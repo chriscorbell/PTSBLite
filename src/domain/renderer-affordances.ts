@@ -9,7 +9,7 @@ import {
 import { obstacleVolumeCells } from "@/domain/obstacle-placement";
 import { computeTopology, type Port } from "@/domain/topology";
 import { tubeCells } from "@/domain/vec3";
-import type { DesignMetadata, DesignState, Ghost, Part, ToolId, Vec3 } from "@/types";
+import type { DesignMetadata, DesignState, Ghost, Obstacle, Part, ToolId, Vec3 } from "@/types";
 
 export type PortMarker = {
   partId: string;
@@ -83,6 +83,21 @@ export function heightMarkers(design: DesignState): HeightMarker[] {
     feet: partElevation(part)
   }));
 
+  // Obstacles are not parts, but they are things at a height, and a volume
+  // built as a shelf is measured by the surface you stand something on.
+  for (const obstacle of design.obstacles) {
+    const top = obstacleTopFeet(obstacle);
+    markers.push({
+      key: obstacle.id,
+      at: offsetAside([
+        (obstacle.min[0] + obstacle.max[0] + 1) / 2,
+        top,
+        (obstacle.min[2] + obstacle.max[2] + 1) / 2
+      ]),
+      feet: top
+    });
+  }
+
   const { multiFloor } = design.metadata;
   const rect = roomRect(design.metadata);
   // The corner nearest the opening camera, so structural labels read at a
@@ -105,25 +120,46 @@ export function heightMarkers(design: DesignState): HeightMarker[] {
   return markers;
 }
 
-/** Where a part's marker hangs: just above it, at the cell it occupies. */
+/**
+ * Where a part's marker hangs: just above it, at the height it reports.
+ *
+ * A tube is labelled at its upper end rather than its middle. Both agree for a
+ * horizontal run, but a riser's marker used to float at mid-height while
+ * reporting the elevation of its foot — two different numbers in one label,
+ * and how far up the riser reaches is the thing worth knowing about it.
+ */
 function partMarkerAnchor(part: Part): Vec3 {
-  const lift = 1.1;
   switch (part.type) {
     case "blower":
     case "terminal":
-      return [part.cell[0] + 0.5, part.cell[1] + lift, part.cell[2] + 0.5];
+      return offsetAside([part.cell[0] + 0.5, part.cell[1], part.cell[2] + 0.5]);
     case "tube":
-      return [
+      return offsetAside([
         (part.from[0] + part.to[0]) / 2,
-        (part.from[1] + part.to[1]) / 2 + lift,
+        Math.max(part.from[1], part.to[1]),
         (part.from[2] + part.to[2]) / 2
-      ];
+      ]);
     case "bend":
-      return [part.entry[0], part.entry[1] + lift, part.entry[2]];
+      return offsetAside([part.entry[0], part.entry[1], part.entry[2]]);
   }
 }
 
-/** The elevation a part reads as: the ground-relative Y of its own cell. */
+/**
+ * Nudge a marker off the thing it labels.
+ *
+ * Directly overhead, a marker sat on the part it was describing — the client
+ * asked for them "off to the side of the thing they're denoting". Sprites face
+ * the camera, so the offset is diagonal in X and Z: whichever way the view is
+ * turned, the label lands beside the part rather than across it.
+ */
+function offsetAside(at: Vec3): Vec3 {
+  return [at[0] + MARKER_ASIDE, at[1] + MARKER_LIFT, at[2] + MARKER_ASIDE];
+}
+
+const MARKER_ASIDE = 0.95;
+const MARKER_LIFT = 0.55;
+
+/** The elevation a part reads as, matching where {@link partMarkerAnchor} puts it. */
 function partElevation(part: Part): number {
   switch (part.type) {
     case "blower":
@@ -131,9 +167,41 @@ function partElevation(part: Part): number {
       return part.cell[1];
     case "tube":
       // Endpoints sit at cell centres (Y + 0.5); report the cell.
-      return Math.floor(part.from[1]);
+      return Math.floor(Math.max(part.from[1], part.to[1]));
     case "bend":
       return Math.floor(part.entry[1]);
+  }
+}
+
+/**
+ * How high an obstacle's top surface sits, which is the number worth having:
+ * a volume's base is usually the floor it stands on, and its top is the height
+ * anything standing on it will report. `max` is the topmost cell it occupies,
+ * so the surface is one foot above it.
+ */
+function obstacleTopFeet(obstacle: Obstacle): number {
+  return obstacle.max[1] + 1;
+}
+
+/**
+ * The elevation an armed part would be placed at.
+ *
+ * Read off the ghost rather than off the placement plane. For most tools the
+ * two agree, but an obstacle draft carries its own base and height — adjusted
+ * from the HUD, not by the elevation keys — so the plane reported 0 however
+ * tall the box being drawn was.
+ */
+export function ghostElevation(ghost: Ghost): number {
+  switch (ghost.type) {
+    case "blower":
+    case "terminal":
+      return ghost.cell[1];
+    case "tube":
+      return Math.floor(Math.max(ghost.from[1], ghost.to[1]));
+    case "bend":
+      return Math.floor(ghost.entry[1]);
+    case "obstacle":
+      return ghost.max[1] + 1;
   }
 }
 

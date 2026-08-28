@@ -88,7 +88,7 @@ const CAMERA_FOV_DEG = 38;
  * screen-space sizing had at every zoom level.
  */
 const MARKER_MIN_PIXELS = 11;
-const MARKER_MAX_PIXELS = 64;
+const MARKER_MAX_PIXELS = 42;
 
 /**
  * What the camera distances are derived from. The footprint alone: height
@@ -847,7 +847,7 @@ export function Viewport({
       if (mesh && ghostHeight !== null) {
         const box = new THREE.Box3().setFromObject(mesh);
         const marker = buildHeightMarker(
-          [(box.min.x + box.max.x) / 2, box.max.y + 0.9, (box.min.z + box.max.z) / 2],
+          [box.max.x + 0.45, box.max.y + 0.55, box.max.z + 0.45],
           ghostHeight,
           { accent: true }
         );

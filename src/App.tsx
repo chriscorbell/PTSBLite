@@ -42,6 +42,7 @@ import { MAX_CENTERLINE_FEET } from "@/domain/validation";
 import { BUILD_AREA } from "@/domain/sparse-grid";
 import {
   floorShadows,
+  ghostElevation,
   heightMarkers,
   heightMarkersVisible,
   openPortMarkers,
@@ -589,10 +590,11 @@ export default function App({ platform }: AppProps) {
     [buildArea, design.metadata]
   );
 
-  // What the armed part would be placed at. Usually the plane the elevation
-  // keys move, but a part resting on an obstacle sits above it — reporting the
-  // plane there would name a height the part is not going to.
-  const ghostElevation = placement.hoverCell?.[1] ?? activeElevation;
+  // What the armed part would be placed at. Read off the ghost itself, not the
+  // placement plane: a part resting on an obstacle sits above the plane, and an
+  // obstacle draft carries a base and height of its own that the plane knows
+  // nothing about.
+  const armedElevation = ghostState ? ghostElevation(ghostState) : activeElevation;
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
   // Heights are labelled only while a placement tool is armed: they answer the
@@ -658,7 +660,7 @@ export default function App({ platform }: AppProps) {
             focusY={focusY}
             plenumBands={plenum}
             heightMarkers={markers}
-            ghostHeight={markersOn ? ghostElevation : null}
+            ghostHeight={markersOn ? armedElevation : null}
             floorShadows={shadows}
             roomRect={room}
             roomWalls={walls}
@@ -683,7 +685,7 @@ export default function App({ platform }: AppProps) {
             onObstacleCancel={cancelObstacleDraft}
           />
           <ControlsLegend />
-          <ActiveToolBar tool={tool} elevation={ghostElevation} floor={activeFloor} />
+          <ActiveToolBar tool={tool} elevation={armedElevation} floor={activeFloor} />
         </div>
       </div>
       <StatusBar
