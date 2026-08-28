@@ -26,10 +26,13 @@ const BUILD_PARTS: BuildPart[] = [
 
 const BUILD_TOOLS = new Set<ToolId>(BUILD_PARTS.map((p) => p.id));
 
-const TAIL_ITEMS: RailItem[] = [
-  { id: "obstacle", icon: Icons.Obstacle, label: "Obstacle", short: "O" },
-  { id: "erase", icon: Icons.Erase, label: "Erase", short: "X" }
-];
+/** What the erase drawer offers, in the order it destroys more at a time. */
+type EraseAction = {
+  key: string;
+  icon: ComponentType<IconProps>;
+  label: string;
+  detail: string;
+};
 
 export type LeftRailProps = {
   tool: ToolId;
@@ -43,6 +46,15 @@ export type LeftRailProps = {
   onClearAutoBuild: () => void;
 };
 
+/**
+ * The tool rail: four tools, evenly divided.
+ *
+ * Erase used to be one button beside three separate clear-everything buttons
+ * stacked under the rail, which put four destructive controls on screen at all
+ * times and gave the rail two different visual rhythms. The client asked to
+ * "condense erase, delete all parts, delete all obstacles, and delete all
+ * auto-build into its own category" that opens like Build and Obstacle do.
+ */
 export function LeftRail({
   tool,
   onTool,
@@ -53,18 +65,18 @@ export function LeftRail({
   onClearObstacles,
   onClearAutoBuild
 }: LeftRailProps) {
-  const [buildOpen, setBuildOpen] = useState(false);
+  const [openDrawer, setOpenDrawer] = useState<"build" | "erase" | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
   const buildActive = BUILD_TOOLS.has(tool);
 
   useEffect(() => {
-    if (!buildOpen) return;
+    if (!openDrawer) return;
     const onPointerDown = (event: PointerEvent) => {
       if (railRef.current?.contains(event.target as Node)) return;
-      setBuildOpen(false);
+      setOpenDrawer(null);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setBuildOpen(false);
+      if (event.key === "Escape") setOpenDrawer(null);
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -72,11 +84,37 @@ export function LeftRail({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [buildOpen]);
+  }, [openDrawer]);
 
   const selectTool = (id: ToolId) => {
     onTool(id);
-    setBuildOpen(false);
+    setOpenDrawer(null);
+  };
+
+  const eraseActions: EraseAction[] = [
+    {
+      key: "parts",
+      icon: Icons.Trash,
+      label: "Clear all parts",
+      detail: `${partCount} placed`
+    },
+    {
+      key: "obstacles",
+      icon: Icons.TrashObstacle,
+      label: "Clear all obstacles",
+      detail: `${obstacleCount} placed`
+    },
+    {
+      key: "auto",
+      icon: Icons.TrashAutoBuild,
+      label: "Clear Auto-Build",
+      detail: `${autoBuildPartCount} placed`
+    }
+  ];
+  const eraseHandlers: Record<string, { run: () => void; disabled: boolean }> = {
+    parts: { run: onClearParts, disabled: partCount === 0 },
+    obstacles: { run: onClearObstacles, disabled: obstacleCount === 0 },
+    auto: { run: onClearAutoBuild, disabled: autoBuildPartCount === 0 }
   };
 
   return (
@@ -87,37 +125,39 @@ export function LeftRail({
         onClick={() => selectTool("cursor")}
       />
       <Divider />
-      <BuildButton active={buildActive} open={buildOpen} onClick={() => setBuildOpen((o) => !o)} />
+      <DrawerButton
+        label="Build"
+        icon={Icons.Hammer}
+        active={buildActive}
+        open={openDrawer === "build"}
+        onClick={() => setOpenDrawer((d) => (d === "build" ? null : "build"))}
+      />
       <Divider />
-      {TAIL_ITEMS.map((it) => (
-        <RailButton
-          key={it.id}
-          item={it}
-          active={tool === it.id}
-          onClick={() => selectTool(it.id)}
-        />
-      ))}
-      <div className="left-rail__clear-group">
-        <ClearActionButton
-          icon={Icons.Trash}
-          tooltip="Clear All Parts"
-          disabled={partCount === 0}
-          onClick={onClearParts}
-        />
-        <ClearActionButton
-          icon={Icons.TrashObstacle}
-          tooltip="Clear All Obstacles"
-          disabled={obstacleCount === 0}
-          onClick={onClearObstacles}
-        />
-        <ClearActionButton
-          icon={Icons.TrashAutoBuild}
-          tooltip="Clear Auto-Build"
-          disabled={autoBuildPartCount === 0}
-          onClick={onClearAutoBuild}
-        />
-      </div>
-      <BuildDrawer open={buildOpen} tool={tool} onSelect={selectTool} />
+      <RailButton
+        item={{ id: "obstacle", icon: Icons.Obstacle, label: "Obstacle", short: "O" }}
+        active={tool === "obstacle"}
+        onClick={() => selectTool("obstacle")}
+      />
+      <Divider />
+      <DrawerButton
+        label="Erase"
+        icon={Icons.Erase}
+        active={tool === "erase"}
+        open={openDrawer === "erase"}
+        onClick={() => setOpenDrawer((d) => (d === "erase" ? null : "erase"))}
+      />
+      <BuildDrawer open={openDrawer === "build"} tool={tool} onSelect={selectTool} />
+      <EraseDrawer
+        open={openDrawer === "erase"}
+        eraseArmed={tool === "erase"}
+        actions={eraseActions}
+        onArmErase={() => selectTool("erase")}
+        onRun={(key) => {
+          setOpenDrawer(null);
+          eraseHandlers[key]?.run();
+        }}
+        isDisabled={(key) => eraseHandlers[key]?.disabled ?? true}
+      />
     </div>
   );
 }
@@ -155,25 +195,31 @@ function RailSlot({
   );
 }
 
-function BuildButton({
+/** A rail button that opens a drawer rather than arming a tool directly. */
+function DrawerButton({
+  label,
+  icon,
   active,
   open,
   onClick
 }: {
+  label: string;
+  icon: ComponentType<IconProps>;
   active: boolean;
   open: boolean;
   onClick: () => void;
 }) {
+  const Glyph = icon;
   return (
-    <RailSlot open={open} tooltip={<div className="left-rail__tooltip-title">Build</div>}>
+    <RailSlot open={open} tooltip={<div className="left-rail__tooltip-title">{label}</div>}>
       <button
         className="left-rail__button"
         onClick={onClick}
-        aria-label="Build"
+        aria-label={label}
         aria-expanded={open}
         aria-pressed={active}
       >
-        <Icons.Hammer size={24} />
+        <Glyph size={24} />
       </button>
     </RailSlot>
   );
@@ -209,6 +255,64 @@ function BuildDrawer({
   );
 }
 
+/**
+ * The erase drawer: arming the eraser, then the three clear-everything actions.
+ *
+ * The eraser sits at the top because it is the one that is a tool rather than a
+ * command — you arm it and then click things. The three below it act at once,
+ * so each says how much it would remove and goes quiet when that is nothing.
+ */
+function EraseDrawer({
+  open,
+  eraseArmed,
+  actions,
+  onArmErase,
+  onRun,
+  isDisabled
+}: {
+  open: boolean;
+  eraseArmed: boolean;
+  actions: EraseAction[];
+  onArmErase: () => void;
+  onRun: (key: string) => void;
+  isDisabled: (key: string) => boolean;
+}) {
+  return (
+    <div
+      role="menu"
+      inert={!open}
+      className={`left-rail__drawer${open ? " left-rail__drawer--open" : ""}`}
+    >
+      <div className="left-rail__drawer-title">Erase</div>
+      <button className="erase-card" onClick={onArmErase} aria-pressed={eraseArmed}>
+        <Icons.Erase size={18} className="erase-card__icon" />
+        <span className="erase-card__text">
+          <span className="erase-card__label">Eraser</span>
+          <span className="erase-card__detail">Right click a part to remove it</span>
+        </span>
+      </button>
+      <div className="left-rail__drawer-divider" />
+      {actions.map((action) => {
+        const Glyph = action.icon;
+        return (
+          <button
+            key={action.key}
+            className="erase-card erase-card--danger"
+            onClick={() => onRun(action.key)}
+            disabled={isDisabled(action.key)}
+          >
+            <Glyph size={18} className="erase-card__icon" />
+            <span className="erase-card__text">
+              <span className="erase-card__label">{action.label}</span>
+              <span className="erase-card__detail">{action.detail}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function PartCard({
   part,
   active,
@@ -235,32 +339,6 @@ function PartCard({
         <div className="part-card__part-no">{entry.partNo}</div>
       </div>
     </button>
-  );
-}
-
-function ClearActionButton({
-  icon,
-  tooltip,
-  disabled,
-  onClick
-}: {
-  icon: ComponentType<IconProps>;
-  tooltip: string;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  const ItemIcon = icon;
-  return (
-    <RailSlot tooltip={<div className="left-rail__tooltip-title">{tooltip}</div>}>
-      <button
-        className="left-rail__button left-rail__button--danger"
-        onClick={onClick}
-        aria-label={tooltip}
-        disabled={disabled}
-      >
-        <ItemIcon size={23} />
-      </button>
-    </RailSlot>
   );
 }
 
