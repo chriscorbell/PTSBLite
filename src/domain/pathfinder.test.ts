@@ -426,6 +426,31 @@ describe("completing a system that already has manual tubing", () => {
 });
 
 describe("routing across a room with a plenum", () => {
+  it("crosses a diagonal in a handful of bends rather than a staircase", () => {
+    // Out of the plenum a bend used to cost less than the six feet of straight
+    // it stands in for, so a route got cheaper the more it turned and a
+    // diagonal came back as ten bends. The client: "it seems to want to build
+    // systems with shortest possible distance, but needs to be least bends".
+    const parts: Part[] = [
+      { id: "b1", type: "blower", cell: [-8, 0, 21], dir: [0, 1, 0] },
+      { id: "t1", type: "terminal", cell: [-8, 1, 21], axis: [0, 1, 0] },
+      { id: "t2", type: "terminal", cell: [24, 0, -16], axis: [0, 1, 0] }
+    ];
+    const design = designFromScene(
+      { parts, obstacles: [] },
+      { room: { width: 60, depth: 60, height: 30 }, multiFloor: true, plenumHeightFeet: 3 }
+    );
+
+    const result = autoBuildOpenPortPair(design);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // One turn per axis the route has to travel is the floor; ten is a
+    // staircase. Fewer bends buys length, and that trade is the point.
+    expect(result.parts.filter((part) => part.type === "bend").length).toBeLessThanOrEqual(4);
+    expect(validate(result.design)).toEqual([]);
+  });
+
   it("routes a pair the width of an ordinary room apart", () => {
     // Two terminals about 48 ft apart in a 60 ft room, which is what the
     // client's own layout looked like. The plenum bias made a horizontal step

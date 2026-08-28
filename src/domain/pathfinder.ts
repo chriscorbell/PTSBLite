@@ -32,15 +32,30 @@ export const PATHFINDER_SEARCH_LIMIT_MESSAGE =
 const BEND_SEARCH_PENALTY = 6;
 
 /**
+ * How much straight run a bend stands in for: 3 ft of approach and 3 ft of
+ * departure, from the spec's 3 ft bend radius (ADR-0001).
+ */
+const BEND_SPAN_FEET = 6;
+
+/**
  * The soft plenum bias. When the design has a plenum, each horizontal foot
- * outside it counts triple and a bend clear of it costs roughly two extra arc
- * lengths, while vertical feet stay uncharged so the riser into the plenum is
- * free to the search. The intended balance: a horizontal run longer than about
- * the riser height plus ten feet routes through the plenum, and a short hop
- * between nearby ports stays direct instead of detouring absurdly.
+ * outside it counts triple, while vertical feet stay uncharged so the riser
+ * into the plenum is free to the search. The intended balance: a horizontal run
+ * longer than about the riser height plus ten feet routes through the plenum,
+ * and a short hop between nearby ports stays direct instead of detouring
+ * absurdly.
+ *
+ * A bend outside the plenum is charged for the run it stands in for, and this
+ * is why. The figure used to be a flat 9 against the 12 that six out-of-plenum
+ * feet cost, which made turning *cheaper than going straight* out there: a bend
+ * is also 4.71 ft of arc where the 6 ft it replaces would be 6, so each turn
+ * paid for itself twice over. A diagonal accordingly came back as a staircase
+ * of ten bends rather than an L with three, which is what the client meant by
+ * "it seems to want to build systems with shortest possible distance, but needs
+ * to be least bends". Deriving it keeps the two from drifting apart again.
  */
 const OUT_OF_PLENUM_STRAIGHT_PENALTY = 2;
-const OUT_OF_PLENUM_BEND_PENALTY = 9;
+const OUT_OF_PLENUM_BEND_PENALTY = OUT_OF_PLENUM_STRAIGHT_PENALTY * BEND_SPAN_FEET;
 
 export type UnroutedPair = {
   source: Port;
