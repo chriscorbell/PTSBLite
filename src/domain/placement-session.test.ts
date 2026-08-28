@@ -23,7 +23,7 @@ describe("placementSessionReducer", () => {
     const before = session({
       tool: "obstacle",
       obstacleDraft: { cornerA: [0, 0, 0] },
-      freePlacementRotation: { horizontalSteps: 3, verticalSteps: 1 }
+      freePlacementRotation: 3
     });
     const after = placementSessionReducer(before, { type: "select-tool", tool: "tube" });
     expect(after.tool).toBe("tube");
@@ -46,7 +46,14 @@ describe("placementSessionReducer", () => {
       reverse: false
     });
     expect(s.ghostRotation).toBe(0);
-    expect(s.freePlacementRotation).toEqual({ horizontalSteps: 1, verticalSteps: 0 });
+    expect(s.freePlacementRotation).toBe(1);
+
+    // Shift-R is simply the other way round the same ring.
+    const back = placementSessionReducer(session({ tool: "blower" }), {
+      type: "rotate",
+      reverse: true
+    });
+    expect(back.freePlacementRotation).toBe(-1);
   });
 
   it("keeps the elevation inside the build area", () => {

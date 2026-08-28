@@ -7,25 +7,32 @@ export type FreePlacementType = "blower" | "terminal";
 
 export type FreePlacementMemory = Record<FreePlacementType, Vec3>;
 
-export type FreePlacementRotation = {
-  horizontalSteps: number;
-  verticalSteps: number;
-};
+/** How many times `R` has been pressed since the tool was armed. */
+export type FreePlacementRotation = number;
 
-export const FREE_PLACEMENT_DIRECTIONS: Vec3[] = [
+export const DEFAULT_FREE_PLACEMENT_ROTATION: FreePlacementRotation = 0;
+
+/** Straight up. */
+export const UP: Vec3 = [0, 1, 0];
+
+/**
+ * Every orientation `R` cycles through, in order.
+ *
+ * Up first, because that is where a part starts, then the four horizontal
+ * headings. Down is deliberately absent: the client's rule is that "for this
+ * version of the app, the hole will never face down".
+ *
+ * This replaced a pair of independent counters — `R` turning within the four
+ * horizontal headings and shift-`R` toggling up/down — under which a blower
+ * that had been turned sideways could never be pointed back up.
+ */
+export const FREE_PLACEMENT_ORIENTATIONS: Vec3[] = [
+  UP,
   [1, 0, 0],
   [0, 0, 1],
   [-1, 0, 0],
   [0, 0, -1]
 ];
-
-export const DEFAULT_FREE_PLACEMENT_ROTATION: FreePlacementRotation = {
-  horizontalSteps: 0,
-  verticalSteps: 0
-};
-
-/** Straight up. Not one of `FREE_PLACEMENT_DIRECTIONS`, which are the four horizontal headings. */
-export const UP: Vec3 = [0, 1, 0];
 
 /**
  * Which way a blower or terminal faces before anyone rotates it.
@@ -54,40 +61,33 @@ export type PlaceFreePartResult =
   | { ok: true; design: DesignState; part: BlowerPart | TerminalPart }
   | { ok: false; message: string };
 
-function directionIndex(dir: Vec3): number {
-  return FREE_PLACEMENT_DIRECTIONS.findIndex((candidate) => vEq(candidate, dir));
+function orientationIndex(dir: Vec3): number {
+  return FREE_PLACEMENT_ORIENTATIONS.findIndex((candidate) => vEq(candidate, dir));
 }
 
 function modulo(n: number, d: number): number {
   return ((n % d) + d) % d;
 }
 
-export function rotateOrientation(base: Vec3, steps: number): Vec3 {
-  const idx = directionIndex(base);
-  if (idx < 0) return base;
-  return FREE_PLACEMENT_DIRECTIONS[modulo(idx + steps, FREE_PLACEMENT_DIRECTIONS.length)];
-}
-
 /**
- * Shift-R alternates between facing up and facing down.
+ * Turn an orientation `steps` places around the ring. Negative steps go back,
+ * which is what shift-`R` does.
  *
- * The first press goes *down*, because up is now where a part starts
- * (`DEFAULT_FREE_PLACEMENT_MEMORY`). Sending it up first would make the first
- * press of a rotate key appear to do nothing.
+ * An orientation the ring does not hold — a part snapped to a downward-facing
+ * port, say — enters the ring at the top on the first press rather than being
+ * stuck, so a rotate key never appears to do nothing.
  */
-export function rotateOrientationVertically(steps: number): Vec3 {
-  return modulo(steps, 2) === 1 ? [0, -1, 0] : [0, 1, 0];
+export function rotateOrientation(base: Vec3, steps: number): Vec3 {
+  if (steps === 0) return base;
+  const index = orientationIndex(base);
+  if (index < 0) return FREE_PLACEMENT_ORIENTATIONS[modulo(steps - 1, LENGTH)];
+  return FREE_PLACEMENT_ORIENTATIONS[modulo(index + steps, LENGTH)];
 }
 
-export function resolveFreePlacementOrientation(
-  base: Vec3,
-  { horizontalSteps, verticalSteps }: FreePlacementRotation
-): Vec3 {
-  if (verticalSteps > 0) return rotateOrientationVertically(verticalSteps);
-  if (horizontalSteps !== 0 && directionIndex(base) < 0) {
-    return FREE_PLACEMENT_DIRECTIONS[modulo(horizontalSteps - 1, FREE_PLACEMENT_DIRECTIONS.length)];
-  }
-  return rotateOrientation(base, horizontalSteps);
+const LENGTH = FREE_PLACEMENT_ORIENTATIONS.length;
+
+export function resolveFreePlacementOrientation(base: Vec3, steps: FreePlacementRotation): Vec3 {
+  return rotateOrientation(base, steps);
 }
 
 export function rememberFreePlacementOrientation(
@@ -143,25 +143,20 @@ export function freePlacementGhost({
   design,
   cell,
   memory,
-  rotationSteps,
-  verticalRotationSteps = 0
+  rotationSteps
 }: {
   type: FreePlacementType;
   design: DesignState;
   cell: Vec3;
   memory: FreePlacementMemory;
   rotationSteps: number;
-  verticalRotationSteps?: number;
 }): Ghost | null {
   for (const footprintCell of freePlacementFootprint(type, cell)) {
     if (!validateFreePlacementCell(design, footprintCell).ok) return null;
   }
   const orientation = resolveFreePlacementOrientation(
     defaultFreePlacementOrientation(design, type, cell, memory),
-    {
-      horizontalSteps: rotationSteps,
-      verticalSteps: verticalRotationSteps
-    }
+    rotationSteps
   );
   if (type === "blower") return { type, cell, dir: orientation };
   return { type, cell, axis: orientation };

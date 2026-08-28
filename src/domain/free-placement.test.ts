@@ -7,8 +7,7 @@ import {
   placeFreePart,
   rememberFreePlacementOrientation,
   resolveFreePlacementOrientation,
-  rotateOrientation,
-  rotateOrientationVertically
+  rotateOrientation
 } from "@/domain/free-placement";
 import { computeTopology } from "@/domain/topology";
 import type { DesignState, Vec3 } from "@/types";
@@ -113,45 +112,50 @@ describe("free placement orientation", () => {
 
   it("cycles the visible orientation forward and backward from the current default", () => {
     expect(rotateOrientation([1, 0, 0], 1)).toEqual([0, 0, 1]);
-    expect(rotateOrientation([1, 0, 0], -1)).toEqual([0, 0, -1]);
+    // Backwards off the first heading lands on up, which is the ring's start.
+    expect(rotateOrientation([1, 0, 0], -1)).toEqual([0, 1, 0]);
   });
 
-  it("cycles vertical orientation up and down for Shift+R", () => {
-    // Down first: up is where a part starts, so sending it up would make the
-    // first press appear to do nothing.
-    expect(rotateOrientationVertically(1)).toEqual([0, -1, 0]);
-    expect(rotateOrientationVertically(2)).toEqual([0, 1, 0]);
-    expect(rotateOrientationVertically(3)).toEqual([0, -1, 0]);
-  });
-
-  it("uses vertical rotation for free-placement previews without losing horizontal R", () => {
-    expect(
+  it("cycles R through up and the four headings, and back to up", () => {
+    // The client's rule: five positions, hole up plus each side, never down.
+    // Turning a blower sideways used to strand it there — R only cycled the
+    // four horizontal headings and nothing brought it back up.
+    const seen = [0, 1, 2, 3, 4, 5].map((steps) =>
       freePlacementGhost({
         type: "blower",
         design: emptyDesign(),
         cell: [5, 0, 5],
         memory: DEFAULT_FREE_PLACEMENT_MEMORY,
-        rotationSteps: 0,
-        verticalRotationSteps: 1
+        rotationSteps: steps
       })
-      // One shift-R from the vertical default flips it over.
-    ).toMatchObject({ type: "blower", dir: [0, -1, 0] });
+    );
+    expect(seen.map((ghost) => (ghost?.type === "blower" ? ghost.dir : null))).toEqual([
+      [0, 1, 0],
+      [1, 0, 0],
+      [0, 0, 1],
+      [-1, 0, 0],
+      [0, 0, -1],
+      [0, 1, 0]
+    ]);
+  });
 
-    expect(
-      freePlacementGhost({
-        type: "terminal",
-        design: emptyDesign(),
-        cell: [6, 0, 5],
-        memory: DEFAULT_FREE_PLACEMENT_MEMORY,
-        rotationSteps: 0,
-        verticalRotationSteps: 2
-      })
-      // A second brings it back up.
-    ).toMatchObject({ type: "terminal", axis: [0, 1, 0] });
+  it("never faces a part down", () => {
+    const down: Vec3 = [0, -1, 0];
+    for (let steps = -5; steps <= 5; steps++) {
+      expect(resolveFreePlacementOrientation([0, 1, 0], steps)).not.toEqual(down);
+    }
+  });
 
-    expect(
-      resolveFreePlacementOrientation([0, 1, 0], { horizontalSteps: 1, verticalSteps: 0 })
-    ).toEqual([1, 0, 0]);
+  it("turns the other way on shift-R", () => {
+    expect(resolveFreePlacementOrientation([0, 1, 0], -1)).toEqual([0, 0, -1]);
+    expect(resolveFreePlacementOrientation([0, 1, 0], 1)).toEqual([1, 0, 0]);
+  });
+
+  it("brings an orientation the ring does not hold into it on the first press", () => {
+    // A part snapped to a downward-facing port starts outside the ring; a
+    // rotate key must still visibly do something.
+    expect(rotateOrientation([0, -1, 0], 1)).toEqual([0, 1, 0]);
+    expect(rotateOrientation([0, -1, 0], 0)).toEqual([0, -1, 0]);
   });
 });
 
