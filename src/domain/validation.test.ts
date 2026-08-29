@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { designFromScene } from "@/domain/design-state";
 import {
-  checkBlowerTerminalAdjacency,
+  checkBlowerCount,
   checkConnectivity,
   checkObstacleIntersections,
   checkPathLength,
@@ -10,11 +10,13 @@ import {
 } from "@/domain/validation";
 import type { BuildArea, DesignState, Part } from "@/types";
 
+/** Blower, Terminal 1, tubing, Terminal 2, blower — a complete system (ADR-0019). */
 const baseParts: Part[] = [
   { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
   { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
   { id: "st1", type: "tube", from: [2, 0, 0], to: [8, 0, 0] },
-  { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] }
+  { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] },
+  { id: "b2", type: "blower", cell: [9, 0, 0], dir: [-1, 0, 0] }
 ];
 
 function designWith(
@@ -65,33 +67,38 @@ describe("validation engine", () => {
     expect(warnings[0].detail).toContain("exactly 2 terminals");
   });
 
-  it("warns when the blower is not directly adjacent to Terminal 1", () => {
-    const design = designWith([
+  it("warns when the system does not have exactly 2 blowers", () => {
+    const oneBlower = designWith(baseParts.slice(0, 4));
+
+    const warnings = checkBlowerCount(oneBlower);
+    expect(warnings.map((w) => w.id)).toEqual(["blower-count"]);
+    expect(warnings[0].title).toBe("1 blower placed");
+    expect(warnings[0].detail).toContain("exactly 2 blowers");
+
+    expect(checkBlowerCount(designWith(baseParts))).toEqual([]);
+  });
+
+  it("does not require the blower to touch Terminal 1", () => {
+    // Remoting the blower: tubing between blower 1 and Terminal 1 is a real
+    // installation, and used to be an error. See ADR-0019.
+    const remoted = designWith([
       { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
-      { id: "st1", type: "tube", from: [1, 0, 0], to: [7, 0, 0] },
-      { id: "t1", type: "terminal", cell: [7, 0, 0], axis: [1, 0, 0] },
-      { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] }
+      { id: "st0", type: "tube", from: [1, 0, 0], to: [4, 0, 0] },
+      { id: "t1", type: "terminal", cell: [4, 0, 0], axis: [1, 0, 0] },
+      { id: "st1", type: "tube", from: [5, 0, 0], to: [8, 0, 0] },
+      { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] },
+      { id: "b2", type: "blower", cell: [9, 0, 0], dir: [-1, 0, 0] }
     ]);
 
-    const warnings = checkBlowerTerminalAdjacency(design);
-    expect(warnings.map((w) => w.id)).toEqual(["blower-terminal-adjacency"]);
-    expect(warnings[0].detail).toContain("directly adjacent");
-
-    expect(
-      checkBlowerTerminalAdjacency(
-        designWith([
-          { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
-          { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] }
-        ])
-      ).map((w) => w.id)
-    ).toEqual(["blower-terminal-adjacency"]);
+    expect(validate(remoted)).toEqual([]);
   });
 
   it("warns when open ports indicate the system is not fully connected", () => {
     const design = designWith([
       baseParts[0],
       baseParts[1],
-      { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] }
+      { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] },
+      { id: "b2", type: "blower", cell: [9, 0, 0], dir: [-1, 0, 0] }
     ]);
 
     const warnings = checkConnectivity(design);
@@ -114,7 +121,7 @@ describe("validation engine", () => {
     expect(checkObstacleIntersections(design)).toEqual([]);
   });
 
-  it("returns no warnings for a valid blower to T1 to tubing to T2 system", () => {
+  it("returns no warnings for a blower to T1 to tubing to T2 to blower system", () => {
     expect(validate(designWith(baseParts))).toEqual([]);
   });
 
@@ -129,6 +136,10 @@ describe("validation engine", () => {
       LARGE_AREA
     );
 
-    expect(validate(design).map((w) => w.id)).toEqual(["path-length", "terminal-count"]);
+    expect(validate(design).map((w) => w.id)).toEqual([
+      "path-length",
+      "terminal-count",
+      "blower-count"
+    ]);
   });
 });

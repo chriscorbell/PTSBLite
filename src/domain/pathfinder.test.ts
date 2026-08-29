@@ -8,8 +8,8 @@ import {
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import { placeTube } from "@/domain/tube-placement";
 import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
-import { validate } from "@/domain/validation";
 import type { DesignState, Obstacle, Part, Vec3 } from "@/types";
+import { routeWarnings } from "@/test/design-invariants";
 
 function designWith(parts: Part[], obstacles: Obstacle[] = []): DesignState {
   return designFromScene({ parts, obstacles });
@@ -37,7 +37,7 @@ describe("Pathfinder MVP", () => {
       length: 6,
       source: "auto-build"
     });
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("marks every part it places, so Clear Auto-Build can find them again", () => {
@@ -67,7 +67,7 @@ describe("Pathfinder MVP", () => {
       inDir: [1, 0, 0],
       outDir: [0, 0, 1]
     });
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("routes through multiple bends when the target port faces back toward the system", () => {
@@ -77,7 +77,7 @@ describe("Pathfinder MVP", () => {
     if (!result.ok) return;
     expect(result.parts.filter((part) => part.type === "bend").length).toBeGreaterThanOrEqual(2);
     expect(result.parts.some((part) => part.type === "tube")).toBe(true);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("routes across elevation changes when target terminal faces upward", () => {
@@ -86,7 +86,7 @@ describe("Pathfinder MVP", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.parts.some((part) => part.type === "bend" && part.outDir[1] !== 0)).toBe(true);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("returns a typed no-route result when the open ports cannot be connected", () => {
@@ -112,7 +112,7 @@ describe("Pathfinder MVP", () => {
       .map((part) => part.length);
     expect(tubeLengths).toEqual([6, 6, 1]);
     expect(totalPathLength(result.design)).toBe(13);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 });
 
@@ -125,7 +125,7 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     if (!result.ok) return;
     expect(result.parts.some((part) => part.type === "bend")).toBe(true);
     expect(result.unroutedPairs).toEqual([]);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("routes straight through a penetrable obstacle instead of around it", () => {
@@ -138,7 +138,7 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.parts.every((part) => part.type === "tube")).toBe(true);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("threads a route between obstacles when the straight path is blocked", () => {
@@ -151,7 +151,7 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.unroutedPairs).toEqual([]);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("completes a partially-built system preserving placed parts", () => {
@@ -179,7 +179,7 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     }
     expect(result.parts.length).toBeGreaterThan(0);
     expect(result.unroutedPairs).toEqual([]);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("routes two open-port pairs in a single pass", () => {
@@ -207,7 +207,7 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     );
     expect(finalGapsBeforeFiller.length).toBeGreaterThanOrEqual(2);
     expect(result.unroutedPairs).toEqual([]);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   // Explicit timeout, not the 5s default. This one runs a full Auto-Build twice
@@ -243,7 +243,7 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
     );
     expect(Math.min(...routeYs)).toBeGreaterThanOrEqual(GROUND_PLANE_Y);
     expect(result.unroutedPairs).toEqual([]);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   }, 20_000);
 
   it("reports unrouted pairs when the budget would be exceeded", () => {
@@ -312,7 +312,7 @@ describe("Pathfinder plenum preference", () => {
     // The bulk of the run rides in the band; nothing sneaks above or below it.
     expect(horizontalTubeLevels(result.parts).some((y) => y >= 4)).toBe(true);
     expect(result.unroutedPairs).toEqual([]);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("routes the same fixture flat along the ground without a plenum", () => {
@@ -323,7 +323,7 @@ describe("Pathfinder plenum preference", () => {
     if (!result.ok) return;
     expect(result.parts.every((part) => part.type === "tube")).toBe(true);
     expect(horizontalTubeLevels(result.parts).every((y) => y === 0)).toBe(true);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("leaves a short hop direct instead of detouring into the plenum", () => {
@@ -337,7 +337,7 @@ describe("Pathfinder plenum preference", () => {
     // feet they would move off the ground, so the hop stays a straight shot.
     expect(result.parts.every((part) => part.type === "tube")).toBe(true);
     expect(horizontalTubeLevels(result.parts)).toEqual([0]);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("gives no plenum credit outside the room", () => {
@@ -356,7 +356,7 @@ describe("Pathfinder plenum preference", () => {
     if (!result.ok) return;
     expect(result.parts.every((part) => part.type === "tube")).toBe(true);
     expect(horizontalTubeLevels(result.parts).every((y) => y === 0)).toBe(true);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("keeps the geometric cost honest while the search is biased", () => {
@@ -401,7 +401,7 @@ describe("completing a system that already has manual tubing", () => {
     if (!result.ok) return;
     expect(result.unroutedPairs).toEqual([]);
     expect(result.parts.filter((part) => part.type === "bend")).toEqual([]);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("still joins a manual stub on the blower side", () => {
@@ -410,7 +410,7 @@ describe("completing a system that already has manual tubing", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.unroutedPairs).toEqual([]);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("never joins two ends of the same run to each other", () => {
@@ -448,7 +448,7 @@ describe("routing across a room with a plenum", () => {
     // One turn per axis the route has to travel is the floor; ten is a
     // staircase. Fewer bends buys length, and that trade is the point.
     expect(result.parts.filter((part) => part.type === "bend").length).toBeLessThanOrEqual(4);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 
   it("routes a pair the width of an ordinary room apart", () => {
@@ -476,7 +476,7 @@ describe("routing across a room with a plenum", () => {
     // The two ports are 48 ft apart on the floor plan and a foot apart
     // vertically; anything near that is a sane route rather than a detour.
     expect(totalPathLength(result.parts)).toBeLessThan(75);
-    expect(validate(result.design)).toEqual([]);
+    expect(routeWarnings(result.design)).toEqual([]);
   });
 });
 

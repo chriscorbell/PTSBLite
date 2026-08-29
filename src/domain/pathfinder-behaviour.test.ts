@@ -4,8 +4,8 @@ import { plenumBands } from "@/domain/floors";
 import { autoBuildOpenPortPair } from "@/domain/pathfinder";
 import { placeTube } from "@/domain/tube-placement";
 import { totalPathLength } from "@/domain/parts";
-import { validate } from "@/domain/validation";
 import type { DesignMetadata, DesignState, Obstacle, Part, Vec3 } from "@/types";
+import { routeWarnings } from "@/test/design-invariants";
 
 /**
  * What Auto-Build does across the layouts it actually meets.
@@ -82,7 +82,7 @@ function run(design: DesignState): Outcome {
     bends: result.parts.filter((part) => part.type === "bend").length,
     feet: Number(totalPathLength(result.parts).toFixed(2)),
     band: bandUsed(result.design, result.parts),
-    warnings: validate(result.design).length
+    warnings: routeWarnings(result.design).length
   };
 }
 

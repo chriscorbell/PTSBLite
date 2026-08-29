@@ -121,6 +121,25 @@ describe("attemptPlacement", () => {
     expect(after.freePlacementRotation).toEqual(DEFAULT_FREE_PLACEMENT_ROTATION);
   });
 
+  it("places a terminal with no blower down, and away from the one that is", () => {
+    // Both used to be refused: Terminal 1 was pinned to the blower's outlet
+    // cell and could not be placed before a blower existed. The client withdrew
+    // that rule — tubing between blower 1 and Terminal 1 is "remoting the
+    // blower", a real installation. See ADR-0019.
+    const first = attemptPlacement(session({ tool: "terminal" }), emptyDesign(), [0, 0, 0], "t1");
+    expect(first.result.status).toBe("committed");
+    if (first.result.status !== "committed") return;
+
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }],
+      obstacles: []
+    });
+    const remoted = attemptPlacement(session({ tool: "terminal" }), design, [6, 0, 0], "t1");
+    expect(remoted.result.status).toBe("committed");
+    if (remoted.result.status !== "committed") return;
+    expect(remoted.result.design.parts.at(-1)).toMatchObject({ id: "t1", cell: [6, 0, 0] });
+  });
+
   it("reports the reason a placement was refused instead of committing", () => {
     const { session: after, result } = attemptPlacement(
       session({ tool: "tube" }),
@@ -214,16 +233,20 @@ describe("placementGhost", () => {
 });
 
 describe("placementLandingCells", () => {
-  it("highlights nothing for tools that place freely", () => {
+  it("highlights nothing until there is an open port to snap to", () => {
     expect(placementLandingCells(session({ tool: "blower" }), emptyDesign())).toEqual([]);
+    expect(placementLandingCells(session({ tool: "terminal" }), emptyDesign())).toEqual([]);
     expect(placementLandingCells(session({ tool: "cursor" }), emptyDesign())).toEqual([]);
   });
 
-  it("highlights the blower outlet for Terminal 1", () => {
+  it("highlights a blower's outlet for both endpoint tools", () => {
+    // Blower 2 lands on an open port the same way a terminal does, so both
+    // tools light up the same cells. See ADR-0019.
     const design = designFromScene({
       parts: [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }],
       obstacles: []
     });
-    expect(placementLandingCells(session({ tool: "terminal" }), design).length).toBeGreaterThan(0);
+    expect(placementLandingCells(session({ tool: "terminal" }), design)).toEqual([[1, 0, 0]]);
+    expect(placementLandingCells(session({ tool: "blower" }), design)).toEqual([[1, 0, 0]]);
   });
 });
