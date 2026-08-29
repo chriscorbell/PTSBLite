@@ -1,11 +1,14 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
 import { computeTopology } from "@/domain/topology";
 import type { BlowerPart, DesignState, Ghost, Part, TerminalPart, Vec3 } from "@/types";
-import { vEq, vNeg } from "@/domain/vec3";
+import { cellKey, vEq, vNeg } from "@/domain/vec3";
 
 export type FreePlacementType = "blower" | "terminal";
 
 export type FreePlacementMemory = Record<FreePlacementType, Vec3>;
+
+/** The two ghost shapes free placement can produce, and no others. */
+export type FreePlacementGhost = Extract<Ghost, { type: FreePlacementType }>;
 
 /** How many times `R` has been pressed since the tool was armed. */
 export type FreePlacementRotation = number;
@@ -150,7 +153,7 @@ export function freePlacementGhost({
   cell: Vec3;
   memory: FreePlacementMemory;
   rotationSteps: number;
-}): Ghost | null {
+}): FreePlacementGhost | null {
   for (const footprintCell of freePlacementFootprint(type, cell)) {
     if (!validateFreePlacementCell(design, footprintCell).ok) return null;
   }
@@ -200,4 +203,25 @@ export function placeFreePart(
       grid
     }
   };
+}
+
+/**
+ * The cells the viewport highlights when a blower or terminal is armed: every
+ * open port's landing cell.
+ *
+ * Both endpoint kinds snap the same way, so both light up the same cells.
+ * Before anything is placed there are no open ports and nothing lights up,
+ * which is correct — the first blower goes down in open space.
+ */
+export function freePlacementLandingCells(design: DesignState): Vec3[] {
+  const seen = new Set<string>();
+  const cells: Vec3[] = [];
+  for (const port of computeTopology(design).openPorts()) {
+    if (!validateFreePlacementCell(design, port.cell).ok) continue;
+    const key = cellKey(port.cell);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cells.push(port.cell);
+  }
+  return cells;
 }

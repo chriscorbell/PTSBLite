@@ -1,7 +1,8 @@
 import { expect } from "vitest";
 import { obstacleCells, partCells } from "@/domain/design-reconstruction";
 import { cellKey } from "@/domain/vec3";
-import type { DesignState } from "@/types";
+import { validate } from "@/domain/validation";
+import type { DesignState, Warning } from "@/types";
 
 /**
  * Assert that a design's `grid` agrees with its `parts` and `obstacles`.
@@ -86,4 +87,19 @@ export function expectGridMatchesDesign(design: DesignState): void {
 function gridEntries(design: DesignState): Array<[string, string]> {
   const cells = (design.grid as unknown as { cells: Map<string, string> }).cells;
   return [...cells.entries()];
+}
+
+/**
+ * The warnings a route can be responsible for.
+ *
+ * Auto-Build's job is to complete a *partial* system, so its fixtures are
+ * missing pieces by construction — usually the second blower. Asserting that
+ * such a design produces no warnings at all therefore says more about the
+ * fixture than the route. These two are what a bad route actually causes: it
+ * ran through something solid, or it took too much tube doing it.
+ */
+export function routeWarnings(design: DesignState): Warning[] {
+  return validate(design).filter(
+    (warning) => warning.id === "obstacle-intersection" || warning.id === "path-length"
+  );
 }

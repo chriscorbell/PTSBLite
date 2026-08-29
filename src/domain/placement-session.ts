@@ -4,6 +4,7 @@ import {
   DEFAULT_FREE_PLACEMENT_MEMORY,
   DEFAULT_FREE_PLACEMENT_ROTATION,
   freePlacementGhost,
+  freePlacementLandingCells,
   placeFreePart,
   rememberFreePlacementOrientation,
   type FreePlacementMemory,
@@ -24,11 +25,6 @@ import {
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
 import { clampElevation } from "@/domain/sparse-grid";
-import {
-  placeTerminal,
-  terminalLandingCells,
-  terminalPlacementGhost
-} from "@/domain/terminal-placement";
 import { placeTube, tubeLandingCells, tubePlacementGhost } from "@/domain/tube-placement";
 import type { BuildArea, DesignState, Ghost, ToolId, Vec3 } from "@/types";
 
@@ -232,53 +228,35 @@ export function attemptPlacement(
       );
     }
 
+    // Blowers and terminals place identically: anywhere legal, snapping to an
+    // open port when there is one under the cursor. Terminal 1 used to be a
+    // third case, pinned to the blower's outlet cell, until the client withdrew
+    // that rule (ADR-0019).
+    case "blower":
     case "terminal": {
-      const placed = placeTerminal(design, {
-        id: occupantId,
-        cell,
-        memory: session.freePlacementMemory,
-        rotationSteps: session.freePlacementRotation
-      });
-      if (!placed.ok) return unchanged({ status: "error", message: placed.message });
-      const axis = placed.part.type === "terminal" ? placed.part.axis : null;
-      return {
-        session: {
-          ...session,
-          freePlacementMemory: axis
-            ? rememberFreePlacementOrientation(session.freePlacementMemory, "terminal", axis)
-            : session.freePlacementMemory,
-          freePlacementRotation: DEFAULT_FREE_PLACEMENT_ROTATION
-        },
-        result: { status: "committed", design: placed.design }
-      };
-    }
-
-    case "blower": {
       // The ghost resolves the orientation, so what gets placed is what was
       // previewed rather than a second, independently derived answer.
+      const type: FreePlacementType = session.tool;
       const preview = freePlacementGhost({
-        type: "blower",
+        type,
         design,
         cell,
         memory: session.freePlacementMemory,
         rotationSteps: session.freePlacementRotation
       });
-      const orientation =
-        preview?.type === "blower" ? preview.dir : session.freePlacementMemory.blower;
-      if (!orientation) return unchanged({ status: "ignored" });
-      const placed = placeFreePart(design, {
-        id: occupantId,
-        type: "blower",
-        cell,
-        orientation
-      });
+      const orientation = preview
+        ? preview.type === "blower"
+          ? preview.dir
+          : preview.axis
+        : session.freePlacementMemory[type];
+      const placed = placeFreePart(design, { id: occupantId, type, cell, orientation });
       if (!placed.ok) return unchanged({ status: "error", message: placed.message });
       return {
         session: {
           ...session,
           freePlacementMemory: rememberFreePlacementOrientation(
             session.freePlacementMemory,
-            "blower",
+            type,
             orientation
           ),
           freePlacementRotation: DEFAULT_FREE_PLACEMENT_ROTATION
@@ -378,7 +356,8 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
         rotationSteps: session.freePlacementRotation
       });
     case "terminal":
-      return terminalPlacementGhost({
+      return freePlacementGhost({
+        type: "terminal",
         design,
         cell: hoverCell,
         memory: session.freePlacementMemory,
@@ -398,8 +377,9 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
 /** The cells the viewport highlights as legal targets for the armed tool. */
 export function placementLandingCells(session: PlacementSession, design: DesignState): Vec3[] {
   switch (session.tool) {
+    case "blower":
     case "terminal":
-      return terminalLandingCells(design);
+      return freePlacementLandingCells(design);
     case "tube":
       return tubeLandingCells(design);
     case "bend":

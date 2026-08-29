@@ -53,20 +53,11 @@ other, last write wins.
 
 ## Workflow
 
-**One blower, exactly two terminals.** `DesignState.parts` will hold any number of each — this is
-enforced by `validation.ts` and assumed by the placement rules, not by the schema. Relaxing the
-count is materially cheaper than it looks. *See Provisional below for the two-terminal fence.*
-**The single-blower half of this is now known to be wrong**: a real system has a blower at each end
-([ADR-0019](adr/0019-a-valid-system-has-a-blower-at-each-end.md)). The code has not caught up.
+**Exactly two blowers, exactly two terminals.** `DesignState.parts` will hold any number of each —
+the counts are enforced by `validation.ts`, not by the schema. Relaxing either is materially cheaper
+than it looks. *See Provisional below for the two-terminal fence.*
 
 **Single-direction system.** Assumed by how the topology is walked, not by the data.
-
-**Terminal 1 must sit flush against the blower outlet**, zero tubing between. *This was recorded
-as authoritative spec and it is not.* The client says tubing between a blower and its terminal is a
-real configuration — "remoting the blower" — and
-[ADR-0019](adr/0019-a-valid-system-has-a-blower-at-each-end.md) withdraws the rule. `validation.ts`
-still enforces it and still warns "Blower not adjacent to Terminal 1", so this entry describes
-current behaviour rather than a constraint worth keeping.
 
 **Nothing below Y = 0.** The ground plane is the floor. Basements or below-grade runs would need the
 build area to describe a Y origin rather than assuming zero.

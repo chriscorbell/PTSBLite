@@ -3,9 +3,13 @@ import { totalPathLength } from "@/domain/parts";
 import { bendFootprint } from "@/domain/bend-placement";
 import { computeTopology } from "@/domain/topology";
 import type { BlowerPart, DesignState, Obstacle, Part, TerminalPart, Vec3, Warning } from "@/types";
-import { cellAt, tubeCells, vAdd, vEq } from "@/domain/vec3";
+import { cellAt, tubeCells } from "@/domain/vec3";
 
 export const MAX_CENTERLINE_FEET = 300;
+
+function counted(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"} placed`;
+}
 
 export type ValidationRule = (design: DesignState, registry?: PartRegistry) => Warning[];
 
@@ -29,41 +33,45 @@ export const checkTerminalCount: ValidationRule = (design) => {
     {
       id: "terminal-count",
       level: "error",
-      title: `${terminals.length} terminals placed`,
-      detail:
-        "Systems require exactly 2 terminals: Terminal 1 inline with the blower and Terminal 2 at the far end."
+      title: counted(terminals.length, "terminal"),
+      detail: "Systems require exactly 2 terminals, one at each end of the run between the blowers."
     }
   ];
 };
 
-export const checkBlowerTerminalAdjacency: ValidationRule = (design) => {
-  const terminals = design.parts.filter((part): part is TerminalPart => part.type === "terminal");
-  if (design.parts.length === 0 || terminals.length !== 2) return [];
-  if (findTerminalOne(design)) return [];
+/**
+ * A system is bounded by a blower at each end, so it takes two.
+ *
+ * This inverts the old rule, under which the second blower was the suspect one:
+ * a system had a single blower with Terminal 1 seated on its outlet. The client
+ * withdrew that (ADR-0019); one blower is now an incomplete system rather than
+ * a complete one.
+ */
+export const checkBlowerCount: ValidationRule = (design) => {
+  const blowers = design.parts.filter((part) => part.type === "blower");
+  if (design.parts.length === 0 || blowers.length === 2) return [];
   return [
     {
-      id: "blower-terminal-adjacency",
+      id: "blower-count",
       level: "error",
-      title: "Blower not adjacent to Terminal 1",
-      detail:
-        "Place Terminal 1 directly adjacent to the blower outlet with zero tubing between them."
+      title: counted(blowers.length, "blower"),
+      detail: "Systems require exactly 2 blowers, one at each end of the system."
     }
   ];
 };
 
+/**
+ * A finished system has no open ports at all.
+ *
+ * Both blowers close the chain, so every port on it meets another. Under the
+ * old rule the far end stopped at Terminal 2 and its outer port was expected to
+ * dangle, which is why this used to count open ports rather than requiring none.
+ */
 export const checkConnectivity: ValidationRule = (design) => {
   const terminals = design.parts.filter((part): part is TerminalPart => part.type === "terminal");
-  if (terminals.length !== 2) return [];
-  const terminalOne = findTerminalOne(design);
-  if (!terminalOne) return [];
-
-  const terminalTwo = terminals.find((terminal) => terminal.id !== terminalOne.id);
-  if (!terminalTwo) return [];
-
-  const openPorts = computeTopology(design).openPorts();
-  const terminalTwoOpenPorts = openPorts.filter((port) => port.partId === terminalTwo.id);
-  const unexpectedOpenPorts = openPorts.filter((port) => port.partId !== terminalTwo.id);
-  if (unexpectedOpenPorts.length === 0 && terminalTwoOpenPorts.length === 1) return [];
+  const blowers = design.parts.filter((part): part is BlowerPart => part.type === "blower");
+  if (terminals.length !== 2 || blowers.length !== 2) return [];
+  if (computeTopology(design).openPorts().length === 0) return [];
 
   return [
     {
@@ -101,26 +109,13 @@ export const checkObstacleIntersections: ValidationRule = (design, registry = pa
 export const validationRules: ValidationRule[] = [
   checkPathLength,
   checkTerminalCount,
-  checkBlowerTerminalAdjacency,
+  checkBlowerCount,
   checkConnectivity,
   checkObstacleIntersections
 ];
 
 export function validate(design: DesignState, registry: PartRegistry = partRegistry): Warning[] {
   return validationRules.flatMap((rule) => rule(design, registry));
-}
-
-function findTerminalOne(design: DesignState): TerminalPart | undefined {
-  const blowers = design.parts.filter((part): part is BlowerPart => part.type === "blower");
-  for (const blower of blowers) {
-    const terminalCell = vAdd(blower.cell, blower.dir);
-    const terminalOne = design.parts.find(
-      (part): part is TerminalPart =>
-        part.type === "terminal" && vEq(part.cell, terminalCell) && vEq(part.axis, blower.dir)
-    );
-    if (terminalOne) return terminalOne;
-  }
-  return undefined;
 }
 
 function partFootprint(part: Part, registry: PartRegistry): Vec3[] {

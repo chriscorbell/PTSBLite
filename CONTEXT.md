@@ -134,9 +134,10 @@ translucent plane that showed *where* the placement height was without saying wh
 the armed tool. In a
 two-floor design, the floor selector (or `1` / `2`) jumps it to a floor's base.
 
-**Free placement** — placement that does not require snapping to an open port (blower, and
-Terminal 2). Contrast with tube/bend/Terminal 1, which must land on a port. *(Terminal 1's
-port-snapping follows from the adjacency rule ADR-0019 withdrew; it is still what the code does.)*
+**Free placement** — placement that does not require snapping to an open port. Both endpoint kinds
+work this way: a blower or a terminal goes anywhere legal, taking an adjacent open port's
+orientation when there is one under the cursor. Contrast with tube and bend, which must land on a
+port.
 
 ## Architecture
 
