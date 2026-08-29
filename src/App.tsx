@@ -45,6 +45,7 @@ import {
   floorShadows,
   ghostElevation,
   heightMarkers,
+  heightMarkersFollowTool,
   heightMarkersVisible,
   openPortMarkers,
   placedPartShadows
@@ -152,9 +153,10 @@ export default function App({ platform }: AppProps) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [finalizeOpen, setFinalizeOpen] = useState(false);
   // The View menu's two settings: which angle the camera was last sent to, and
-  // whether height markers stay on rather than following the armed tool.
+  // the visitor's own answer on height markers, null while the armed tool is
+  // deciding for itself.
   const [cameraView, setCameraView] = useState<CameraView | null>(null);
-  const [markersPinned, setMarkersPinned] = useState(false);
+  const [markersOverride, setMarkersOverride] = useState<boolean | null>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [confirm, setConfirm] = useState<{
     title: string;
@@ -172,9 +174,17 @@ export default function App({ platform }: AppProps) {
   // does not — a browser without WebGL exports the parts list on its own.
   const captureRef = useRef<(() => ViewportShot[]) | null>(null);
 
-  const selectTool = useCallback((next: ToolId) => {
-    dispatchPlacement({ type: "select-tool", tool: next });
-  }, []);
+  const selectTool = useCallback(
+    (next: ToolId) => {
+      // The next automatic toggle takes the height-marker checkbox back, and
+      // arming or disarming a placement tool is that toggle. A swap between two
+      // tools that both wanted markers is not one, so an override survives it:
+      // nothing on screen changed to disagree with what the visitor asked for.
+      if (heightMarkersFollowTool(next) !== heightMarkersFollowTool(tool)) setMarkersOverride(null);
+      dispatchPlacement({ type: "select-tool", tool: next });
+    },
+    [tool]
+  );
 
   const setErrorFlash = useCallback((msg: string | null) => {
     if (flashTimer.current) clearTimeout(flashTimer.current);
@@ -593,8 +603,9 @@ export default function App({ platform }: AppProps) {
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
   // Heights are labelled only while a placement tool is armed: they answer the
-  // question elevation raises, and would be clutter the rest of the time.
-  const markersOn = heightMarkersVisible(tool, markersPinned);
+  // question elevation raises, and would be clutter the rest of the time. The
+  // View menu can override that, until the next automatic toggle.
+  const markersOn = heightMarkersVisible(tool, markersOverride);
   const markers = useMemo(() => (markersOn ? heightMarkers(design) : []), [markersOn, design]);
   // Memoized for identity: the viewport rebuilds its ground group when this
   // prop changes, and the bands only actually change with the metadata.
@@ -625,8 +636,8 @@ export default function App({ platform }: AppProps) {
         onAutoBuild={() => void runAutoBuild()}
         autoBuilding={autoBuilding}
         onView={(next) => setCameraView(next && { ...next })}
-        markersPinned={markersPinned}
-        onToggleMarkers={() => setMarkersPinned((on) => !on)}
+        markersOn={markersOn}
+        onToggleMarkers={() => setMarkersOverride(!markersOn)}
       />
       <div className="app-main">
         <LeftRail
