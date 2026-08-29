@@ -87,7 +87,29 @@ if he pulled the request.
 An Awaiting Approval card that Nick commented on or moved back is a rejection. Fold his feedback
 into the description and move the card to "Ready for Chris".
 
-### 3. Implement one card
+### 3. Keep the board honest
+
+Fix what is wrong; leave alone what is merely improvable. Nick gets a notification for every
+edit, so a quiet board beats a constantly reshuffled one. In scope:
+
+- A card whose list no longer matches reality: a merged PR still sitting in In Progress, a
+  "Question" card that no longer waits on anyone. Move it and say why in a comment only if Nick
+  needs to know.
+- A stale claim: a card in In Progress whose newest comment is Claude's claim but that has no
+  open PR behind it. Return it to the top of "Ready for Chris" with a comment saying the earlier
+  run died.
+- Duplicates: two cards asking for the same change. Fold both descriptions into the older card,
+  archive the newer with a comment pointing at the survivor.
+- A description that events have overtaken (says "still to build" after it shipped, cites a
+  withdrawn rule). Correct it, preserving Nick's own words as quotes.
+- Ready ordered so a card never sits above one it depends on.
+
+Never edit Done or Junked content (they are the record), never archive anything Nick wrote
+without a comment linking to where it went, and never delete anything at all.
+
+Done when every card's list, description, and position would survive Nick reading them cold.
+
+### 4. Implement one card
 
 Take the top card of "Ready for Chris" that is clearly actionable. A card needing a decision gets
 its question instead, per step 1; take the next card.
