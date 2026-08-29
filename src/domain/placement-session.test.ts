@@ -249,4 +249,22 @@ describe("placementLandingCells", () => {
     expect(placementLandingCells(session({ tool: "terminal" }), design)).toEqual([[1, 0, 0]]);
     expect(placementLandingCells(session({ tool: "blower" }), design)).toEqual([[1, 0, 0]]);
   });
+
+  it("follows the cursor for the obstacle tool", () => {
+    const s = session({ tool: "obstacle", hoverCell: [3, 0, -4] });
+    expect(placementLandingCells(s, emptyDesign())).toEqual([[3, 0, -4]]);
+    // Mid-draft too: the moving corner is the cell the next click takes.
+    expect(
+      placementLandingCells({ ...s, obstacleDraft: { cornerA: [0, 0, 0] } }, emptyDesign())
+    ).toEqual([[3, 0, -4]]);
+  });
+
+  it("highlights nothing for the obstacle tool off the grid", () => {
+    // The hover plane runs well past the build area, and a highlight out there
+    // would offer a corner `startObstaclePlacement` refuses.
+    expect(placementLandingCells(session({ tool: "obstacle" }), emptyDesign())).toEqual([]);
+    expect(
+      placementLandingCells(session({ tool: "obstacle", hoverCell: [900, 0, 0] }), emptyDesign())
+    ).toEqual([]);
+  });
 });

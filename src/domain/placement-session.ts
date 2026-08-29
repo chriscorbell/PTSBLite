@@ -374,7 +374,17 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
   }
 }
 
-/** The cells the viewport highlights as legal targets for the armed tool. */
+/**
+ * The cells the viewport highlights for the armed tool.
+ *
+ * For the tools that place a part, these are the legal targets, worked out
+ * from the design and standing still under the pointer. The obstacle tool has
+ * no such set — it draws on the placement plane, so every cell inside the
+ * build area is a legal corner — and it highlights the one cell under the
+ * cursor instead, which is the only thing there is to say about where a click
+ * would land. Out-of-bounds cells stay unlit: the hover plane extends well
+ * past the build area, and there is no grid out there to point at.
+ */
 export function placementLandingCells(session: PlacementSession, design: DesignState): Vec3[] {
   switch (session.tool) {
     case "blower":
@@ -384,6 +394,10 @@ export function placementLandingCells(session: PlacementSession, design: DesignS
       return tubeLandingCells(design);
     case "bend":
       return bendLandingCells(design);
+    case "obstacle":
+      return session.hoverCell && design.grid.withinBounds(session.hoverCell)
+        ? [session.hoverCell]
+        : [];
     default:
       return [];
   }
