@@ -62,6 +62,8 @@ The architecture table in [README.md](README.md#architecture) maps the directori
 - pnpm 11 reads settings from `pnpm-workspace.yaml`, not `package.json`.
 - `pnpm audit` is expected to be clean.
 - Record decisions with lasting consequences as ADRs.
+- Work that touches a Trello card (shipping it, splitting client feedback, asking Nick a
+  question) follows [docs/trello-workflow.md](docs/trello-workflow.md).
 
 ## Before inventing behavior
 
@@ -70,5 +72,5 @@ such as station count, moving placed parts, and the real catalog remain open. Do
 that only Kelly Tube Systems can provide.
 
 Keep [`docs/baked-in-assumptions.md`](docs/baked-in-assumptions.md) current: it records what the
-current model cannot express. Scoped features are tracked with the client on a Trello board, not in
-this repository.
+current model cannot express. Scoped features are tracked with the client on a Trello board
+([docs/trello-workflow.md](docs/trello-workflow.md)), not in this repository.
