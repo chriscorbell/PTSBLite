@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { ActiveToolBar } from "@/components/ActiveToolBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ControlsLegend } from "@/components/ControlsLegend";
+import { QuickStartGuide } from "@/components/QuickStartGuide";
 import { LeftRail } from "@/components/LeftRail";
 import { FinalizeModal } from "@/components/FinalizeModal";
 import { StatusBar } from "@/components/StatusBar";
@@ -52,12 +53,7 @@ import { validate } from "@/domain/validation";
 import type { Platform } from "@/platform/types";
 import { Viewport, type ViewportShot } from "@/renderer/Viewport";
 import type { CameraView } from "@/renderer/camera-views";
-import type { AutoBuildSummary, DesignState, Hint, Scene, ToolId, Vec3 } from "@/types";
-
-const STARTER_HINT: Hint = {
-  title: "Start by placing a blower",
-  body: "Pick the Blower from the left rail, then click on the grid. Press R to rotate before placing."
-};
+import type { AutoBuildSummary, DesignState, Scene, ToolId, Vec3 } from "@/types";
 
 const KEY_TOOL_MAP: Record<string, ToolId> = {
   v: "cursor",
@@ -562,7 +558,6 @@ export default function App({ platform }: AppProps) {
     () => ({
       parts: design.parts,
       obstacles: design.obstacles,
-      hint: design.parts.length === 0 ? STARTER_HINT : null,
       autoBuildJustRan,
       autoBuildSummary
     }),
@@ -684,6 +679,7 @@ export default function App({ platform }: AppProps) {
             onObstacleConfirm={commitObstacle}
             onObstacleCancel={cancelObstacleDraft}
           />
+          <QuickStartGuide />
           <ControlsLegend />
           <ActiveToolBar tool={tool} elevation={armedElevation} floor={activeFloor} />
         </div>

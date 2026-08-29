@@ -118,13 +118,6 @@ export function ViewportHUD({
         </div>
       )}
 
-      {scene.hint && (
-        <div className="hud__banner hud__banner--hint">
-          <div className="hud__banner-title">{scene.hint.title}</div>
-          <div className="hud__banner-body">{scene.hint.body}</div>
-        </div>
-      )}
-
       {scene.autoBuildJustRan && scene.autoBuildSummary && (
         <div className="hud__banner hud__banner--summary">
           <div className="hud__banner-title">
