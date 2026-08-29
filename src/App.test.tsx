@@ -382,6 +382,39 @@ describe("a two-floor design", () => {
     expect(viewport.props?.ghostHeight).toBeNull();
   });
 
+  it("ticks the View menu to match the screen, and lets the tick be driven", async () => {
+    await renderApp();
+    const openViewMenu = () => fireEvent.click(screen.getByRole("button", { name: /^View$/ }));
+    const markersItem = () => screen.getByRole("menuitemcheckbox", { name: /Height markers/ });
+
+    // Nothing armed, so nothing labelled, and the menu reads that back.
+    openViewMenu();
+    expect(markersItem().getAttribute("aria-checked")).toBe("false");
+
+    // Ticking it overrides the app: markers on with only the cursor armed.
+    fireEvent.click(markersItem());
+    expect(viewport.props?.heightMarkers?.length).toBeGreaterThan(0);
+
+    // Arming the obstacle tool is the next automatic toggle, so the app has the
+    // say again — and the tick follows what it decided rather than sitting on
+    // the old override.
+    fireEvent.keyDown(window, { key: "o" });
+    openViewMenu();
+    expect(markersItem().getAttribute("aria-checked")).toBe("true");
+
+    // Which can be overridden in turn, the other way.
+    fireEvent.click(markersItem());
+    expect(viewport.props?.heightMarkers).toEqual([]);
+
+    // Back to the cursor: another automatic toggle, and markers go quiet on
+    // their own rather than staying off because someone said so earlier.
+    fireEvent.keyDown(window, { key: "v" });
+    openViewMenu();
+    expect(markersItem().getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(markersItem());
+    expect(viewport.props?.heightMarkers?.length).toBeGreaterThan(0);
+  });
+
   it("shows the elevation beside the armed tool", async () => {
     await renderApp();
 

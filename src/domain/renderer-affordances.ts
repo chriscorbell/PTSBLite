@@ -59,12 +59,23 @@ const ELEVATION_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>([
 ]);
 
 /**
- * `always` is the View menu's override, which the client asked for alongside
- * the automatic behaviour: "it could auto toggle on when you are elevating
- * something [...] then we could add a view icon for manual on/off".
+ * What the app decides on its own: markers while a placement tool is armed.
+ * Exported because the caller holding the override has to watch this value —
+ * when it changes, the automatic behaviour has spoken and the override is over.
  */
-export function heightMarkersVisible(tool: ToolId, always = false): boolean {
-  return always || ELEVATION_TOOLS.has(tool);
+export function heightMarkersFollowTool(tool: ToolId): boolean {
+  return ELEVATION_TOOLS.has(tool);
+}
+
+/**
+ * `override` is the visitor's answer in the View menu, which the client asked
+ * for alongside the automatic behaviour: "it could auto toggle on when you are
+ * elevating something [...] then we could add a view icon for manual on/off".
+ * Null while nobody has overridden anything, which is until the menu is used
+ * and again after the next automatic toggle takes control back.
+ */
+export function heightMarkersVisible(tool: ToolId, override: boolean | null = null): boolean {
+  return override ?? heightMarkersFollowTool(tool);
 }
 
 /**

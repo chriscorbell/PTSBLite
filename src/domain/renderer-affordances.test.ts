@@ -4,6 +4,7 @@ import {
   floorShadows,
   ghostElevation,
   heightMarkers,
+  heightMarkersFollowTool,
   heightMarkersVisible,
   placedPartShadows
 } from "@/domain/renderer-affordances";
@@ -23,10 +24,28 @@ describe("when height markers show", () => {
     expect(heightMarkersVisible("erase")).toBe(false);
   });
 
-  it("shows them for any tool once the View menu pins them on", () => {
+  it("shows them for any tool once the View menu turns them on", () => {
     // The client asked for the automatic behaviour *and* a manual override.
     expect(heightMarkersVisible("cursor", true)).toBe(true);
     expect(heightMarkersVisible("erase", true)).toBe(true);
+  });
+
+  it("hides them for a placement tool once the View menu turns them off", () => {
+    expect(heightMarkersVisible("blower", false)).toBe(false);
+  });
+
+  it("follows the tool again once the override is spent", () => {
+    expect(heightMarkersVisible("blower", null)).toBe(true);
+    expect(heightMarkersVisible("cursor", null)).toBe(false);
+  });
+
+  it("says what the app would decide on its own, so callers can spot a toggle", () => {
+    // The override lasts until this value changes: arming or disarming a
+    // placement tool is the automatic toggle that takes control back.
+    expect(heightMarkersFollowTool("blower")).toBe(true);
+    expect(heightMarkersFollowTool("tube")).toBe(true);
+    expect(heightMarkersFollowTool("cursor")).toBe(false);
+    expect(heightMarkersFollowTool("erase")).toBe(false);
   });
 });
 

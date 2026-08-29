@@ -18,7 +18,7 @@ export type TopBarProps = {
   /** Point the camera at one of the named angles, or back at the default. */
   onView: (view: CameraView | null) => void;
   /** Whether height markers are pinned on rather than following the tool. */
-  markersPinned: boolean;
+  markersOn: boolean;
   onToggleMarkers: () => void;
 };
 
@@ -32,7 +32,7 @@ export function TopBar({
   onAutoBuild,
   autoBuilding,
   onView,
-  markersPinned,
+  markersOn,
   onToggleMarkers
 }: TopBarProps) {
   return (
@@ -43,7 +43,7 @@ export function TopBar({
       <button className="topbtn topbar-no-drag" onClick={onNew}>
         <Icons.New size={16} /> New
       </button>
-      <ViewMenu onView={onView} markersPinned={markersPinned} onToggleMarkers={onToggleMarkers} />
+      <ViewMenu onView={onView} markersOn={markersOn} onToggleMarkers={onToggleMarkers} />
       <button
         className="topbtn icon topbar-no-drag"
         title="Undo (⌘Z)"
@@ -77,15 +77,18 @@ export function TopBar({
 
 /**
  * The View menu: the named angles to snap the camera to, and whether height
- * markers stay on. Both were asked for as "features as part of a View menu".
+ * markers are showing. Both were asked for as "features as part of a View
+ * menu". The markers item is a live readout that can also be driven: it is
+ * ticked whenever markers are on the screen, including when the app turned them
+ * on itself, and clicking it overrides that until the app next changes its mind.
  */
 function ViewMenu({
   onView,
-  markersPinned,
+  markersOn,
   onToggleMarkers
 }: {
   onView: (view: CameraView | null) => void;
-  markersPinned: boolean;
+  markersOn: boolean;
   onToggleMarkers: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -127,14 +130,12 @@ function ViewMenu({
         <div role="menu" className="topbar-menu__panel topbar-no-drag">
           <button
             role="menuitemcheckbox"
-            aria-checked={markersPinned}
+            aria-checked={markersOn}
             className="viewmenu-item"
             onClick={() => choose(onToggleMarkers)}
           >
-            <span className="viewmenu-item__check">
-              {markersPinned && <Icons.Check size={12} />}
-            </span>
-            Always show height markers
+            <span className="viewmenu-item__check">{markersOn && <Icons.Check size={12} />}</span>
+            Height markers
           </button>
           <div className="topbar-menu__divider" />
           {STANDARD_VIEWS.map((view) => (
