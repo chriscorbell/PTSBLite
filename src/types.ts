@@ -103,8 +103,6 @@ export type DesignState = {
   grid: SparseGrid;
 };
 
-export type Hint = { title: string; body: string };
-
 export type AutoBuildSummary = {
   /** Centerline feet of the parts Auto-Build placed. */
   lengthFeet: number;
@@ -126,7 +124,6 @@ export type Scene = {
   obstacles: Obstacle[];
   autoBuildJustRan?: boolean;
   autoBuildSummary?: AutoBuildSummary | null;
-  hint?: Hint | null;
 };
 
 export type Warning = {

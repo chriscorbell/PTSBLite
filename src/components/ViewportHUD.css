@@ -93,8 +93,8 @@
   cursor: default;
 }
 
-/* The hint, the Auto-Build summary and the error flash are one banner in three
-   colours, centred at the top of the viewport. */
+/* The Auto-Build summary and the error flash are one banner in two colours,
+   centred at the top of the viewport. */
 .hud__banner {
   position: absolute;
   top: 16px;
@@ -104,11 +104,6 @@
   padding: 10px 14px;
   background: color-mix(in oklab, var(--accent) 14%, var(--ink));
   border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
-}
-
-.hud__banner--hint {
-  max-width: 420px;
-  pointer-events: auto;
 }
 
 .hud__banner--summary {
@@ -129,13 +124,6 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--accent);
-}
-
-.hud__banner-body {
-  font-size: 12px;
-  color: var(--text-mut);
-  margin-top: 3px;
-  line-height: 1.45;
 }
 
 .hud__banner-detail {
