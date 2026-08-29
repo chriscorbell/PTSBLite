@@ -18,7 +18,7 @@ sessions follow the rules and run whichever loop steps their work touches.
   routine remembers nothing between runs.
 - A card that asks to change an authoritative engineering constraint gets questioned, not built.
   AGENTS.md governs; ADR first, code second.
-- Comments cap at 2048 characters. Link to a card instead of restating one.
+- Keep comments short. Link to a card instead of restating one.
 
 ## The lists
 
@@ -32,6 +32,34 @@ sessions follow the rules and run whichever loop steps their work touches.
   with a comment.
 - **Done** and **Junked**: kept for the record. Junked cards record withdrawn requests so they are
   not re-raised as new.
+
+## Trello access
+
+Use the Trello MCP tools, when the session has them, for structure: listing lists and cards,
+creating, moving, and archiving. They cannot handle comments (verified 2026-08-29: `add_comment`
+is rejected at runtime and reads omit comment bodies).
+
+Comments go through the REST API with `TRELLO_API_KEY` and `TRELLO_TOKEN` from the environment.
+The loop depends on comments, so if those variables are unset, stop and report that instead of
+working blind. Append `key=$TRELLO_API_KEY&token=$TRELLO_TOKEN` to every query string:
+
+```sh
+# The whole board: lists with their open cards
+curl "https://api.trello.com/1/boards/bWnb6qXO/lists?cards=open&card_fields=name,desc,dateLastActivity&..."
+# A card's comments, newest first
+curl "https://api.trello.com/1/cards/$CARD/actions?filter=commentCard&limit=50&..."
+# Post a comment
+curl -X POST "https://api.trello.com/1/cards/$CARD/actions/comments?..." --data-urlencode "text=..."
+# Move to another list, or archive
+curl -X PUT "https://api.trello.com/1/cards/$CARD?idList=$LIST&..."
+curl -X PUT "https://api.trello.com/1/cards/$CARD?closed=true&..."
+# Create a card
+curl -X POST "https://api.trello.com/1/cards?idList=$LIST&..." --data-urlencode "name=..." --data-urlencode "desc=..."
+```
+
+Comment authorship: everything posted with this token shows as Chris's account, which is why
+Claude signs. A comment's `memberCreator` matching `GET /1/members/me` means ours (Chris or
+Claude); any other account is Nick.
 
 ## The loop
 
