@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bendFootprint } from "@/domain/bend-placement";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { ERASE_EMPTY_MESSAGE, eraseAtCell } from "@/domain/erase-placement";
 import { computeTopology } from "@/domain/topology";
 import type { BendPart } from "@/types";
@@ -155,6 +155,39 @@ describe("Erase placement", () => {
     expect(result.design.obstacles).toEqual([]);
     expect(result.design.grid.query([2, 0, 3])).toBeUndefined();
     expect(result.design.grid.query([4, 1, 5])).toBeUndefined();
+  });
+
+  it("keeps a surviving overlapping obstacle registered in the grid", () => {
+    const design = designFromScene({
+      parts: [],
+      obstacles: [
+        { id: "o1", min: [0, 0, 0], max: [2, 0, 0] },
+        { id: "o2", min: [1, 0, 0], max: [3, 0, 0] }
+      ]
+    });
+
+    const result = eraseAtCell(design, [0, 0, 0]);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.obstacles.map((obstacle) => obstacle.id)).toEqual(["o2"]);
+    expect(result.design.grid.query([1, 0, 0])).toBe("o2");
+    expectGridMatchesDesign(result.design);
+  });
+
+  it("registers a surviving impenetrable obstacle after erasing a part over it", () => {
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [1, 0, 1], dir: [0, 1, 0] }],
+      obstacles: [{ id: "o1", min: [1, 0, 1], max: [1, 0, 1] }]
+    });
+
+    const result = eraseAtCell(design, [1, 0, 1]);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.parts).toEqual([]);
+    expect(result.design.grid.query([1, 0, 1])).toBe("o1");
+    expectGridMatchesDesign(result.design);
   });
 });
 

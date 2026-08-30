@@ -7,6 +7,7 @@ import {
   placementGhost,
   placementLandingCells,
   placementSessionReducer,
+  resolvePlacementCell,
   type PlacementSession
 } from "@/domain/placement-session";
 import { DEFAULT_FREE_PLACEMENT_ROTATION } from "@/domain/free-placement";
@@ -95,6 +96,22 @@ describe("placementSessionReducer", () => {
       buildArea: AREA
     });
     expect(clamped.activeElevation).toBe(AREA.height - 1);
+  });
+});
+
+describe("resolvePlacementCell", () => {
+  const design = designFromScene({
+    parts: [],
+    obstacles: [{ id: "shelf", min: [1, 0, 1], max: [1, 2, 1] }]
+  });
+
+  it("stands a plain blower or terminal on an impenetrable obstacle", () => {
+    expect(resolvePlacementCell("blower", design, [1, 0, 1], AREA)).toEqual([1, 3, 1]);
+    expect(resolvePlacementCell("terminal", design, [1, 0, 1], AREA)).toEqual([1, 3, 1]);
+  });
+
+  it("leaves a pedestal blower on the pointed cell so its mast cannot cross the obstacle", () => {
+    expect(resolvePlacementCell("blowerPedestal", design, [1, 0, 1], AREA)).toEqual([1, 0, 1]);
   });
 });
 

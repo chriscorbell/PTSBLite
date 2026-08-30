@@ -1,5 +1,4 @@
-import { bendFootprint } from "@/domain/bend-placement";
-import { partCells } from "@/domain/design-reconstruction";
+import { designFromScene } from "@/domain/design-state";
 import type { DesignState, Obstacle, Part, TubePart, Vec3 } from "@/types";
 import { cellAt, cellCenter, dirOf, tubeCells, vAdd, vEq } from "@/domain/vec3";
 
@@ -25,18 +24,7 @@ export function eraseAtCell(design: DesignState, cell: Vec3): EraseResult {
   }
 
   const part = design.parts.find((candidate) => candidate.id === occupant);
-  if (part?.type === "blower" || part?.type === "terminal") {
-    // `partCells` rather than the cell itself, so a pedestal blower gives back
-    // the column of mast under it as well. Clicking any cell of that mast
-    // erases the blower it holds up, since the grid maps them all to its id.
-    return eraseWholePart(design, part, partCells(part));
-  }
-  if (part?.type === "tube") {
-    return eraseTubeCell(design, part, cell);
-  }
-  if (part?.type === "bend") {
-    return eraseWholePart(design, part, bendFootprint(part));
-  }
+  if (part) return erasePartAtCell(design, part, cell);
 
   const obstacle = design.obstacles.find((candidate) => candidate.id === occupant);
   if (obstacle) {
@@ -46,18 +34,27 @@ export function eraseAtCell(design: DesignState, cell: Vec3): EraseResult {
   return { ok: false, message: ERASE_EMPTY_MESSAGE, design };
 }
 
-function eraseWholePart(design: DesignState, part: Part, cells: Vec3[]): EraseResult {
-  const grid = design.grid.clone();
-  for (const footprintCell of cells) {
-    grid.remove(footprintCell);
+function erasePartAtCell(design: DesignState, part: Part, cell: Vec3): EraseResult {
+  switch (part.type) {
+    case "blower":
+    case "terminal":
+    case "bend":
+      return eraseWholePart(design, part);
+    case "tube":
+      return eraseTubeCell(design, part, cell);
   }
+}
+
+function eraseWholePart(design: DesignState, part: Part): EraseResult {
   return {
     ok: true,
-    design: {
-      ...design,
-      parts: design.parts.filter((candidate) => candidate.id !== part.id),
-      grid
-    }
+    design: designFromScene(
+      {
+        parts: design.parts.filter((candidate) => candidate.id !== part.id),
+        obstacles: design.obstacles
+      },
+      design.metadata
+    )
   };
 }
 
@@ -106,40 +103,18 @@ function eraseTubeCell(design: DesignState, part: TubePart, cell: Vec3): EraseRe
     )
   );
 
-  const grid = design.grid.clone();
-  for (const footprintCell of cells) {
-    grid.remove(footprintCell);
-  }
-  for (const replacement of replacementParts) {
-    for (const footprintCell of tubeCells(replacement.from, replacement.to)) {
-      grid.place(footprintCell, replacement.id);
-    }
-  }
-
   return {
     ok: true,
-    design: {
-      ...design,
-      parts: design.parts.flatMap((candidate) =>
-        candidate.id === part.id ? replacementParts : [candidate]
-      ),
-      grid
-    }
+    design: designFromScene(
+      {
+        parts: design.parts.flatMap((candidate) =>
+          candidate.id === part.id ? replacementParts : [candidate]
+        ),
+        obstacles: design.obstacles
+      },
+      design.metadata
+    )
   };
-}
-
-function obstacleCells(obstacle: Obstacle): Vec3[] {
-  const [x0, y0, z0] = obstacle.min.map(Math.floor);
-  const [x1, y1, z1] = obstacle.max.map(Math.floor);
-  const cells: Vec3[] = [];
-  for (let x = x0; x <= x1; x++) {
-    for (let y = y0; y <= y1; y++) {
-      for (let z = z0; z <= z1; z++) {
-        cells.push([x, y, z]);
-      }
-    }
-  }
-  return cells;
 }
 
 function obstacleContains(obstacle: Obstacle, cell: Vec3): boolean {
@@ -154,18 +129,17 @@ function obstacleContains(obstacle: Obstacle, cell: Vec3): boolean {
 }
 
 function eraseObstacle(design: DesignState, obstacle: Obstacle): EraseResult {
-  const grid = design.grid.clone();
-  for (const footprintCell of obstacleCells(obstacle)) {
-    // Only cells this obstacle actually owns: a penetrable obstacle owns none,
-    // and an overlapping neighbour may own some of an impenetrable one's.
-    if (grid.query(footprintCell) === obstacle.id) grid.remove(footprintCell);
-  }
   return {
     ok: true,
-    design: {
-      ...design,
-      obstacles: design.obstacles.filter((candidate) => candidate.id !== obstacle.id),
-      grid
-    }
+    // Reconstruct rather than editing the grid by hand. A surviving obstacle
+    // may cover cells this one owned, and reconstruction assigns those cells
+    // again so the obstacle union remains blocked.
+    design: designFromScene(
+      {
+        parts: design.parts,
+        obstacles: design.obstacles.filter((candidate) => candidate.id !== obstacle.id)
+      },
+      design.metadata
+    )
   };
 }

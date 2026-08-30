@@ -31,7 +31,6 @@ import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
 import {
   obstacleBaseElevation,
   obstacleHeightLimit,
-  restOnObstacles,
   type ObstacleKind
 } from "@/domain/obstacle-placement";
 import {
@@ -41,6 +40,7 @@ import {
   placementGhost,
   placementLandingCells,
   placementSessionReducer,
+  resolvePlacementCell,
   type PlacementResult
 } from "@/domain/placement-session";
 import { autoBuildOpenPortPair, type UnroutedPair } from "@/domain/pathfinder";
@@ -398,20 +398,8 @@ export default function App({ platform }: AppProps) {
     ? obstacleHeightLimit(obstacleDraft, design.metadata, buildArea)
     : 1;
 
-  /**
-   * Where the pointer's cell actually lands. A blower or terminal aimed at an
-   * impenetrable obstacle steps up on top of it rather than being refused —
-   * the client builds shelves out of them and stands equipment on top. Tubes
-   * and bends continue from a port and are left alone, and the obstacle tool
-   * has to be able to draw over what is already there.
-   *
-   * A pedestal blower is deliberately not in that list: its mast runs to the
-   * floor, so standing one on a shelf would ask the mast to pass through the
-   * shelf holding it up. It is refused there instead, and says so (ADR-0020).
-   */
   const restingCell = useCallback(
-    (cell: Vec3): Vec3 =>
-      tool === "blower" || tool === "terminal" ? restOnObstacles(design, cell, buildArea) : cell,
+    (cell: Vec3): Vec3 => resolvePlacementCell(tool, design, cell, buildArea),
     [tool, design, buildArea]
   );
 

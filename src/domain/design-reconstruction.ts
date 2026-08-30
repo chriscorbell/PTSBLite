@@ -50,10 +50,15 @@ export function partCells(part: Part): Vec3[] {
   // A pedestal blower also holds the column of mast beneath it, down to the
   // floor. Uncounted in the BOM, but as solid as any other part on the grid.
   if (hasPedestal(part)) return [part.cell, ...pedestalCells(part.cell, part.pedestalFeet)];
-  if (part.type === "blower" || part.type === "terminal") return [part.cell];
-  if (part.type === "tube") return tubeCells(part.from, part.to);
-  if (part.type === "bend") return bendFootprint(part);
-  return [];
+  switch (part.type) {
+    case "blower":
+    case "terminal":
+      return [part.cell];
+    case "tube":
+      return tubeCells(part.from, part.to);
+    case "bend":
+      return bendFootprint(part);
+  }
 }
 
 /** The grid cells an obstacle volume occupies. */
