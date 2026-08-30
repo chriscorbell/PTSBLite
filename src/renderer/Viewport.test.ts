@@ -406,6 +406,16 @@ describe("how big a height marker draws", () => {
     );
   });
 
+  it("keeps the far cut-off where it was when markers stood taller", () => {
+    // The trap in shrinking a marker: the minimum is a pixel count, so leaving
+    // it alone moves the point markers vanish at *towards* the camera — the
+    // client asked for smaller, not for gone sooner. What holds is a distance,
+    // and it belongs either side of the pull-back the row above checks.
+    const opening = openingCameraDistance(DEFAULT_ROOM);
+    expect(heightMarkerScale(opening * 1.45, VIEWPORT).visible).toBe(true);
+    expect(heightMarkerScale(opening * 1.7, VIEWPORT).visible).toBe(false);
+  });
+
   it("stops drawing once there is nothing left of a marker to read", () => {
     // Pulled right back over the build area a label is fuzz; the elevation is
     // still shown beside the armed tool, so nothing is actually lost.

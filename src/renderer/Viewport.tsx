@@ -93,8 +93,14 @@ const CAMERA_FOV_DEG = 38;
  * to be in the world. The client gave that up to get smaller markers — "if
  * users can't read it, they will zoom in" — so it now only decides when a
  * marker has shrunk to a smudge worth dropping, well past the opening view.
+ *
+ * It tracks {@link HEIGHT_MARKER_FEET} down, because a pixel floor held still
+ * while the marker shrinks does not mean "drop it when it is a smudge" — it
+ * means "drop it nearer the camera than before". 6 px against 0.9 ft put the
+ * cut-off just under 1.5 opening distances back; 4.5 against 0.7 ft holds it
+ * there, so making markers smaller does not quietly take them away sooner.
  */
-const MARKER_MIN_PIXELS = 6;
+const MARKER_MIN_PIXELS = 4.5;
 const MARKER_MAX_PIXELS = 42;
 
 /**
