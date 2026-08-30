@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { bomRows, partLength, totalPathLength, tubeFeet } from "@/domain/parts";
+import { splitSleeveCount } from "@/domain/split-sleeve";
 import type { DesignState, Part } from "@/types";
 
 function designWith(parts: Part[]): DesignState {
@@ -66,6 +67,15 @@ describe("BOM derivation", () => {
     expect(byKey.blower.partNo).toBe("BL-2020-A");
   });
 
+  it("bomRows counts the split sleeves the joins imply", () => {
+    // The sample run is a chain of mated parts, so a sleeve falls on each join.
+    // split-sleeve.test.ts covers where they land; this is the row existing.
+    const byKey = Object.fromEntries(bomRows(designWith(sampleParts)).map((r) => [r.key, r]));
+    expect(byKey.splitSleeve.qty).toBe(splitSleeveCount(sampleParts));
+    expect(byKey.splitSleeve.qty).toBeGreaterThan(0);
+    expect(byKey.splitSleeve.name).toBe("Split Sleeve");
+  });
+
   it("bomRows yields zero quantities for an empty design", () => {
     const rows = bomRows(emptyDesign());
     expect(rows.every((r) => r.qty === 0)).toBe(true);
@@ -73,6 +83,7 @@ describe("BOM derivation", () => {
       "bend90",
       "blower",
       "blowerPedestal",
+      "splitSleeve",
       "terminal",
       "tube6"
     ]);

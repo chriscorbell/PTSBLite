@@ -88,6 +88,15 @@ model already has. The mast measures to the floor of the storey and is refused w
 that column; it does not stand on an obstacle, and it does not follow a blower that is later
 re-elevated, because placed parts cannot be moved at all (see *Selection and move*).
 
+**Split sleeves are derived on every read, and the rule that places them is in code.** Sleeves are
+not in `parts` and not in the saved design: `splitSleeves` recomputes them from the joints
+([ADR-0022](adr/0022-split-sleeves-are-derived-not-placed.md)). The upside is that they can never
+disagree with the run they sit on and that changing the rule re-sleeves every existing design; the
+cost is that nothing can hold a sleeve the rule would not produce. Moving one, deleting one, adding
+one where an installer would want it, or a design that records the sleeves as they were actually
+fitted — all of those need sleeves to become occupants, not a spacing tweak. The client set the
+spacing himself and knows it produces a 1 ft gap at the end of an odd run.
+
 **A design's geometry answers are fixed once it is created.** The room, and the multi-floor
 and plenum answers, are collected on the welcome screen and cannot be changed afterwards. Changing
 one means starting a new design. `DesignMetadata` would hold an edit fine; what was deliberately

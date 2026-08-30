@@ -36,6 +36,10 @@ export const VP = {
   tube: 0x8e96a5,
   tubeEdge: 0xb8bfcd,
   bend: 0x8e96a5,
+  // A split sleeve is much darker than the tube it wraps, which is what makes a
+  // joint read as a joint from across the room rather than as a bulge.
+  sleeve: 0x1c2129,
+  sleeveBolt: 0x99a3b4,
   obstacle: 0xc23a48,
   obstaclePenetrable: 0x5b8fd9,
   port: 0x5eead4
