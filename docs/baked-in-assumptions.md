@@ -166,11 +166,13 @@ View menu snaps to one of five named angles or back to the opening framing
 distance numerically, and the five angles are constants — they are also what the exported PDF is
 rendered from, so changing the list changes every document.
 
-**The plenum preference is a fixed bias, not a setting.** Auto-Build charges horizontal feet and
-bends outside the plenum extra during the search (`pathfinder.ts`), so long runs ride the band and
-short hops stay direct. The penalty weights are constants; nothing on screen exposes or tunes
-them, and a route through the plenum genuinely is longer — the detour's feet count against the
-300 ft cap like any others.
+**Where a horizontal run belongs is a fixed rule, not a setting.** Auto-Build charges horizontal
+feet and bends outside the run band extra during the search (`pathfinder.ts`), and every design has
+a band: the plenum, the ceiling of a room 12 ft or lower, or a 12 ft ghost ceiling in a taller one
+(ADR-0023). The weights and the 12 ft are constants; nothing on screen exposes or tunes them, and a
+banded route genuinely is longer — the climb's feet count against the 300 ft cap like any others.
+The visitor cannot ask for a run at some other height, or for a flat one; more rise than the band
+allows is built by hand.
 
 **Any collaboration, cloud, account, or telemetry surface.** Deliberately. PTSBLite is
 served as static files with a `connect-src 'none'` policy: nothing it does reaches the network

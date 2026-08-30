@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { designFromScene } from "@/domain/design-state";
 import {
   autoBuildOpenPortPair,
+  MAX_RUN_HEIGHT_FEET,
   PATHFINDER_NO_ROUTE_MESSAGE,
-  PATHFINDER_SEARCH_LIMIT_MESSAGE
+  PATHFINDER_SEARCH_LIMIT_MESSAGE,
+  runBandVolume
 } from "@/domain/pathfinder";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import { placeTube } from "@/domain/tube-placement";
@@ -282,10 +284,59 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
   });
 });
 
-describe("Pathfinder plenum preference", () => {
-  // An 8 ft floor whose top half is plenum: the band spans Y 4..8. The long
-  // fixture keeps its ports far enough apart that carrying the run in the
-  // plenum beats staying on the ground even after paying for the risers.
+describe("where a horizontal run belongs", () => {
+  // The client's three cases, in his order: a plenum is used whenever there is
+  // one, however high the ceiling; without one the run rides next to a ceiling
+  // of 12 ft or lower; and a taller room is routed under a ghost ceiling at
+  // 12 ft instead.
+  const bandOf = (room: { width: number; depth: number; height: number }, plenum: number | null) =>
+    runBandVolume({ room, multiFloor: false, plenumHeightFeet: plenum });
+
+  it("uses the plenum whenever the design has one", () => {
+    const shallow = bandOf({ width: 60, depth: 60, height: 8 }, 4);
+    const tall = bandOf({ width: 60, depth: 60, height: 30 }, 3);
+
+    expect(shallow.kind).toBe("plenum");
+    expect(shallow.bands).toEqual([{ floor: 1, base: 4, top: 8 }]);
+    // The same answer 22 ft higher: nothing about the room talks it out of it.
+    expect(tall.kind).toBe("plenum");
+    expect(tall.bands).toEqual([{ floor: 1, base: 27, top: 30 }]);
+  });
+
+  it("runs next to the ceiling of a room 12 ft or lower with no plenum", () => {
+    const band = bandOf({ width: 60, depth: 60, height: MAX_RUN_HEIGHT_FEET }, null);
+
+    expect(band.kind).toBe("ceiling");
+    expect(band.bands).toEqual([{ floor: 1, base: 11, top: 12 }]);
+  });
+
+  it("runs under a 12 ft ghost ceiling in a taller room with no plenum", () => {
+    const band = bandOf({ width: 60, depth: 60, height: MAX_RUN_HEIGHT_FEET + 1 }, null);
+
+    expect(band.kind).toBe("ghost-ceiling");
+    expect(band.bands).toEqual([{ floor: 1, base: 11, top: 12 }]);
+  });
+
+  it("gives each floor of a two-floor room its own band", () => {
+    const band = runBandVolume({
+      room: { width: 60, depth: 60, height: 30 },
+      multiFloor: true,
+      plenumHeightFeet: null
+    });
+
+    // 12 ft above each floor's own floor, the second measured from the slab.
+    expect(band.bands).toEqual([
+      { floor: 1, base: 11, top: 12 },
+      { floor: 2, base: 42, top: 43 }
+    ]);
+  });
+});
+
+describe("Pathfinder run band preference", () => {
+  // An 8 ft floor whose top half is plenum: the band spans Y 4..8. Both ports
+  // face sideways along the ground, so reaching the band costs four bends the
+  // route would not otherwise place — the long fixture is far enough across for
+  // the run to buy them, the short hop below is not.
   const PLENUM_META = {
     room: { width: 60, depth: 60, height: 8 },
     plenumHeightFeet: 4
@@ -316,26 +367,34 @@ describe("Pathfinder plenum preference", () => {
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
-  it("routes the same fixture flat along the ground without a plenum", () => {
+  it("carries the same fixture under the ceiling when there is no plenum", () => {
+    // A room with no plenum still has somewhere for a long run to go. The
+    // client: no plenum and a ceiling of 12 ft or lower means "run next to the
+    // ceiling", so this 8 ft room carries it in the foot below 8 — four bends
+    // to climb out and back, bought by 44 ft of run out of the walkway.
     const meta = { ...PLENUM_META, plenumHeightFeet: null };
     const result = autoBuildOpenPortPair(designFromScene({ parts: farParts, obstacles: [] }, meta));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.parts.every((part) => part.type === "tube")).toBe(true);
-    expect(horizontalTubeLevels(result.parts).every((y) => y === 0)).toBe(true);
+    expect(result.runBand).toBe("ceiling");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === 7)).toBe(true);
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
-  it("leaves a short hop direct instead of detouring into the plenum", () => {
+  it("leaves a short hop between two sideways ports on the ground", () => {
     const result = autoBuildOpenPortPair(
       designFromScene({ parts: basicParts([8, 0, 0]), obstacles: [] }, PLENUM_META)
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // The bias is soft: two risers and their bends cost more than the eight
-    // feet they would move off the ground, so the hop stays a straight shot.
+    // Room height no longer votes on the band, but bends still do: both ports
+    // face along the ground and are six feet apart, so climbing into the band
+    // would add four bends to save six feet of penalty. The hop stays a
+    // straight shot. Between two upward-facing ports — the defaults a visitor
+    // actually gets — the bends are paid either way and the band always wins;
+    // `pathfinder-behaviour.test.ts` records that case.
     expect(result.parts.every((part) => part.type === "tube")).toBe(true);
     expect(horizontalTubeLevels(result.parts)).toEqual([0]);
     expect(routeWarnings(result.design)).toEqual([]);
@@ -357,6 +416,37 @@ describe("Pathfinder plenum preference", () => {
     if (!result.ok) return;
     expect(result.parts.every((part) => part.type === "tube")).toBe(true);
     expect(horizontalTubeLevels(result.parts).every((y) => y === 0)).toBe(true);
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("carries a run in the plenum of a room too tall for the climb to repay", () => {
+    // The client's rule has no ceiling height above which the plenum stops
+    // applying: "always prefer the plenum when there is one". A 30 ft room is
+    // where that used to break, because a riser charged by the foot cost more
+    // than the run saved.
+    const tall = { room: { width: 60, depth: 60, height: 30 }, plenumHeightFeet: 3 };
+    const result = autoBuildOpenPortPair(designFromScene({ parts: farParts, obstacles: [] }, tall));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("plenum");
+    expect(horizontalTubeLevels(result.parts).every((y) => y >= 27)).toBe(true);
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("stops a run at the ghost ceiling in a tall room with no plenum", () => {
+    // No plenum and a ceiling too high to be worth reaching: the run rides at
+    // MAX_RUN_HEIGHT_FEET, and the summary box tells the visitor to build by
+    // hand if they need more rise than that.
+    const tall = { room: { width: 60, depth: 60, height: 30 }, plenumHeightFeet: null };
+    const result = autoBuildOpenPortPair(designFromScene({ parts: farParts, obstacles: [] }, tall));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("ghost-ceiling");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === MAX_RUN_HEIGHT_FEET - 1)).toBe(
+      true
+    );
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
@@ -474,9 +564,11 @@ describe("routing across a room with a plenum", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.unroutedPairs).toEqual([]);
-    // The two ports are 48 ft apart on the floor plan and a foot apart
-    // vertically; anything near that is a sane route rather than a detour.
-    expect(totalPathLength(result.parts)).toBeLessThan(75);
+    // The two ports are 48 ft apart on the floor plan, and the band they now
+    // ride sits 27 ft up, so a sane route is that distance plus the riser twice
+    // over — about 102 ft before the bend arcs. Anything well beyond it is a
+    // detour rather than the climb.
+    expect(totalPathLength(result.parts)).toBeLessThan(120);
     expect(routeWarnings(result.design)).toEqual([]);
   });
 });

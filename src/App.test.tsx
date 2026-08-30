@@ -5,6 +5,7 @@ import type { Vec3 } from "@/types";
 import type { ViewportProps } from "@/renderer/Viewport";
 import type { Platform } from "@/platform/types";
 import { DEFAULT_ROOM } from "@/domain/sparse-grid";
+import { MAX_RUN_HEIGHT_FEET } from "@/domain/pathfinder";
 
 // The real Viewport builds a WebGLRenderer, which happy-dom cannot provide. It
 // is also the only part of the tree that needs a GPU, so mocking just this
@@ -505,6 +506,55 @@ describe("Auto-Build", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /^Auto-Build$/ })).toBeTruthy();
     });
+  });
+
+  it("says where it carried the run, in the client's words", async () => {
+    // Two lines he wrote himself. The plenum one whenever the design has a
+    // plenum, and the 12 ft one only when the ghost ceiling is what capped the
+    // route, so the visitor knows a taller rise is theirs to build by hand.
+    const routeAThreePartSystem = async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Build" }));
+      fireEvent.click(screen.getByRole("button", { name: "Blower Unit" }));
+      clickCell([0, 0, 0]);
+      fireEvent.click(screen.getByRole("button", { name: "Terminal Station" }));
+      clickCell([0, 1, 0]);
+      clickCell([12, 0, 0]);
+      fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+      await waitFor(() => {
+        expect(screen.getByText(/Auto-Build complete/)).toBeTruthy();
+      });
+    };
+
+    // The form's own defaults: a 12 ft room with no plenum, which runs under
+    // its own ceiling and needs no explaining.
+    await renderApp();
+    await routeAThreePartSystem();
+    expect(screen.queryByText(/favors plenum/)).not.toBeTruthy();
+    expect(screen.queryByText(/stops at/)).not.toBeTruthy();
+
+    // The same system in a room with a plenum.
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Start new design" }));
+    fireEvent.click(screen.getByLabelText("Plenum (drop ceiling)"));
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+    await routeAThreePartSystem();
+
+    expect(screen.getByText("Auto-build favors plenum when available")).toBeTruthy();
+    expect(screen.queryByText(/stops at/)).not.toBeTruthy();
+
+    // And in a 30 ft room with no plenum, where 12 ft is as high as it goes.
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Start new design" }));
+    fireEvent.change(screen.getByLabelText("Height"), { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+    await routeAThreePartSystem();
+
+    expect(screen.queryByText(/favors plenum/)).not.toBeTruthy();
+    expect(
+      screen.getByText(
+        `Autobuild stops at ${MAX_RUN_HEIGHT_FEET}ft - please try building manually if you need more rise.`
+      )
+    ).toBeTruthy();
   });
 
   it("clears exactly the parts a run added, and only offers to when there are some", async () => {
