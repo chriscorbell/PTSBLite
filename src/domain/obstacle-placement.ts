@@ -65,6 +65,30 @@ export function cancelObstaclePlacement(_draft: ObstaclePlacementDraft | null): 
   return null;
 }
 
+/**
+ * The draft a click at `cell` would start, before any click has been made.
+ *
+ * Until the first click the obstacle tool showed only a flat square on the
+ * floor, so nothing on screen said the click would raise a standing volume, or
+ * which storey's floor it would stand on. Previewing that volume is what the
+ * client asked for: "let's add back in the preview of the obstacle cell before
+ * first click".
+ *
+ * It anchors exactly as {@link startObstaclePlacement} does, so what is
+ * previewed is what the click produces rather than a second, independently
+ * derived answer. Null off the grid, where the highlight square goes out too.
+ * Occupancy is deliberately not checked here: the square already lights over a
+ * cell an impenetrable volume would be refused on, and the preview and the
+ * square must not disagree about where a click lands.
+ */
+export function prospectiveObstacleDraft(
+  design: DesignState,
+  cell: Vec3
+): ObstaclePlacementDraft | null {
+  if (!design.grid.withinBounds(cell)) return null;
+  return { cornerA: [cell[0], obstacleBaseElevation(design.metadata, cell[1]), cell[2]] };
+}
+
 export function obstaclePlacementGhost(
   draft: ObstaclePlacementDraft | null,
   currentCell: Vec3,

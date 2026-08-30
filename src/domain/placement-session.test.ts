@@ -267,6 +267,53 @@ describe("placementGhost", () => {
     const ghost = placementGhost(session({ tool: "blower", hoverCell: [0, 0, 0] }), emptyDesign());
     expect(ghost?.type).toBe("blower");
   });
+
+  it("previews the obstacle volume before the first click, not only the floor square", () => {
+    // One cell, one foot tall, standing on the floor — the volume a click
+    // starts, rather than nothing until a corner has been anchored.
+    expect(
+      placementGhost(session({ tool: "obstacle", hoverCell: [3, 0, -4] }), emptyDesign())
+    ).toEqual({ type: "obstacle", min: [3, 0, -4], max: [3, 0, -4] });
+  });
+
+  it("stands the obstacle preview on the storey's floor, not on the raised plane", () => {
+    // Same rule the landing square follows, so the two never disagree.
+    expect(
+      placementGhost(session({ tool: "obstacle", hoverCell: [3, 6, -4] }), emptyDesign())
+    ).toMatchObject({ min: [3, 0, -4], max: [3, 0, -4] });
+
+    const upstairs = emptyDesign({ multiFloor: true, room: { width: 60, depth: 40, height: 12 } });
+    expect(
+      placementGhost(session({ tool: "obstacle", hoverCell: [3, 20, -4] }), upstairs)
+    ).toMatchObject({ min: [3, 13, -4], max: [3, 13, -4] });
+  });
+
+  it("draws the obstacle preview in the kind being placed", () => {
+    const s = session({ tool: "obstacle", hoverCell: [3, 0, -4], obstacleKind: "penetrable" });
+    expect(placementGhost(s, emptyDesign())).toMatchObject({ penetrable: true });
+  });
+
+  it("takes the obstacle preview away off the grid, like the square", () => {
+    expect(placementGhost(session({ tool: "obstacle" }), emptyDesign())).toBeNull();
+    expect(
+      placementGhost(session({ tool: "obstacle", hoverCell: [900, 0, 0] }), emptyDesign())
+    ).toBeNull();
+  });
+
+  it("hands the preview over to the draft once a corner is anchored", () => {
+    // The drag still draws from the anchored corner rather than from a fresh
+    // one-cell preview under the cursor.
+    const s = session({
+      tool: "obstacle",
+      hoverCell: [3, 0, -4],
+      obstacleDraft: { cornerA: [0, 0, 0] }
+    });
+    expect(placementGhost(s, emptyDesign())).toEqual({
+      type: "obstacle",
+      min: [0, 0, -4],
+      max: [3, 0, 0]
+    });
+  });
 });
 
 describe("placementLandingCells", () => {

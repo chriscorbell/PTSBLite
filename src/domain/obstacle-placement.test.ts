@@ -8,6 +8,7 @@ import {
   obstaclePlacementGhost,
   resizeObstaclePlacementHeight,
   placeObstacleVolume,
+  prospectiveObstacleDraft,
   restOnObstacles,
   setObstaclePlacementFootprint,
   startObstaclePlacement
@@ -273,6 +274,31 @@ describe("penetrable obstacles", () => {
     });
     expect(startObstaclePlacement(seeded, [0, 0, 0]).ok).toBe(false);
     expect(startObstaclePlacement(seeded, [0, 0, 0], "penetrable").ok).toBe(true);
+  });
+
+  it("offers the draft a first click would start, anchored where that click anchors", () => {
+    const design = emptyDesign();
+    const draft = prospectiveObstacleDraft(design, [3, 6, 4]);
+    const started = startObstaclePlacement(design, [3, 6, 4]);
+
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+    expect(draft).toEqual(started.draft);
+  });
+
+  it("has no prospective draft off the grid", () => {
+    expect(prospectiveObstacleDraft(emptyDesign(), [900, 0, 0])).toBeNull();
+  });
+
+  it("keeps the prospective draft over an occupied cell, where the square still lights", () => {
+    // `startObstaclePlacement` refuses this corner for an impenetrable volume,
+    // but the highlight square shows there regardless; the preview matching the
+    // square is what stops the two affordances contradicting each other.
+    const seeded = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }],
+      obstacles: []
+    });
+    expect(prospectiveObstacleDraft(seeded, [0, 0, 0])).toEqual({ cornerA: [0, 0, 0] });
   });
 
   it("marks the ghost so the preview can render the kind being drawn", () => {
