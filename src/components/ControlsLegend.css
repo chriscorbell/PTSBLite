@@ -76,6 +76,11 @@
   white-space: nowrap;
 }
 
+/* The "/" between two key caps: a separator, not a key. */
+.legend__or {
+  color: var(--text-mut);
+}
+
 .legend kbd {
   font-family: var(--font-mono);
   font-size: 11px;
