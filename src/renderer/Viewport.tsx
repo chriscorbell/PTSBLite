@@ -5,6 +5,7 @@ import {
   buildBlowerMesh,
   buildPedestalMesh,
   buildObstacleMesh,
+  buildSplitSleeveMesh,
   buildTerminalMesh,
   buildTubeMesh
 } from "@/renderer/design-meshes";
@@ -43,6 +44,7 @@ import { type PlenumBand, type RoomRect } from "@/domain/floors";
 import { STANDARD_VIEWS, type CameraView } from "@/renderer/camera-views";
 import type { FloorShadow, HeightMarker } from "@/domain/renderer-affordances";
 import { type PortMarker } from "@/domain/renderer-affordances";
+import { splitSleeves } from "@/domain/split-sleeve";
 import { BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, Ghost, Scene, ToolId, Vec3 } from "@/types";
 import "@/renderer/Viewport.css";
@@ -205,6 +207,10 @@ type ViewportState = {
   cam?: { yaw: number; pitch: number; distance: number; target: THREE.Vector3 };
   applyCamera?: () => void;
   partsGroup?: THREE.Group;
+  /** Split sleeves, derived from the parts rather than placed (ADR-0022). Its
+   * own group so the erase tool's raycast, which only searches `partsGroup`,
+   * passes through a sleeve to the tube underneath it. */
+  sleevesGroup?: THREE.Group;
   obstaclesGroup?: THREE.Group;
   ghostGroup?: THREE.Group;
   overlayGroup?: THREE.Group;
@@ -448,6 +454,8 @@ export function Viewport({
 
     const partsGroup = new THREE.Group();
     scene3.add(partsGroup);
+    const sleevesGroup = new THREE.Group();
+    scene3.add(sleevesGroup);
     const obstaclesGroup = new THREE.Group();
     scene3.add(obstaclesGroup);
     const ghostGroup = new THREE.Group();
@@ -552,6 +560,7 @@ export function Viewport({
       cam,
       applyCamera,
       partsGroup,
+      sleevesGroup,
       obstaclesGroup,
       ghostGroup,
       overlayGroup,
@@ -715,8 +724,9 @@ export function Viewport({
 
   useEffect(() => {
     const s = stateRef.current;
-    if (!s.partsGroup || !s.obstaclesGroup) return;
+    if (!s.partsGroup || !s.sleevesGroup || !s.obstaclesGroup) return;
     clearGroup(s.partsGroup);
+    clearGroup(s.sleevesGroup);
     clearGroup(s.obstaclesGroup);
     for (const o of scene.obstacles ?? []) {
       s.obstaclesGroup.add(buildObstacleMesh(o.min, o.max, { penetrable: o.penetrable }));
@@ -753,6 +763,11 @@ export function Viewport({
         mesh.userData.partId = p.id;
         s.partsGroup.add(mesh);
       }
+    }
+    // Where two pieces meet, and every 6 ft along anything longer than one
+    // stock length. Rebuilt with the parts because that is all they depend on.
+    for (const sleeve of splitSleeves(scene.parts ?? [])) {
+      s.sleevesGroup.add(buildSplitSleeveMesh(sleeve.at, sleeve.along));
     }
     if (s.renderer) {
       const size = s.renderer.getSize(new THREE.Vector2());

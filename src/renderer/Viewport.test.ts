@@ -6,6 +6,7 @@ import {
   bendConnectorSpans,
   bendRenderCurve,
   bendRenderPath,
+  buildSplitSleeveMesh,
   tubeRenderSpan,
   tubeSectionJointPoints
 } from "@/renderer/design-meshes";
@@ -13,7 +14,8 @@ import {
   cellFromWorldPoint,
   clickCellForTool,
   createViewportDragState,
-  moveViewportDrag
+  moveViewportDrag,
+  partIdForObject
 } from "@/renderer/interaction";
 import { clearGroup } from "@/renderer/three-utils";
 import {
@@ -219,6 +221,54 @@ describe("Viewport tube and bend render alignment", () => {
       const point = curve.getPoint(t);
       expect(Math.hypot(point.x - 1.5, point.y - 0.5, point.z - 3.5)).toBeCloseTo(3, 5);
     }
+  });
+});
+
+describe("split sleeve mesh", () => {
+  // Where a sleeve belongs is split-sleeve.ts's problem and is tested there.
+  // What matters here is that the collar ends up wrapped around the run rather
+  // than lying across it: the mesh is built along +Y like every cylinder in
+  // this module, so the turn onto the run's axis is the part that can be wrong.
+  const axisOf = (mesh: THREE.Group): THREE.Vector3 =>
+    new THREE.Vector3(0, 1, 0).applyQuaternion(mesh.quaternion);
+
+  it("stands the collar on the axis of the run it wraps", () => {
+    for (const along of [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1]
+    ] as const) {
+      const axis = axisOf(buildSplitSleeveMesh([2, 0.5, 0.5], along));
+      expect(axis.x).toBeCloseTo(along[0], 6);
+      expect(axis.y).toBeCloseTo(along[1], 6);
+      expect(axis.z).toBeCloseTo(along[2], 6);
+    }
+  });
+
+  it("aims the bolted flange where it can be seen", () => {
+    // Turning by the run's axis alone leaves the flange pointing at the floor on
+    // an east-west run, which hides the one detail that reads as a split.
+    const flangeOf = (along: readonly [number, number, number]): THREE.Vector3 =>
+      new THREE.Vector3(1, 0, 0).applyQuaternion(buildSplitSleeveMesh([0, 0, 0], along).quaternion);
+    expect(flangeOf([1, 0, 0]).y).toBeCloseTo(1, 6);
+    expect(flangeOf([0, 0, 1]).y).toBeCloseTo(1, 6);
+    // Nothing is "up" on a vertical run, so it goes out to the side instead.
+    expect(flangeOf([0, 1, 0]).x).toBeCloseTo(1, 6);
+  });
+
+  it("sits where it is told, and is no wider than a foot of grid", () => {
+    const mesh = buildSplitSleeveMesh([2, 0.5, 0.5], [1, 0, 0]);
+    expect(mesh.position.toArray()).toEqual([2, 0.5, 0.5]);
+    // A sleeve straddles a cell face, so anything approaching a whole cell
+    // would read as a part rather than as the joint between two.
+    const size = new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3());
+    expect(Math.max(size.x, size.y, size.z)).toBeLessThan(1);
+  });
+
+  it("carries no part id, so erase reaches the tube underneath", () => {
+    const mesh = buildSplitSleeveMesh([2, 0.5, 0.5], [1, 0, 0]);
+    expect(partIdForObject(mesh)).toBeUndefined();
+    for (const child of mesh.children) expect(partIdForObject(child)).toBeUndefined();
   });
 });
 

@@ -360,6 +360,71 @@ export function buildTubeMesh(
   return g;
 }
 
+/** How much of a foot a sleeve covers, and how far it stands off the tube. */
+const SLEEVE_LENGTH = 0.42;
+const SLEEVE_R = TUBE_R + 0.045;
+
+/**
+ * A split sleeve: the bolted collar that joins one piece of tube to the next.
+ *
+ * Modelled from the Kel2020 media the client pointed at — a dark band a little
+ * wider than the tube and about a diameter long, split along its length and
+ * closed by a raised pair of flanges carrying three bolts. The shell is open at
+ * both ends because it wraps a tube rather than capping it: the run stays
+ * visible running through it.
+ *
+ * Built along +Y like every cylinder here and turned onto the run's axis by the
+ * caller's `along`. A real sleeve can be clocked any way round the tube the
+ * installer likes, so the flange is aimed where it can be seen: upward on a
+ * horizontal run, and out along +X on a vertical one. Turning by the axis alone
+ * would leave it pointing at the floor on every east–west run, which is the
+ * detail that says "split sleeve" rather than "band" hidden underneath.
+ *
+ * Sleeves are derived rather than placed (ADR-0022), so these carry no
+ * `partId` and live outside the group the viewport picks against — clicking one
+ * with the erase tool passes through to the tube it sits on.
+ */
+export function buildSplitSleeveMesh(at: Vec3, along: Vec3): THREE.Group {
+  const g = new THREE.Group();
+  const body = new THREE.MeshStandardMaterial({
+    color: VP.sleeve,
+    roughness: 0.5,
+    metalness: 0.5
+  });
+  const shell = new THREE.Mesh(
+    new THREE.CylinderGeometry(SLEEVE_R, SLEEVE_R, SLEEVE_LENGTH, 16, 1, true),
+    body
+  );
+  g.add(shell);
+  const flange = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1, SLEEVE_LENGTH * 0.94, 0.05),
+    new THREE.MeshStandardMaterial({ color: VP.sleeve, roughness: 0.5, metalness: 0.5 })
+  );
+  flange.position.x = SLEEVE_R + 0.04;
+  g.add(flange);
+  const boltGeom = new THREE.CylinderGeometry(0.019, 0.019, 0.11, 8);
+  const boltMat = new THREE.MeshStandardMaterial({
+    color: VP.sleeveBolt,
+    roughness: 0.35,
+    metalness: 0.8
+  });
+  for (const offset of [-0.13, 0, 0.13]) {
+    const bolt = new THREE.Mesh(boltGeom, boltMat);
+    // Through the flange, so the bolt runs tangentially rather than up the tube.
+    bolt.rotation.x = Math.PI / 2;
+    bolt.position.set(SLEEVE_R + 0.04, offset, 0);
+    g.add(bolt);
+  }
+  g.position.set(at[0], at[1], at[2]);
+  const axis = v3(along).normalize();
+  // Local +Y onto the run, local +X onto the side the flange should face.
+  const flangeOut =
+    Math.abs(axis.y) > 0.5 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+  const third = new THREE.Vector3().crossVectors(flangeOut, axis);
+  g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(flangeOut, axis, third));
+  return g;
+}
+
 class BendArc extends THREE.Curve<THREE.Vector3> {
   c: THREE.Vector3;
   r: number;

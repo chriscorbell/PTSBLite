@@ -31,6 +31,12 @@
     "cells": 6,
     "ports": 2
   },
+  "splitSleeve": {
+    "type": "sleeve",
+    "name": "Split Sleeve",
+    "partNo": "SL-4OD-SP",
+    "color": "#1C2129"
+  },
   "bend90": {
     "type": "bend",
     "name": "90\u00b0 Bend (3ft radius)",

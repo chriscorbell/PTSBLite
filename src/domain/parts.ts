@@ -1,5 +1,6 @@
 import { partRegistry } from "@/domain/part-registry";
 import { hasPedestal } from "@/domain/pedestal";
+import { SPLIT_SLEEVE_KEY, splitSleeveCount } from "@/domain/split-sleeve";
 import type { DesignState, Part } from "@/types";
 
 export type { PartCatalogEntry } from "@/domain/part-registry";
@@ -74,6 +75,9 @@ export function bomRows(input: readonly Part[] | DesignState): BomRow[] {
   const ft = tubeFeet(parts);
   const cuts = parts.filter((p) => p.type === "tube" && partLength(p) < 6).length;
   const stock = Math.ceil(ft / 6);
+  // Sleeves are counted, not placed: where two pieces meet, and every 6 ft
+  // along anything longer than one stock length. See split-sleeve.ts.
+  const sleeves = splitSleeveCount(parts);
 
   const row = (key: string, qty: number, note?: string): BomRow => {
     const { name, partNo } = partRegistry.get(key);
@@ -89,6 +93,7 @@ export function bomRows(input: readonly Part[] | DesignState): BomRow[] {
       stock,
       cuts ? `${cuts} cut on-site · ${ft.toFixed(1)}ft total` : `${ft.toFixed(1)}ft total`
     ),
-    row("bend90", bends)
+    row("bend90", bends),
+    row(SPLIT_SLEEVE_KEY, sleeves)
   ];
 }

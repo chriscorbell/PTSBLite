@@ -63,6 +63,16 @@ upward port opens two cells above the base rather than one.
 Contributes 4.71 ft of centerline. `loadPartRegistry` checks the catalog's declared
 `cells` against the footprint the geometry actually produces, so the two cannot drift.
 
+**Split sleeve** — the bolted collar that joins one piece to the next. The client's term, and what
+the app and the BOM call it; Kelly Tube Systems' own site sells them as "Bolted Couplings with
+Hardware". Nobody places one: they are **derived** from the parts — one on the face between every
+mated pair of ports, plus one every 6 ft inside a tube longer than stock — so they are counted in
+the BOM and drawn in the viewport but never stored, never selectable, and never in the Build
+drawer. A sleeve wraps a joint, so it adds nothing to the centerline. See `split-sleeve.ts` and
+ADR-0022.
+*Avoid:* "coupling" in code and UI copy — it is the word the client started with and the word he
+replaced.
+
 **Obstacle** — a rectangular volume, in one of two kinds chosen when it is drawn. An
 **impenetrable** obstacle is what routing must avoid: it occupies grid cells so nothing can be
 placed inside it. A **penetrable** obstacle — a wall with penetrations, a soft ceiling — claims no
