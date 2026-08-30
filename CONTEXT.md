@@ -173,7 +173,13 @@ bill of materials rather than a quote
 must agree.** A part present in one but not the other renders and appears in the BOM yet cannot be
 erased or collided with.
 
-This is enforced rather than remembered. `reconstructDesign` is the single checked path that rebuilds
-all three together, and `expectGridMatchesDesign` asserts the invariant across the placement and
-erase suites. The two kinds of occupant are deliberately treated differently — parts are strict,
-obstacles are lenient — for the reasons in ADR-0007.
+This is enforced rather than remembered. `design-state.ts` is the only write boundary: its small
+operations add, replace, or remove occupants while updating the grid, and `DesignState` exposes
+only read-only lists and grid queries to callers. `designFromScene` and `reconstructDesign` rebuild
+all three together. Tests construct ordinary fixtures through those functions;
+`expectGridMatchesDesign` asserts the invariant across the placement and erase suites. A test that
+needs inconsistent state must bypass the checked constructor explicitly and say why.
+
+The two kinds of occupant are deliberately treated differently. Parts are strict. Obstacles are
+lenient for reconstruction, for the reasons in ADR-0007. Parts and obstacles still share one ID
+namespace because the grid stores either kind as an occupant.

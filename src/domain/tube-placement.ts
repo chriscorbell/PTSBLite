@@ -1,4 +1,5 @@
 import { computeTopology, type Port, type Topology } from "@/domain/topology";
+import { addPart } from "@/domain/design-state";
 import type { DesignState, Ghost, TubePart, Vec3 } from "@/types";
 import { cellCenter, cellKey, vAdd, vScale } from "@/domain/vec3";
 
@@ -76,15 +77,14 @@ function maxTubeLength(design: DesignState, port: Port, requested = 6): number {
 }
 
 function tubePartFromPort(id: string, port: Port, length = 6, source?: "auto-build"): TubePart {
-  const part: TubePart = {
+  return {
     id,
     type: "tube",
     from: cellCenter(port.cell),
     to: cellCenter(vAdd(port.cell, vScale(port.dir, length))),
-    length
+    length,
+    ...(source ? { source } : {})
   };
-  if (source) part.source = source;
-  return part;
 }
 
 export function placeTube(
@@ -108,17 +108,9 @@ export function placeTube(
   }
 
   const part = tubePartFromPort(id, port, placeLength, source);
-  const grid = design.grid.clone();
-  for (const footprintCell of tubeFootprint(port, placeLength)) {
-    grid.place(footprintCell, id);
-  }
   return {
     ok: true,
     part,
-    design: {
-      ...design,
-      parts: [...design.parts, part],
-      grid
-    }
+    design: addPart(design, part)
   };
 }

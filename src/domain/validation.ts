@@ -1,6 +1,6 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
 import { totalPathLength } from "@/domain/parts";
-import { bendFootprint } from "@/domain/bend-placement";
+import { bendFootprint } from "@/domain/occupant-footprints";
 import { hasPedestal, pedestalCells } from "@/domain/pedestal";
 import { computeTopology } from "@/domain/topology";
 import type { BlowerPart, DesignState, Obstacle, Part, TerminalPart, Vec3, Warning } from "@/types";

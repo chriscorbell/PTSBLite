@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { bendFootprint } from "@/domain/bend-placement";
+import { bendFootprint } from "@/domain/occupant-footprints";
 import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { ERASE_EMPTY_MESSAGE, eraseAtCell } from "@/domain/erase-placement";
 import { computeTopology } from "@/domain/topology";
-import type { BendPart } from "@/types";
+import type { BendPart, DesignState } from "@/types";
 import { expectGridMatchesDesign } from "@/test/design-invariants";
 
 describe("Erase placement", () => {
@@ -18,10 +18,11 @@ describe("Erase placement", () => {
   });
 
   it("does not erase from geometric part bounds when the grid cell has no owner", () => {
-    const design = emptyDesign();
-    design.parts = [
-      { id: "st1", type: "tube", from: [1.5, 0.5, 0.5], to: [7.5, 0.5, 0.5], length: 6 }
-    ];
+    // Deliberately bypass the checked constructor to model corrupt persisted state.
+    const design: DesignState = {
+      ...emptyDesign(),
+      parts: [{ id: "st1", type: "tube", from: [1.5, 0.5, 0.5], to: [7.5, 0.5, 0.5], length: 6 }]
+    };
 
     expect(eraseAtCell(design, [3, 0, 0])).toEqual({
       ok: false,
@@ -31,9 +32,10 @@ describe("Erase placement", () => {
   });
 
   it("removes a blower instance and frees its grid cell", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [2, 0, 3], dir: [1, 0, 0] }];
-    design.grid.place([2, 0, 3], "b1");
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [2, 0, 3], dir: [1, 0, 0] }],
+      obstacles: []
+    });
 
     const result = eraseAtCell(design, [2, 0, 3]);
 
@@ -45,9 +47,10 @@ describe("Erase placement", () => {
   });
 
   it("removes a terminal instance and frees its grid cell", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] }];
-    design.grid.place([1, 0, 0], "t1");
+    const design = designFromScene({
+      parts: [{ id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] }],
+      obstacles: []
+    });
 
     const result = eraseAtCell(design, [1, 0, 0]);
 
@@ -59,13 +62,13 @@ describe("Erase placement", () => {
   });
 
   it("reopens a previously connected port after endpoint removal", () => {
-    const design = emptyDesign();
-    design.parts = [
-      { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
-      { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] }
-    ];
-    design.grid.place([0, 0, 0], "b1");
-    design.grid.place([1, 0, 0], "t1");
+    const design = designFromScene({
+      parts: [
+        { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
+        { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] }
+      ],
+      obstacles: []
+    });
 
     expect(computeTopology(design).openPortsNear([1, 0, 0])).toEqual([]);
 
@@ -80,13 +83,10 @@ describe("Erase placement", () => {
   });
 
   it("removes only the targeted straight tube cell and exposes ports at a mid-tube cut", () => {
-    const design = emptyDesign();
-    design.parts = [
-      { id: "st1", type: "tube", from: [1.5, 0.5, 0.5], to: [7.5, 0.5, 0.5], length: 6 }
-    ];
-    for (let x = 1; x <= 6; x++) {
-      design.grid.place([x, 0, 0], "st1");
-    }
+    const design = designFromScene({
+      parts: [{ id: "st1", type: "tube", from: [1.5, 0.5, 0.5], to: [7.5, 0.5, 0.5], length: 6 }],
+      obstacles: []
+    });
 
     const result = eraseAtCell(design, [3, 0, 0]);
 
@@ -118,12 +118,8 @@ describe("Erase placement", () => {
       outDir: [0, 0, 1],
       radius: 3
     };
-    const design = emptyDesign();
-    design.parts = [bend];
     const footprint = bendFootprint(bend);
-    for (const cell of footprint) {
-      design.grid.place(cell, bend.id);
-    }
+    const design = designFromScene({ parts: [bend], obstacles: [] });
 
     const result = eraseAtCell(design, footprint[footprint.length - 1]);
 
@@ -137,15 +133,10 @@ describe("Erase placement", () => {
   });
 
   it("removes an entire obstacle volume from any occupied obstacle cell", () => {
-    const design = emptyDesign();
-    design.obstacles = [{ id: "o1", min: [2, 0, 3], max: [4, 1, 5] }];
-    for (let x = 2; x <= 4; x++) {
-      for (let y = 0; y <= 1; y++) {
-        for (let z = 3; z <= 5; z++) {
-          design.grid.place([x, y, z], "o1");
-        }
-      }
-    }
+    const design = designFromScene({
+      parts: [],
+      obstacles: [{ id: "o1", min: [2, 0, 3], max: [4, 1, 5] }]
+    });
 
     const result = eraseAtCell(design, [3, 1, 4]);
 
@@ -193,8 +184,10 @@ describe("Erase placement", () => {
 
 describe("erasing penetrable obstacles", () => {
   it("finds a penetrable obstacle by containment, since it owns no grid cells", () => {
-    const design = emptyDesign();
-    design.obstacles.push({ id: "o1", min: [2, 0, 2], max: [4, 2, 4], penetrable: true });
+    const design = designFromScene({
+      parts: [],
+      obstacles: [{ id: "o1", min: [2, 0, 2], max: [4, 2, 4], penetrable: true }]
+    });
 
     const result = eraseAtCell(design, [3, 1, 3]);
     expect(result.ok).toBe(true);
@@ -203,10 +196,10 @@ describe("erasing penetrable obstacles", () => {
   });
 
   it("erases the part on a shared cell, not the penetrable obstacle around it", () => {
-    const design = emptyDesign();
-    design.obstacles.push({ id: "o1", min: [0, 0, 0], max: [2, 0, 2], penetrable: true });
-    design.parts.push({ id: "b1", type: "blower", cell: [1, 0, 1], dir: [0, 1, 0] });
-    design.grid.place([1, 0, 1], "b1");
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [1, 0, 1], dir: [0, 1, 0] }],
+      obstacles: [{ id: "o1", min: [0, 0, 0], max: [2, 0, 2], penetrable: true }]
+    });
 
     const result = eraseAtCell(design, [1, 0, 1]);
     expect(result.ok).toBe(true);

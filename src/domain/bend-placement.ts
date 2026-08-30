@@ -1,4 +1,5 @@
 import { partRegistry, type BendFootprint, type PartRegistry } from "@/domain/part-registry";
+import { addPart } from "@/domain/design-state";
 import { computeTopology, type Port, type Topology } from "@/domain/topology";
 import type { BendPart, DesignState, Ghost, Vec3 } from "@/types";
 import { cellAt, cellCenter, cellKey, vAdd, vEq } from "@/domain/vec3";
@@ -125,7 +126,7 @@ function bendPartFromOrientation(
   orientation: BendOrientation,
   source?: "auto-build"
 ): BendPart {
-  const part: BendPart = {
+  return {
     id,
     type: "bend",
     entry: cellCenter(orientation.cells[0]),
@@ -133,10 +134,9 @@ function bendPartFromOrientation(
     center: cellCenter(cellAt(orientation.center)),
     inDir: orientation.inDir,
     outDir: orientation.outDir,
-    radius: orientation.radius
+    radius: orientation.radius,
+    ...(source ? { source } : {})
   };
-  if (source) part.source = source;
-  return part;
 }
 
 export function bendPlacementGhost(
@@ -148,19 +148,6 @@ export function bendPlacementGhost(
   if (orientations.length === 0) return null;
   const selected = orientations[(options.rotationIndex ?? 0) % orientations.length];
   return bendPartFromOrientation("ghost", selected);
-}
-
-export function bendFootprint(part: BendPart, registry: PartRegistry = partRegistry): Vec3[] {
-  const entry = cellAt(part.entry);
-  const exit = cellAt(part.exit);
-  const footprint = bendEntry(registry).find(
-    (candidate) => vEq(candidate.inDir, part.inDir) && vEq(candidate.outDir, part.outDir)
-  );
-  if (!footprint) return [entry];
-  return appendUniqueCell(
-    footprint.cells.map((cell) => vAdd(entry, cell)),
-    exit
-  );
 }
 
 export function placeBend(
@@ -187,18 +174,10 @@ export function placeBend(
 
   const orientation = orientations[rotationIndex % orientations.length];
   const part = bendPartFromOrientation(id, orientation, source);
-  const grid = design.grid.clone();
-  for (const footprintCell of bendFootprint(part)) {
-    grid.place(footprintCell, id);
-  }
 
   return {
     ok: true,
     part,
-    design: {
-      ...design,
-      parts: [...design.parts, part],
-      grid
-    }
+    design: addPart(design, part)
   };
 }

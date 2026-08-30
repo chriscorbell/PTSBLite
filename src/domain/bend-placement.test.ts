@@ -1,24 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene } from "@/domain/design-state";
 import { partRegistry } from "@/domain/part-registry";
 import { computeTopology } from "@/domain/topology";
 import {
   BEND_BLOCKED_MESSAGE,
   BEND_PLACEMENT_MESSAGE,
-  bendFootprint,
   bendLandingCells,
   bendPlacementGhost,
   placeBend,
   validBendOrientations
 } from "@/domain/bend-placement";
-import type { Vec3 } from "@/types";
+import { bendFootprint } from "@/domain/occupant-footprints";
+import type { DesignState, Vec3 } from "@/types";
 import { expectGridMatchesDesign } from "@/test/design-invariants";
 
 function designWithBlower(dir: Vec3 = [1, 0, 0], cell: Vec3 = [0, 0, 0]) {
-  const design = emptyDesign();
-  design.parts = [{ id: "b1", type: "blower", cell, dir }];
-  design.grid.place(cell, "b1");
-  return design;
+  return designFromScene({
+    parts: [{ id: "b1", type: "blower", cell, dir }],
+    obstacles: []
+  });
 }
 
 function cellKey(cell: Vec3): string {
@@ -35,6 +35,23 @@ function uniqueNonEntryCell(
   );
   if (!cell) throw new Error("expected bend orientation to include a unique non-entry cell");
   return cell;
+}
+
+function withBlockingCells(design: DesignState, cells: readonly Vec3[]): DesignState {
+  const uniqueCells = new Map(
+    cells.filter((cell) => !design.grid.query(cell)).map((cell) => [cellKey(cell), cell])
+  );
+  return designFromScene(
+    {
+      parts: design.parts,
+      obstacles: [...uniqueCells.values()].map((cell, index) => ({
+        id: `blocker-${index}`,
+        min: cell,
+        max: cell
+      }))
+    },
+    design.metadata
+  );
 }
 
 describe("90 degree bend snap placement", () => {
@@ -70,8 +87,9 @@ describe("90 degree bend snap placement", () => {
   });
 
   it("cycles through only orientations whose footprint is unoccupied", () => {
-    const design = designWithBlower([1, 0, 0]);
-    const all = validBendOrientations(design, [1, 0, 0]);
+    const base = designWithBlower([1, 0, 0]);
+    const all = validBendOrientations(base, [1, 0, 0]);
+    const blockers: Vec3[] = [];
     for (const orientation of all) {
       if (orientation.outDir.join(",") === "0,0,-1") continue;
       const blocker = uniqueNonEntryCell(
@@ -80,10 +98,9 @@ describe("90 degree bend snap placement", () => {
           (candidate) => candidate !== orientation && candidate.outDir.join(",") === "0,0,-1"
         )
       );
-      if (!design.grid.query(blocker)) {
-        design.grid.place(blocker, `blocker-${orientation.outDir.join(",")}`);
-      }
+      blockers.push(blocker);
     }
+    const design = withBlockingCells(base, blockers);
 
     const orientations = validBendOrientations(design, [1, 0, 0]);
 
@@ -96,17 +113,17 @@ describe("90 degree bend snap placement", () => {
   });
 
   it("rejects bend preview and commit when all candidate footprints collide", () => {
-    const design = designWithBlower([1, 0, 0]);
-    const orientations = validBendOrientations(design, [1, 0, 0]);
+    const base = designWithBlower([1, 0, 0]);
+    const orientations = validBendOrientations(base, [1, 0, 0]);
+    const blockers: Vec3[] = [];
     for (const orientation of orientations) {
       const blocker = uniqueNonEntryCell(
         orientation,
         orientations.filter((candidate) => candidate !== orientation)
       );
-      if (!design.grid.query(blocker)) {
-        design.grid.place(blocker, `obstacle-${orientation.outDir.join(",")}`);
-      }
+      blockers.push(blocker);
     }
+    const design = withBlockingCells(base, blockers);
 
     expect(validBendOrientations(design, [1, 0, 0])).toEqual([]);
     expect(bendPlacementGhost(design, [1, 0, 0])).toBeNull();

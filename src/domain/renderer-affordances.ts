@@ -1,4 +1,4 @@
-import { bendFootprint } from "@/domain/bend-placement";
+import { bendFootprint, obstacleVolumeCells } from "@/domain/occupant-footprints";
 import {
   floorBaseElevation,
   floorSeparatorY,
@@ -6,7 +6,6 @@ import {
   roomHeightFeet,
   roomRect
 } from "@/domain/floors";
-import { obstacleVolumeCells } from "@/domain/obstacle-placement";
 import { hasPedestal, pedestalCells } from "@/domain/pedestal";
 import { computeTopology, type Port } from "@/domain/topology";
 import { tubeCells } from "@/domain/vec3";

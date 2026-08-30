@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { BUILD_AREA } from "@/domain/sparse-grid";
 import {
   cancelObstaclePlacement,
@@ -7,12 +7,12 @@ import {
   obstaclePlacementDraftBounds,
   obstaclePlacementGhost,
   resizeObstaclePlacementHeight,
-  obstacleVolumeCells,
   placeObstacleVolume,
   restOnObstacles,
   setObstaclePlacementFootprint,
   startObstaclePlacement
 } from "@/domain/obstacle-placement";
+import { obstacleVolumeCells } from "@/domain/occupant-footprints";
 import { expectGridMatchesDesign } from "@/test/design-invariants";
 import type { BuildArea, DesignMetadata } from "@/types";
 
@@ -51,9 +51,10 @@ describe("obstacle volume placement", () => {
   });
 
   it("rejects a volume when any footprint cell is already occupied", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [1, 0, 1], dir: [1, 0, 0] }];
-    design.grid.place([1, 0, 1], "b1");
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [1, 0, 1], dir: [1, 0, 0] }],
+      obstacles: []
+    });
 
     const result = placeObstacleVolume(design, {
       id: "o1",
@@ -99,9 +100,10 @@ describe("obstacle volume placement", () => {
   });
 
   it("rejects the first corner when that cell is already occupied", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [3, 0, 4], dir: [1, 0, 0] }];
-    design.grid.place([3, 0, 4], "b1");
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [3, 0, 4], dir: [1, 0, 0] }],
+      obstacles: []
+    });
 
     expect(startObstaclePlacement(design, [3, 0, 4])).toMatchObject({
       ok: false,
@@ -240,8 +242,10 @@ describe("penetrable obstacles", () => {
   });
 
   it("may be drawn over occupied cells, which the impenetrable kind refuses", () => {
-    const seeded = emptyDesign();
-    seeded.grid.place([1, 0, 1], "blocker");
+    const seeded = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [1, 0, 1], dir: [1, 0, 0] }],
+      obstacles: []
+    });
 
     const solid = placeObstacleVolume(seeded, {
       id: "o1",
@@ -257,14 +261,16 @@ describe("penetrable obstacles", () => {
       kind: "penetrable"
     });
     expect(penetrable.ok).toBe(true);
-    // The blocker keeps its cell; the obstacle claimed nothing.
+    // The blower keeps its cell; the obstacle claimed nothing.
     if (!penetrable.ok) return;
-    expect(penetrable.design.grid.query([1, 0, 1])).toBe("blocker");
+    expect(penetrable.design.grid.query([1, 0, 1])).toBe("b1");
   });
 
   it("accepts a first corner on an occupied cell for the penetrable kind only", () => {
-    const seeded = emptyDesign();
-    seeded.grid.place([0, 0, 0], "blocker");
+    const seeded = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }],
+      obstacles: []
+    });
     expect(startObstaclePlacement(seeded, [0, 0, 0]).ok).toBe(false);
     expect(startObstaclePlacement(seeded, [0, 0, 0], "penetrable").ok).toBe(true);
   });

@@ -1,9 +1,6 @@
-import { bendFootprint } from "@/domain/bend-placement";
-
-import { obstacleVolumeCells } from "@/domain/obstacle-placement";
-import { hasPedestal, pedestalCells } from "@/domain/pedestal";
+import { obstacleCells, partCells } from "@/domain/occupant-footprints";
 import { boundsFromBuildArea, BUILD_AREA, SparseGrid } from "@/domain/sparse-grid";
-import { cellKey, tubeCells } from "@/domain/vec3";
+import { cellKey } from "@/domain/vec3";
 import type { DesignMetadata, DesignState, Obstacle, Part, Vec3 } from "@/types";
 
 /**
@@ -45,33 +42,12 @@ import type { DesignMetadata, DesignState, Obstacle, Part, Vec3 } from "@/types"
  * unable to fix the very problem the validator would have told them about.
  */
 
-/** The grid cells a part occupies. Must match what `reconstructDesign` registers. */
-export function partCells(part: Part): Vec3[] {
-  // A pedestal blower also holds the column of mast beneath it, down to the
-  // floor. Uncounted in the BOM, but as solid as any other part on the grid.
-  if (hasPedestal(part)) return [part.cell, ...pedestalCells(part.cell, part.pedestalFeet)];
-  switch (part.type) {
-    case "blower":
-    case "terminal":
-      return [part.cell];
-    case "tube":
-      return tubeCells(part.from, part.to);
-    case "bend":
-      return bendFootprint(part);
-  }
-}
-
-/** The grid cells an obstacle volume occupies. */
-export function obstacleCells(obstacle: Obstacle): Vec3[] {
-  return obstacleVolumeCells(obstacle.min, obstacle.max);
-}
-
 export type ReconstructionIssue = {
   /** Whether the rejected occupant was a part or an obstacle. */
   kind: "part" | "obstacle";
   /** `id` of the rejected occupant. */
   id: string;
-  reason: "out-of-bounds" | "overlap";
+  reason: "duplicate-id" | "out-of-bounds" | "overlap";
   /** The first offending cell, for pointing a user or a test at it. */
   cell: Vec3;
   /** For `overlap`, the id of the occupant already holding `cell`. */
@@ -93,18 +69,24 @@ export type ReconstructResult =
  * cells that survived, not the ones that failed.
  */
 export function reconstructDesign(
-  scene: { parts?: Part[]; obstacles?: Obstacle[] },
+  scene: { parts?: readonly Part[]; obstacles?: readonly Obstacle[] },
   metadata: DesignMetadata
 ): ReconstructResult {
   const parts = scene.parts ?? [];
   const obstacles = scene.obstacles ?? [];
   const grid = new SparseGrid(boundsFromBuildArea(BUILD_AREA));
   const issues: ReconstructionIssue[] = [];
+  const occupantIds = new Set<string>();
 
   // Parts first, and all-or-nothing: a part is only registered once its entire
   // footprint is known to be free, so a rejected part leaves no partial trace.
   for (const part of parts) {
     const cells = partCells(part);
+    if (occupantIds.has(part.id)) {
+      issues.push(duplicateIdIssue("part", part.id, cells[0] ?? [0, 0, 0]));
+      continue;
+    }
+    occupantIds.add(part.id);
     const issue = firstPartConflict(grid, part.id, cells);
     if (issue) {
       issues.push(issue);
@@ -118,6 +100,11 @@ export function reconstructDesign(
   // marks nothing at all — staying out of the grid is what lets tubes route
   // through it (ADR-0016).
   for (const obstacle of obstacles) {
+    if (occupantIds.has(obstacle.id)) {
+      issues.push(duplicateIdIssue("obstacle", obstacle.id, obstacle.min));
+      continue;
+    }
+    occupantIds.add(obstacle.id);
     if (obstacle.penetrable) continue;
     for (const cell of obstacleCells(obstacle)) {
       if (grid.withinBounds(cell) && grid.query(cell) === undefined) {
@@ -136,6 +123,20 @@ export function reconstructDesign(
       metadata,
       grid
     }
+  };
+}
+
+function duplicateIdIssue(
+  kind: ReconstructionIssue["kind"],
+  id: string,
+  cell: Vec3
+): ReconstructionIssue {
+  return {
+    kind,
+    id,
+    reason: "duplicate-id",
+    cell,
+    message: `Occupant id "${id}" appears more than once.`
   };
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene } from "@/domain/design-state";
 import { computePartPorts, computeTopology, type Port } from "@/domain/topology";
 import type { Vec3 } from "@/types";
 
@@ -131,11 +131,13 @@ describe("Topology port computation", () => {
 
 describe("Topology open and connected ports", () => {
   it("reports open ports near a hover cell", () => {
-    const design = emptyDesign();
-    design.parts = [
-      { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
-      { id: "t2", type: "terminal", cell: [10, 0, 0], axis: [1, 0, 0] }
-    ];
+    const design = designFromScene({
+      parts: [
+        { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
+        { id: "t2", type: "terminal", cell: [10, 0, 0], axis: [1, 0, 0] }
+      ],
+      obstacles: []
+    });
 
     const topology = computeTopology(design);
 
@@ -145,11 +147,13 @@ describe("Topology open and connected ports", () => {
   });
 
   it("marks adjacent reciprocal ports as connected", () => {
-    const design = emptyDesign();
-    design.parts = [
-      { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
-      { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] }
-    ];
+    const design = designFromScene({
+      parts: [
+        { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
+        { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] }
+      ],
+      obstacles: []
+    });
 
     const topology = computeTopology(design);
 
