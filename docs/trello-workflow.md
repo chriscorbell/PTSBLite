@@ -28,10 +28,9 @@ sessions follow the rules and run whichever loop steps their work touches.
 - **Ready for Chris**: split, actionable, agreed. The implementation queue, top card first.
 - **In Progress by Chris**: claimed work. Claiming a card here is what stops two sessions building
   the same thing.
-- **Awaiting Approval**: shipped and deployed. Nick tests, then moves the card to Done or back
-  with a comment.
-- **Done** and **Junked**: kept for the record. Junked cards record withdrawn requests so they are
-  not re-raised as new.
+- **Done**: shipped and deployed. If Nick wants something changed after trying it, he raises a
+  new card in Intake rather than commenting here.
+- **Junked**: kept for the record — withdrawn requests, so they are not re-raised as new.
 
 ## Trello access
 
@@ -84,8 +83,9 @@ A Blocked card whose newest comment is from Nick has been answered. Fold the ans
 description, then move the card to "Ready for Chris", or to Junked with the withdrawal recorded
 if he pulled the request.
 
-An Awaiting Approval card that Nick commented on or moved back is a rejection. Fold his feedback
-into the description and move the card to "Ready for Chris".
+Rework on something already shipped arrives as a new Intake card, handled by step 1. When the
+new card revisits a Done card, link the Done card in its description so the history travels
+with it.
 
 ### 3. Keep the board honest
 
@@ -123,7 +123,7 @@ PR titled after the card and linking it. Merge once verify is green: `gh pr chec
 then `gh pr merge --squash`.
 
 Once the PR merges (Cloudflare Pages deploys main within a few minutes), move the card to
-Awaiting Approval and comment: what changed in Nick's terms, how to test it, and the PR link.
+Done and comment: what changed in Nick's terms, how to test it, and the PR link.
 
 If the run cannot finish (verify stays red, merge not permitted), leave the card in In Progress
 with a comment saying exactly where things stand, so the next run or Chris can pick it up.
