@@ -704,7 +704,7 @@ export default function App({ platform }: AppProps) {
             onObstacleCancel={cancelObstacleDraft}
           />
           <QuickStartGuide />
-          <ControlsLegend />
+          <ControlsLegend tool={tool} />
           <ActiveToolBar tool={tool} elevation={armedElevation} floor={activeFloor} />
         </div>
       </div>

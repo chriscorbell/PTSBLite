@@ -80,6 +80,26 @@ describe("placementSessionReducer", () => {
     expect(s.hoverCell).toEqual([3, 2, 4]);
   });
 
+  it("leaves the plane alone when the obstacle tool is armed", () => {
+    // An obstacle stands on the storey's floor, so the elevation keys have
+    // nothing of its to move. They are hidden for it, and inert, together.
+    const before = session({ tool: "obstacle", activeElevation: 3, hoverCell: [1, 3, 1] });
+    const s = placementSessionReducer(before, {
+      type: "nudge-elevation",
+      delta: 1,
+      buildArea: AREA
+    });
+    expect(s).toBe(before);
+
+    // The floor selector still moves it: that is how a storey is chosen.
+    const jumped = placementSessionReducer(before, {
+      type: "set-elevation",
+      elevation: 6,
+      buildArea: AREA
+    });
+    expect(jumped.activeElevation).toBe(6);
+  });
+
   it("jumps the elevation with set-elevation, clamped to the build area", () => {
     const before = session({ hoverCell: [1, 0, 1] });
     const jumped = placementSessionReducer(before, {

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Icons, type IconProps } from "@/components/Icons";
+import { elevationKeysApply } from "@/domain/placement-session";
 import type { ComponentType, ReactNode } from "react";
+import type { ToolId } from "@/types";
 import "@/components/ControlsLegend.css";
 
 type Control = {
@@ -8,6 +10,12 @@ type Control = {
   /** What you do. `ReactNode` so the keyboard rows can show real key caps. */
   input: ReactNode;
   action: string;
+  /**
+   * Which tools this row applies to. Absent means every tool — the legend
+   * describes the app, and only a row whose keys are dead for the armed tool
+   * earns being taken away.
+   */
+  applies?: (tool: ToolId) => boolean;
 };
 
 /**
@@ -47,7 +55,8 @@ const CONTROLS: Control[] = [
         <kbd>]</kbd>
       </>
     ),
-    action: "Elevation"
+    action: "Elevation",
+    applies: elevationKeysApply
   }
 ];
 
@@ -59,8 +68,9 @@ const CONTROLS: Control[] = [
  * have to know to open does not do. It collapses to its own title for anyone
  * who has learned the controls.
  */
-export function ControlsLegend() {
+export function ControlsLegend({ tool }: { tool: ToolId }) {
   const [open, setOpen] = useState(true);
+  const controls = CONTROLS.filter((control) => control.applies?.(tool) ?? true);
   return (
     <div className="legend nosel">
       <button
@@ -73,7 +83,7 @@ export function ControlsLegend() {
         {open ? <Icons.ChevD size={13} /> : <Icons.ChevU size={13} />}
       </button>
       <dl className="legend__list" id="controls-legend-list" hidden={!open}>
-        {CONTROLS.map((control, i) => {
+        {controls.map((control, i) => {
           const Glyph = control.icon;
           return (
             <div className="legend__row" key={i}>

@@ -431,6 +431,28 @@ describe("a two-floor design", () => {
     expect(screen.getByText(/EL 2 ft/)).toBeTruthy();
   });
 
+  it("offers the elevation keys only where they still do something", async () => {
+    // The client's complaint: the obstacle tool advertised [ and ] in both the
+    // controls legend and the tool pill, after its volume stopped following the
+    // placement plane.
+    await renderApp();
+    const legend = () => within(document.getElementById("controls-legend-list") as HTMLElement);
+
+    armBlower();
+    expect(legend().queryByText("Elevation")).toBeTruthy();
+    expect(screen.queryByText("elevation")).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "o" });
+    expect(legend().queryByText("Elevation")).toBeNull();
+    expect(screen.queryByText("elevation")).toBeNull();
+    // Where the volume will stand is still reported; only the dead keys go.
+    expect(screen.getByText(/EL 0 ft/)).toBeTruthy();
+
+    // Back to a tool the keys move, and they are offered again.
+    armBlower();
+    expect(legend().queryByText("Elevation")).toBeTruthy();
+  });
+
   it("reads the floor, not the plane, while the obstacle tool is armed", async () => {
     // An obstacle stands on the floor of the storey being worked on, so the
     // pill would be lying if it echoed a plane the volume ignores.

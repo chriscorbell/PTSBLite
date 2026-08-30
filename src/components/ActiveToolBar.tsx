@@ -1,4 +1,5 @@
 import { partRegistry } from "@/domain/part-registry";
+import { elevationKeysApply } from "@/domain/placement-session";
 import "@/components/ActiveToolBar.css";
 import type { ToolId } from "@/types";
 
@@ -58,12 +59,17 @@ export function ActiveToolBar({
           <span className="active-tool-bar__elevation">
             EL {elevation} ft{floor !== null && ` · Floor ${floor}`}
           </span>
-          <span className="active-tool-bar__hint">
-            <kbd>[</kbd>
-            <span>/</span>
-            <kbd>]</kbd>
-            <span>elevation</span>
-          </span>
+          {/* The obstacle tool reads the storey's floor rather than the plane,
+              so it is shown where its volume will stand but not offered keys
+              that would not move it. */}
+          {elevationKeysApply(tool) && (
+            <span className="active-tool-bar__hint">
+              <kbd>[</kbd>
+              <span>/</span>
+              <kbd>]</kbd>
+              <span>elevation</span>
+            </span>
+          )}
           <span className="active-tool-bar__sep" />
           {placesPart && (
             <span className="active-tool-bar__hint">
