@@ -4,6 +4,7 @@ import { plenumBands } from "@/domain/floors";
 import { autoBuildOpenPortPair } from "@/domain/pathfinder";
 import { placeTube } from "@/domain/tube-placement";
 import { totalPathLength } from "@/domain/parts";
+import { DEFAULT_ROOM } from "@/domain/sparse-grid";
 import type { DesignMetadata, DesignState, Obstacle, Part, Vec3 } from "@/types";
 import { routeWarnings } from "@/test/design-invariants";
 
@@ -39,6 +40,23 @@ function system(terminalTwo: Vec3, terminalTwoAxis: Vec3 = [0, 1, 0]): Part[] {
     { id: "b1", type: "blower", cell: [-20, 0, 20], dir: [0, 1, 0] },
     { id: "t1", type: "terminal", cell: [-20, 1, 20], axis: [0, 1, 0] },
     { id: "t2", type: "terminal", cell: terminalTwo, axis: terminalTwoAxis }
+  ];
+}
+
+/**
+ * The room the setup form opens with — 40 x 60 x 12 — and the 2 ft plenum it
+ * offers. Every row above works in a 30 ft room, where the band sits too high
+ * to be worth reaching and the bias never fires. This is the shape the client
+ * actually builds in, and the one where it does.
+ */
+const LOW_ROOM_PLENUM = { room: DEFAULT_ROOM, multiFloor: false, plenumHeightFeet: 2 };
+
+/** The same system, stood inside the 40 ft width of the default room. */
+function lowRoomSystem(terminalTwo: Vec3): Part[] {
+  return [
+    { id: "b1", type: "blower", cell: [-15, 0, 25], dir: [0, 1, 0] },
+    { id: "t1", type: "terminal", cell: [-15, 1, 25], axis: [0, 1, 0] },
+    { id: "t2", type: "terminal", cell: terminalTwo, axis: [0, 1, 0] }
   ];
 }
 
@@ -184,6 +202,54 @@ describe("what Auto-Build does, layout by layout", () => {
       bends: 2,
       feet: 49.42,
       band: "outside",
+      warnings: 0
+    });
+  });
+
+  it("crosses the same diagonal in an L when the plenum is reachable", () => {
+    // The row above works in a 30 ft room, where the band sits too high to be
+    // worth reaching and the route never enters it. This one drops the ceiling
+    // to 12 ft so the band IS used, which is the case the client works in and
+    // the one nothing here covered: it answered a diagonal with a twelve-bend
+    // staircase through the plenum, and 84.55 ft. The estimate over-charged
+    // horizontal travel inside the band, so turning looked like progress.
+    //
+    // Three bends now, for 10 ft more tube than the staircase spent. That is
+    // the trade the client asked for in as many words: "the goal of auto-build
+    // is to build with the fewest BENDS in a system, not shortest total length."
+    expect(run(design(lowRoomSystem([15, 0, -25]), LOW_ROOM_PLENUM))).toEqual({
+      routed: true,
+      bends: 3,
+      feet: 91.14,
+      band: "floor 1",
+      warnings: 0
+    });
+  });
+
+  it("carries a long run in the plenum of a 12 ft room", () => {
+    // The counterpart to the 30 ft room row: at a realistic ceiling the bias
+    // does fire, and this is the row that proves the fix above did not simply
+    // switch the plenum off to avoid the staircase.
+    expect(run(design(lowRoomSystem([15, 0, 25]), LOW_ROOM_PLENUM))).toEqual({
+      routed: true,
+      bends: 2,
+      feet: 43.42,
+      band: "floor 1",
+      warnings: 0
+    });
+  });
+
+  it("still takes five bends to cross a 6 ft gap when a plenum is in reach", () => {
+    // The daft short hop, in the room the setup form actually opens with: the
+    // run climbs into the band and comes back down for a 6 ft gap. The client
+    // was asked and chose to leave it alone — "in real life, there would never
+    // be a 6 ft run ... just let auto build do a 31 ft daft looking build" —
+    // so this row exists to stop someone quietly optimising it away.
+    expect(run(design(lowRoomSystem([-9, 0, 25]), LOW_ROOM_PLENUM))).toEqual({
+      routed: true,
+      bends: 5,
+      feet: 40.56,
+      band: "floor 1",
       warnings: 0
     });
   });

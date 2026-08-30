@@ -127,11 +127,28 @@ const MAX_ROUTE_EXPANSIONS = 120_000;
  * Charging the estimate what the steps actually cost restores the guidance.
  * Vertical travel stays at 1 because risers are never penalized, which is also
  * what stops the estimate from talking the search out of climbing into the
- * band. It is no longer an under-estimate, so a route is no longer guaranteed
- * to be the cheapest one — though on the case above it is: raising the
- * expansion budget until the admissible estimate can finish returns the same
- * route, five times slower. A route that is occasionally a little long is in
- * any case checked against the 300 ft cap like any other, and beats no route.
+ * band.
+ *
+ * `horizontalStepCost` is therefore the rate charged *at this cell*, not one
+ * rate for the whole search. Charging the penalized rate everywhere made the
+ * estimate three times too big inside the plenum, where a horizontal foot is
+ * charged 1 — and an over-estimate does not merely cost accuracy, it reorders
+ * the search. A bend covers seven feet of displacement, so an over-stated
+ * estimate falls by 21 for the 10.71 the bend costs, while a straight step
+ * falls by 3 for 1: turning looked like progress and going straight looked like
+ * delay. Auto-Build answered the diagonal of the default room with a
+ * twelve-bend staircase through the plenum where three bends do, which is what
+ * the client meant by "the goal of auto-build is to build with the fewest
+ * BENDS in a system, not shortest total length".
+ *
+ * Rating each cell at what that cell charges puts the two back in proportion:
+ * inside the band a straight step is free in estimate terms and a bend costs
+ * 3.71, outside it a straight step is free and a bend costs 1.71. Both prefer
+ * the straight, which is the whole requirement. It is still not an
+ * under-estimate — a cell outside the band that could reach it is rated as if
+ * it could not — so a route is not guaranteed to be the cheapest; that
+ * over-statement is what keeps the search fast, and it errs toward the plenum,
+ * which is the direction the client wants it to err in.
  */
 function remainingCostEstimate(cell: Vec3, goal: Vec3, horizontalStepCost: number): number {
   const horizontal = Math.abs(cell[0] - goal[0]) + Math.abs(cell[2] - goal[2]);
@@ -320,14 +337,16 @@ function routeBetween(
 ): RouteOutcome {
   const goal: RouteState = { cell: target.from, dir: vNeg(target.dir) };
   const start: RouteState = { cell: source.cell, dir: source.dir };
-  // Without a plenum nothing is penalized and a foot costs a foot, which is the
-  // estimate this used before the bias existed.
-  const horizontalStepCost = plenum === null ? 1 : 1 + OUT_OF_PLENUM_STRAIGHT_PENALTY;
+  // What a horizontal foot is charged where the search currently stands.
+  // Without a plenum nothing is penalized anywhere and a foot costs a foot,
+  // which is the estimate this used before the bias existed.
+  const horizontalStepCost = (cell: Vec3): number =>
+    plenum !== null && !inPlenum(plenum, cell) ? 1 + OUT_OF_PLENUM_STRAIGHT_PENALTY : 1;
   const open: OpenRouteEntry[] = [];
   let sequence = 0;
   pushOpenEntry(open, {
     state: start,
-    priority: remainingCostEstimate(start.cell, goal.cell, horizontalStepCost),
+    priority: remainingCostEstimate(start.cell, goal.cell, horizontalStepCost(start.cell)),
     searchCost: 0,
     sequence: sequence++
   });
@@ -369,7 +388,8 @@ function routeBetween(
       pushOpenEntry(open, {
         state: next.state,
         priority:
-          nextSearchCost + remainingCostEstimate(next.state.cell, goal.cell, horizontalStepCost),
+          nextSearchCost +
+          remainingCostEstimate(next.state.cell, goal.cell, horizontalStepCost(next.state.cell)),
         searchCost: nextSearchCost,
         sequence: sequence++
       });
