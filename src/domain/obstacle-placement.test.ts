@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { emptyDesign } from "@/domain/design-state";
-import { BUILD_AREA, GROUND_PLANE_Y } from "@/domain/sparse-grid";
+import { BUILD_AREA } from "@/domain/sparse-grid";
 import {
   cancelObstaclePlacement,
-  moveObstaclePlacementBase,
+  obstacleHeightLimit,
   obstaclePlacementDraftBounds,
   obstaclePlacementGhost,
   resizeObstaclePlacementHeight,
@@ -14,7 +14,7 @@ import {
   startObstaclePlacement
 } from "@/domain/obstacle-placement";
 import { expectGridMatchesDesign } from "@/test/design-invariants";
-import type { BuildArea } from "@/types";
+import type { BuildArea, DesignMetadata } from "@/types";
 
 describe("obstacle volume placement", () => {
   it("enumerates every one-cell-high grid cell inside two XZ corners", () => {
@@ -80,19 +80,21 @@ describe("obstacle volume placement", () => {
     expect(cancelObstaclePlacement(started.draft)).toBeNull();
   });
 
-  it("adjusts an obstacle footprint's base elevation and height before commit", () => {
-    const started = startObstaclePlacement(emptyDesign(), [2, 0, 3]);
+  it("grows a footprint upward from the floor it was drawn on", () => {
+    const design = emptyDesign();
+    const started = startObstaclePlacement(design, [2, 0, 3]);
 
     expect(started.ok).toBe(true);
     if (!started.ok) return;
     const footprint = setObstaclePlacementFootprint(started.draft, [4, 0, 6]);
-    const raised = moveObstaclePlacementBase(footprint, 3, BUILD_AREA);
-    const tall = resizeObstaclePlacementHeight(raised, 5, BUILD_AREA);
+    // One foot tall until the HUD says otherwise.
+    expect(footprint.height).toBe(1);
+    const tall = resizeObstaclePlacementHeight(footprint, 5, design.metadata, BUILD_AREA);
 
     expect(obstaclePlacementGhost(tall, [4, 0, 6])).toEqual({
       type: "obstacle",
-      min: [2, 3, 3],
-      max: [4, 7, 6]
+      min: [2, 0, 3],
+      max: [4, 4, 6]
     });
   });
 
@@ -108,52 +110,109 @@ describe("obstacle volume placement", () => {
   });
 });
 
-describe("obstacle draft bounds follow the design's build area", () => {
+describe("an obstacle sits on the floor of the storey it was drawn on", () => {
+  const TWO_FLOOR: Partial<DesignMetadata> = {
+    multiFloor: true,
+    room: { width: 60, depth: 40, height: 12 }
+  };
+  // The floor 2 slab sits on top of floor 1, one foot thick.
+  const FLOOR_2_BASE = 13;
+
+  it("anchors the first corner to the ground however high the plane is", () => {
+    // `[` and `]` move the placement plane, which is what a part is placed on.
+    // An obstacle has a height instead: it stands on the floor.
+    const started = startObstaclePlacement(emptyDesign(), [2, 7, 3]);
+
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+    expect(started.draft.cornerA).toEqual([2, 0, 3]);
+  });
+
+  it("draws the drag preview flat on that floor rather than up to the pointer", () => {
+    const started = startObstaclePlacement(emptyDesign(), [2, 7, 3]);
+    if (!started.ok) throw new Error("expected a draft");
+
+    expect(obstaclePlacementGhost(started.draft, [5, 7, 6])).toEqual({
+      type: "obstacle",
+      min: [2, 0, 3],
+      max: [5, 0, 6]
+    });
+  });
+
+  it("stands on the upper floor when that is the one being worked on", () => {
+    const design = emptyDesign(TWO_FLOOR);
+    const started = startObstaclePlacement(design, [2, FLOOR_2_BASE + 4, 3]);
+
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+    const footprint = setObstaclePlacementFootprint(started.draft, [4, 0, 6]);
+    expect(footprint.baseY).toBe(FLOOR_2_BASE);
+  });
+});
+
+describe("obstacle height stops at what is above it", () => {
   const SHORT: BuildArea = { width: 20, depth: 20, height: 6 };
 
-  function footprintDraft() {
-    const started = startObstaclePlacement(emptyDesign(), [2, 0, 3]);
+  /** A draft inside the room, which the default 60 x 40 x 12 metadata covers. */
+  function footprintDraft(meta?: Partial<DesignMetadata>, corner: [number, number] = [2, 3]) {
+    const design = emptyDesign(meta);
+    const started = startObstaclePlacement(design, [corner[0], 0, corner[1]]);
     if (!started.ok) throw new Error("expected a draft");
-    return setObstaclePlacementFootprint(started.draft, [4, 0, 6]);
+    return {
+      design,
+      draft: setObstaclePlacementFootprint(started.draft, [corner[0] + 2, 0, corner[1] + 3])
+    };
   }
 
-  it("caps height at the ceiling rather than a hardcoded limit", () => {
+  it("caps height at the build area rather than a hardcoded limit", () => {
     // The HUD used to offer up to 150 ft regardless of the design, and
     // placeObstacleVolume then refused whatever exceeded the build area.
-    const tall = resizeObstaclePlacementHeight(footprintDraft(), 999, SHORT);
+    const { design, draft } = footprintDraft();
+    const tall = resizeObstaclePlacementHeight(draft, 999, design.metadata, SHORT);
     expect(tall.height).toBe(SHORT.height);
   });
 
   it("keeps height at least one cell", () => {
-    expect(resizeObstaclePlacementHeight(footprintDraft(), 0, SHORT).height).toBe(1);
-    expect(resizeObstaclePlacementHeight(footprintDraft(), -5, SHORT).height).toBe(1);
+    const { design, draft } = footprintDraft();
+    expect(resizeObstaclePlacementHeight(draft, 0, design.metadata, SHORT).height).toBe(1);
+    expect(resizeObstaclePlacementHeight(draft, -5, design.metadata, SHORT).height).toBe(1);
   });
 
-  it("caps the base so the whole volume stays inside the ceiling", () => {
-    const tall = resizeObstaclePlacementHeight(footprintDraft(), 4, SHORT);
-    const raised = moveObstaclePlacementBase(tall, 99, SHORT);
-    const height = tall.height ?? 0;
-    const baseY = raised.baseY ?? 0;
-    expect(baseY).toBe(SHORT.height - height);
-    expect(baseY + height).toBeLessThanOrEqual(SHORT.height);
+  it("stops at the room's ceiling for an obstacle drawn inside it", () => {
+    // A 12 ft room: a shelf in it reaches the ceiling and no further, whatever
+    // room the build area has above.
+    const { design, draft } = footprintDraft();
+    const tall = resizeObstaclePlacementHeight(draft, 999, design.metadata, BUILD_AREA);
+    expect(tall.height).toBe(12);
+    expect(obstacleHeightLimit(draft, design.metadata, BUILD_AREA)).toBe(12);
   });
 
-  it("never lets the base go below the ground plane", () => {
-    expect(moveObstaclePlacementBase(footprintDraft(), -10, SHORT).baseY).toBe(GROUND_PLANE_Y);
+  it("stops at the slab for an obstacle on the lower floor of a two-floor room", () => {
+    const design = emptyDesign({ multiFloor: true, room: { width: 60, depth: 40, height: 12 } });
+    const started = startObstaclePlacement(design, [2, 0, 3]);
+    if (!started.ok) throw new Error("expected a draft");
+    const draft = setObstaclePlacementFootprint(started.draft, [4, 0, 6]);
+
+    const tall = resizeObstaclePlacementHeight(draft, 999, design.metadata, BUILD_AREA);
+    expect(tall.height).toBe(12);
+    // Top cell 11, directly under the separator at 12.
+    expect(obstaclePlacementDraftBounds(tall).max[1]).toBe(11);
+  });
+
+  it("has only the build area to stop it outside the room", () => {
+    // The room is 60 x 40 centred on the origin; x = 50 is well outside it, and
+    // out there nothing has a ceiling.
+    const { design, draft } = footprintDraft(undefined, [50, 50]);
+    const tall = resizeObstaclePlacementHeight(draft, 999, design.metadata, BUILD_AREA);
+    expect(tall.height).toBe(BUILD_AREA.height);
   });
 
   it("produces a draft that placeObstacleVolume actually accepts", () => {
     // The point of clamping in the domain: a control cannot offer a value the
     // domain will then reject.
-    const design = emptyDesign();
-    const started = startObstaclePlacement(design, [2, 0, 3]);
-    if (!started.ok) throw new Error("expected a draft");
-    const draft = resizeObstaclePlacementHeight(
-      moveObstaclePlacementBase(setObstaclePlacementFootprint(started.draft, [4, 0, 6]), 99, SHORT),
-      999,
-      SHORT
-    );
-    const bounds = obstaclePlacementDraftBounds(draft);
+    const { design, draft } = footprintDraft();
+    const grown = resizeObstaclePlacementHeight(draft, 999, design.metadata, SHORT);
+    const bounds = obstaclePlacementDraftBounds(grown);
     const result = placeObstacleVolume(design, {
       id: "o1",
       cornerA: bounds.min,

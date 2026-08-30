@@ -70,6 +70,12 @@ const canRedo = () => !(redoButton() as HTMLButtonElement).disabled;
 /** The obstacle HUD's commit button, present only once a draft has a footprint. */
 const placeButton = () => screen.queryByRole("button", { name: "Place" });
 
+/** Arm the blower, which has no keyboard shortcut: it lives in the Build drawer. */
+function armBlower() {
+  fireEvent.click(screen.getByRole("button", { name: "Build" }));
+  fireEvent.click(screen.getByRole("button", { name: "Blower Unit" }));
+}
+
 describe("tool selection by keyboard", () => {
   it("switches tools with the documented shortcuts and reports the active tool", async () => {
     await renderApp();
@@ -372,7 +378,7 @@ describe("a two-floor design", () => {
     expect(viewport.props?.heightMarkers).toEqual([]);
     expect(viewport.props?.ghostHeight).toBeNull();
 
-    fireEvent.keyDown(window, { key: "o" });
+    armBlower();
     fireEvent.keyDown(window, { key: "]" });
     expect(viewport.props?.ghostHeight).toBe(1);
 
@@ -418,11 +424,29 @@ describe("a two-floor design", () => {
   it("shows the elevation beside the armed tool", async () => {
     await renderApp();
 
-    fireEvent.keyDown(window, { key: "o" });
+    armBlower();
     fireEvent.keyDown(window, { key: "]" });
     fireEvent.keyDown(window, { key: "]" });
 
     expect(screen.getByText(/EL 2 ft/)).toBeTruthy();
+  });
+
+  it("reads the floor, not the plane, while the obstacle tool is armed", async () => {
+    // An obstacle stands on the floor of the storey being worked on, so the
+    // pill would be lying if it echoed a plane the volume ignores.
+    await renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
+    fireEvent.click(screen.getByLabelText(/Add 2nd floor/));
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+
+    fireEvent.keyDown(window, { key: "o" });
+    fireEvent.keyDown(window, { key: "]" });
+    fireEvent.keyDown(window, { key: "]" });
+    expect(screen.getByText(/EL 0 ft/)).toBeTruthy();
+
+    // Upstairs it reads that floor's own floor.
+    fireEvent.click(screen.getByRole("button", { name: "Floor 2" }));
+    expect(screen.getByText(new RegExp(`EL ${DEFAULT_ROOM.height + 1} ft`))).toBeTruthy();
   });
 });
 

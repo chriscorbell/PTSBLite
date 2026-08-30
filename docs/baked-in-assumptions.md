@@ -62,6 +62,14 @@ than it looks. *See Provisional below for the two-terminal fence.*
 **Nothing below Y = 0.** The ground plane is the floor. Basements or below-grade runs would need the
 build area to describe a Y origin rather than assuming zero.
 
+**An obstacle stands on the floor of its storey and stops at that storey's ceiling.** The obstacle
+tool draws a footprint and a height; the base is the active floor, and inside the room the height
+is capped at the ceiling. `Obstacle` carries `min` and `max` and would hold a volume floating in
+mid-air perfectly well — a hanging duct, a beam under the ceiling, a mezzanine — and the pathfinder
+and the renderer treat one no differently. What went was the base stepper the HUD used to carry,
+at the client's request: a shelf has a height, not two numbers. Restoring a floating volume is a
+control and a clamp, not a model change.
+
 **A design's geometry answers are fixed once it is created.** The room, and the multi-floor
 and plenum answers, are collected on the welcome screen and cannot be changed afterwards. Changing
 one means starting a new design. `DesignMetadata` would hold an edit fine; what was deliberately

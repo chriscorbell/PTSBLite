@@ -259,6 +259,19 @@ describe("placementLandingCells", () => {
     ).toEqual([[3, 0, -4]]);
   });
 
+  it("puts the obstacle highlight on the floor, not on the raised plane", () => {
+    // The volume is drawn on the floor of the storey being worked on, so the
+    // square showing where it will land belongs there too.
+    const s = session({ tool: "obstacle", hoverCell: [3, 6, -4] });
+    expect(placementLandingCells(s, emptyDesign())).toEqual([[3, 0, -4]]);
+
+    // Two floors: above the slab the highlight sits on the upper floor's floor.
+    const upstairs = emptyDesign({ multiFloor: true, room: { width: 60, depth: 40, height: 12 } });
+    expect(
+      placementLandingCells(session({ tool: "obstacle", hoverCell: [3, 20, -4] }), upstairs)
+    ).toEqual([[3, 13, -4]]);
+  });
+
   it("highlights nothing for the obstacle tool off the grid", () => {
     // The hover plane runs well past the build area, and a highlight out there
     // would offer a corner `startObstaclePlacement` refuses.

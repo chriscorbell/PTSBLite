@@ -65,6 +65,14 @@ export function inRoomFootprint(rect: RoomRect, cell: Vec3): boolean {
 }
 
 /**
+ * Whether a box — inclusive cell bounds, as obstacles carry them — covers any
+ * part of the room's footprint. A volume half in and half out counts as in.
+ */
+export function overlapsRoomFootprint(rect: RoomRect, min: Vec3, max: Vec3): boolean {
+  return max[0] >= rect.xMin && min[0] < rect.xMax && max[2] >= rect.zMin && min[2] < rect.zMax;
+}
+
+/**
  * The room's four walls as inclusive cell boxes, 1 ft thick, inside the
  * room's own footprint ("shrinking to interior"), rising its full height.
  * Drawn like penetrable obstacles and, like them, claiming no grid cells:
