@@ -647,8 +647,13 @@ const MARKER_FONT = "'Geist Variable', system-ui, -apple-system, sans-serif";
  * for". So this is no longer held up by a legibility floor at the opening
  * view; `MARKER_MIN_PIXELS` in the viewport came down with it, and only stops
  * a marker being drawn once it carries no information at all.
+ *
+ * 0.9 was that step, and the client asked for one more: "let's make the height
+ * markers a bit smaller still, but we are headed in the right direction". A
+ * marker now stands seven tenths of the cell it labels. Size alone — he called
+ * the direction right, so `MARKER_ASIDE` keeps the offset it has.
  */
-export const HEIGHT_MARKER_FEET = 0.9;
+export const HEIGHT_MARKER_FEET = 0.7;
 
 function roundedRect(
   ctx: CanvasRenderingContext2D,
