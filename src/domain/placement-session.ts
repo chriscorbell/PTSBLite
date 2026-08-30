@@ -145,6 +145,26 @@ export function elevationKeysApply(tool: ToolId): boolean {
 }
 
 /**
+ * Whether `R` and `⇧R` turn anything for the armed tool.
+ *
+ * Rotation reaches two things: the orientation a blower or terminal is set down
+ * in, and the index a bend is placed at. An obstacle volume is drawn corner to
+ * corner and has no orientation to give it, and a tube takes its direction from
+ * the port it continues from — so for those two the keys turned a number
+ * nothing about the placement reads. Worse than idle: `ghostRotation` survives
+ * a tool change, so an `R` pressed here came back later as a pre-turned bend.
+ * They are inert for both and hidden from the controls that offered them, so
+ * what is on screen and what the keys do agree.
+ *
+ * The select and erase tools keep the row, exactly as they keep the elevation
+ * row: they place nothing, so the legend is describing the app rather than the
+ * moment, which is the only thing that can be said with no ghost on screen.
+ */
+export function rotationKeysApply(tool: ToolId): boolean {
+  return tool !== "obstacle" && tool !== "tube";
+}
+
+/**
  * Move the placement plane, dragging the hover cell — and the ghost derived
  * from it — along. Without this, pressing an elevation key changed nothing on
  * screen until the pointer happened to move again, which read as the key doing
@@ -177,6 +197,7 @@ export function placementSessionReducer(
       return { ...session, hoverCell: action.cell };
 
     case "rotate":
+      if (!rotationKeysApply(session.tool)) return session;
       if (isFreePlacementTool(session.tool)) {
         // One ring of five orientations, so shift-R is simply the other way
         // round it. It used to toggle up/down on a separate axis, which left a

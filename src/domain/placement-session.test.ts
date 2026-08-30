@@ -57,6 +57,17 @@ describe("placementSessionReducer", () => {
     expect(back.freePlacementRotation).toBe(-1);
   });
 
+  it("leaves the rotation alone for the tools that have none to turn", () => {
+    // The client's complaint: the obstacle tool still offered R / shift-R. It
+    // was not merely a decorative key — ghostRotation survives a tool change,
+    // so an R pressed here came back as a pre-turned bend.
+    for (const tool of ["tube", "obstacle"] as const) {
+      const before = session({ tool });
+      expect(placementSessionReducer(before, { type: "rotate", reverse: false })).toBe(before);
+      expect(placementSessionReducer(before, { type: "rotate", reverse: true })).toBe(before);
+    }
+  });
+
   it("keeps the elevation inside the build area", () => {
     const s = placementSessionReducer(session(), {
       type: "nudge-elevation",

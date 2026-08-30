@@ -1,5 +1,5 @@
 import { partRegistry } from "@/domain/part-registry";
-import { elevationKeysApply } from "@/domain/placement-session";
+import { elevationKeysApply, rotationKeysApply } from "@/domain/placement-session";
 import "@/components/ActiveToolBar.css";
 import type { ToolId } from "@/types";
 
@@ -71,7 +71,10 @@ export function ActiveToolBar({
             </span>
           )}
           <span className="active-tool-bar__sep" />
-          {placesPart && (
+          {/* Offered only where the keys turn something: a tube follows the port
+              it continues from and an obstacle is drawn corner to corner, so
+              neither has an orientation to rotate. */}
+          {rotationKeysApply(tool) && (
             <span className="active-tool-bar__hint">
               <kbd>R</kbd>
               <span>/</span>

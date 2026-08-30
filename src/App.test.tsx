@@ -453,6 +453,26 @@ describe("a two-floor design", () => {
     expect(legend().queryByText("Elevation")).toBeTruthy();
   });
 
+  it("offers the rotate keys only where they still turn something", async () => {
+    // The client's second pass over the same complaint: having lost [ and ],
+    // the obstacle tool went on advertising R / ⇧R, which turns nothing on a
+    // volume drawn corner to corner.
+    await renderApp();
+    const legend = () => within(document.getElementById("controls-legend-list") as HTMLElement);
+
+    armBlower();
+    expect(legend().queryByText("Rotate")).toBeTruthy();
+    expect(screen.queryByText("rotate")).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "o" });
+    expect(legend().queryByText("Rotate")).toBeNull();
+    expect(screen.queryByText("rotate")).toBeNull();
+
+    // Back to a tool the keys turn, and they are offered again.
+    armBlower();
+    expect(legend().queryByText("Rotate")).toBeTruthy();
+  });
+
   it("reads the floor, not the plane, while the obstacle tool is armed", async () => {
     // An obstacle stands on the floor of the storey being worked on, so the
     // pill would be lying if it echoed a plane the volume ignores.
