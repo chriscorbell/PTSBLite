@@ -47,6 +47,8 @@ working blind. Append `key=$TRELLO_API_KEY&token=$TRELLO_TOKEN` to every query s
 curl "https://api.trello.com/1/boards/bWnb6qXO/lists?cards=open&card_fields=name,desc,dateLastActivity&..."
 # A card's comments, newest first
 curl "https://api.trello.com/1/cards/$CARD/actions?filter=commentCard&limit=50&..."
+# Recent comments across the whole board, newest first (one call, every card)
+curl "https://api.trello.com/1/boards/bWnb6qXO/actions?filter=commentCard&limit=50&..."
 # Post a comment
 curl -X POST "https://api.trello.com/1/cards/$CARD/actions/comments?..." --data-urlencode "text=..."
 # Move to another list, or archive
@@ -66,8 +68,16 @@ Run the steps in order. A run that finds nothing to do ends quietly.
 
 ### 1. Triage intake
 
-New input is any card in Intake other than the pinned one, plus any comment on the pinned card
-newer than Claude's latest reply to it.
+New input is any card in Intake other than the pinned one, plus any comment from Nick anywhere
+on the board that we have not answered. Nick comments on whatever card seems relevant to him,
+not where the process would like him to, so sweep the whole board with the board-wide comments
+call: every comment of his on any card, in any list, with no later reply from us, is intake.
+
+Handle a swept comment where it makes sense: fold it into the card it sits on when it belongs
+there, or split it out like any other input when it does not (a comment on a Done card asking
+for a change becomes a new card that links back). Either way, reply on the card so the newest
+comment is ours and the next run knows it is handled. The one exception: a comment on a Blocked
+card is an answer, and step 2 owns those.
 
 Split each piece into cards of one testable change each. Actionable work goes to "Ready for
 Chris" with a description quoting or closely paraphrasing Nick, dated. Anything that needs Nick's
