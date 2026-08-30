@@ -214,6 +214,10 @@ export type ViewportPlaceTarget = {
   partId?: string;
 };
 
+function assertNever(value: never): never {
+  throw new Error(`Viewport received an unsupported variant: ${JSON.stringify(value)}`);
+}
+
 export type ViewportProps = {
   scene: Scene;
   buildArea?: BuildArea;
@@ -727,6 +731,8 @@ export function Viewport({
         mesh = buildTubeMesh(p.from, p.to);
       } else if (p.type === "bend") {
         mesh = buildBendMesh(p);
+      } else {
+        assertNever(p);
       }
       if (mesh) {
         mesh.userData.partId = p.id;
@@ -858,6 +864,8 @@ export function Viewport({
           ghost: true,
           penetrable: ghost.penetrable
         });
+      } else {
+        assertNever(ghost);
       }
       if (mesh) s.ghostGroup.add(mesh);
       // The ghost's own marker, in the accent colour so the height being

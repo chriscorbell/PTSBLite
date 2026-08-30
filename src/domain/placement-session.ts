@@ -18,6 +18,7 @@ import {
   obstaclePlacementDraftHasFootprint,
   obstaclePlacementGhost,
   placeObstacleVolume,
+  restOnObstacles,
   resizeObstaclePlacementHeight,
   setObstaclePlacementFootprint,
   startObstaclePlacement,
@@ -65,6 +66,34 @@ export const INITIAL_PLACEMENT_SESSION: PlacementSession = {
   freePlacementRotation: DEFAULT_FREE_PLACEMENT_ROTATION,
   activeElevation: 0
 };
+
+/**
+ * Where the pointer's cell actually lands for the armed tool.
+ *
+ * A blower or terminal aimed at an impenetrable obstacle steps onto it. Tubes
+ * and bends continue from a port, while the obstacle tool must be able to draw
+ * over existing occupants. A pedestal blower stays put because its mast has to
+ * reach the floor and must not pass through the obstacle holding it up.
+ */
+export function resolvePlacementCell(
+  tool: ToolId,
+  design: DesignState,
+  cell: Vec3,
+  buildArea: BuildArea
+): Vec3 {
+  switch (tool) {
+    case "blower":
+    case "terminal":
+      return restOnObstacles(design, cell, buildArea);
+    case "cursor":
+    case "blowerPedestal":
+    case "tube":
+    case "bend":
+    case "obstacle":
+    case "erase":
+      return cell;
+  }
+}
 
 export type PlacementAction =
   /** Arm a tool. Abandons anything the previous tool had in flight. */
@@ -348,8 +377,11 @@ export function commitObstacleDraft(
  */
 export function placementGhost(session: PlacementSession, design: DesignState): Ghost | null {
   const { tool, hoverCell } = session;
-  if (!hoverCell || tool === "cursor" || tool === "erase") return null;
+  if (!hoverCell) return null;
   switch (tool) {
+    case "cursor":
+    case "erase":
+      return null;
     case "blower":
     case "blowerPedestal":
       return freePlacementGhost({
@@ -373,8 +405,6 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
       return bendPlacementGhost(design, hoverCell, { rotationIndex: session.ghostRotation });
     case "obstacle":
       return obstaclePlacementGhost(session.obstacleDraft, hoverCell, session.obstacleKind);
-    default:
-      return null;
   }
 }
 
@@ -393,6 +423,9 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
  */
 export function placementLandingCells(session: PlacementSession, design: DesignState): Vec3[] {
   switch (session.tool) {
+    case "cursor":
+    case "erase":
+      return [];
     case "blower":
     case "blowerPedestal":
     case "terminal":
@@ -406,7 +439,5 @@ export function placementLandingCells(session: PlacementSession, design: DesignS
       if (!cell || !design.grid.withinBounds(cell)) return [];
       return [[cell[0], obstacleBaseElevation(design.metadata, cell[1]), cell[2]]];
     }
-    default:
-      return [];
   }
 }

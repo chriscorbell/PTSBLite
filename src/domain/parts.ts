@@ -10,16 +10,19 @@ export function isAutoBuildPart(p: Part): boolean {
 }
 
 export function partLength(p: Part): number {
-  if (p.type === "tube") {
-    const dx = p.to[0] - p.from[0];
-    const dy = p.to[1] - p.from[1];
-    const dz = p.to[2] - p.from[2];
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  switch (p.type) {
+    case "tube": {
+      const dx = p.to[0] - p.from[0];
+      const dy = p.to[1] - p.from[1];
+      const dz = p.to[2] - p.from[2];
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+    case "bend":
+      return (Math.PI * (p.radius ?? 3)) / 2;
+    case "blower":
+    case "terminal":
+      return 0;
   }
-  if (p.type === "bend") {
-    return (Math.PI * (p.radius ?? 3)) / 2;
-  }
-  return 0;
 }
 
 export function totalPathLength(input: Part[] | DesignState): number {
