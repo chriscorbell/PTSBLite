@@ -5,6 +5,8 @@ import {
   roomRect
 } from "@/domain/floors";
 import { clampElevation } from "@/domain/sparse-grid";
+import { addObstacle } from "@/domain/design-state";
+import { obstacleVolumeBounds, obstacleVolumeCells } from "@/domain/occupant-footprints";
 import type { BuildArea, DesignMetadata, DesignState, Ghost, Vec3 } from "@/types";
 
 /**
@@ -174,34 +176,6 @@ export function obstaclePlacementDraftBounds(
   };
 }
 
-export function obstacleVolumeBounds(cornerA: Vec3, cornerB: Vec3): { min: Vec3; max: Vec3 } {
-  return {
-    min: [
-      Math.min(cornerA[0], cornerB[0]),
-      Math.min(cornerA[1], cornerB[1]),
-      Math.min(cornerA[2], cornerB[2])
-    ],
-    max: [
-      Math.max(cornerA[0], cornerB[0]),
-      Math.max(cornerA[1], cornerB[1]),
-      Math.max(cornerA[2], cornerB[2])
-    ]
-  };
-}
-
-export function obstacleVolumeCells(cornerA: Vec3, cornerB: Vec3): Vec3[] {
-  const { min, max } = obstacleVolumeBounds(cornerA, cornerB);
-  const cells: Vec3[] = [];
-  for (let x = min[0]; x <= max[0]; x++) {
-    for (let y = min[1]; y <= max[1]; y++) {
-      for (let z = min[2]; z <= max[2]; z++) {
-        cells.push([x, y, z]);
-      }
-    }
-  }
-  return cells;
-}
-
 /**
  * Where a part aimed at `cell` comes to rest: on top of whatever solid volume
  * is already there, or at `cell` itself when nothing is.
@@ -268,25 +242,10 @@ export function placeObstacleVolume(
     }
   }
 
-  // A penetrable obstacle claims no cells: the grid is the one collision
-  // structure placement and routing consult, and staying out of it is what
-  // being penetrable means (ADR-0016).
-  const grid = design.grid.clone();
-  if (!penetrable) {
-    for (const cell of cells) {
-      grid.place(cell, id);
-    }
-  }
   const { min, max } = obstacleVolumeBounds(cornerA, cornerB);
+  const obstacle = penetrable ? { id, min, max, penetrable } : { id, min, max };
   return {
     ok: true,
-    design: {
-      ...design,
-      obstacles: [
-        ...design.obstacles,
-        penetrable ? { id, min, max, penetrable } : { id, min, max }
-      ],
-      grid
-    }
+    design: addObstacle(design, obstacle)
   };
 }

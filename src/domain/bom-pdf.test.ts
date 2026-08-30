@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { extractText } from "@/test/pdf-text";
 import { generateBomPdf } from "@/domain/bom-pdf";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { bomRows } from "@/domain/parts";
-import type { DesignState, Part } from "@/types";
+import type { DesignMetadata, DesignState, Part } from "@/types";
 
 const sampleParts: Part[] = [
   { id: "b", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
@@ -14,16 +14,16 @@ const sampleParts: Part[] = [
   {
     id: "n1",
     type: "bend",
-    entry: [3, 0, 0],
-    exit: [6, 0, 3],
-    center: [3, 0, 3],
+    entry: [20.5, 0.5, 0.5],
+    exit: [23.5, 0.5, 3.5],
+    center: [20.5, 0.5, 3.5],
     inDir: [1, 0, 0],
     outDir: [0, 0, 1]
   }
 ];
 
-function designWith(parts: Part[]): DesignState {
-  return { ...emptyDesign(), parts };
+function designWith(parts: Part[], metadata?: Partial<DesignMetadata>): DesignState {
+  return designFromScene({ parts, obstacles: [] }, metadata);
 }
 
 describe("generateBomPdf", () => {
@@ -45,8 +45,7 @@ describe("generateBomPdf", () => {
   it("carries the design's own dimensions", async () => {
     // Designs have no name, so the room is what identifies one document from
     // another; it has to survive onto the page.
-    const design = designWith(sampleParts);
-    design.metadata = { ...design.metadata, room: { width: 44, depth: 22, height: 11 } };
+    const design = designWith(sampleParts, { room: { width: 44, depth: 22, height: 11 } });
     const text = extractText(await generateBomPdf(design));
     expect(text).toContain("44");
     expect(text).toContain("22");

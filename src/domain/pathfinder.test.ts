@@ -90,8 +90,9 @@ describe("Pathfinder MVP", () => {
   });
 
   it("returns a typed no-route result when the open ports cannot be connected", () => {
-    const design = designWith(basicParts([5, 0, 4], [0, 0, 1]));
-    design.grid.place([3, 0, 0], "blocker");
+    const design = designWith(basicParts([5, 0, 4], [0, 0, 1]), [
+      { id: "blocker", min: [3, 0, 0], max: [3, 0, 0] }
+    ]);
 
     const result = autoBuildOpenPortPair(design);
 

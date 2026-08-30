@@ -66,6 +66,13 @@ export type GridBounds = {
   zMax: number;
 };
 
+/** The occupancy queries callers may make against a design. */
+export type ReadonlySparseGrid = {
+  withinBounds(cell: Vec3): boolean;
+  query(cell: Vec3): string | undefined;
+  neighbors(cell: Vec3): Vec3[];
+};
+
 function clampInt(value: number, min: number, max: number, fallback: number): number {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(max, Math.max(min, Math.round(value)));
@@ -102,7 +109,7 @@ export function boundsFromBuildArea(area: BuildArea): GridBounds {
   };
 }
 
-export class SparseGrid {
+export class SparseGrid implements ReadonlySparseGrid {
   private readonly cells = new Map<string, string>();
   private readonly bounds: GridBounds;
 

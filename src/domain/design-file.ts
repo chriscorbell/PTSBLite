@@ -155,17 +155,22 @@ function parsePart(
     case "blower": {
       if (!isVec3(value.cell)) return fail(`parts[${index}] blower.cell must be a 3-tuple.`);
       if (!isVec3(value.dir)) return fail(`parts[${index}] blower.dir must be a 3-tuple.`);
-      const part: BlowerPart = { id, type: "blower", cell: value.cell, dir: value.dir };
       // Present means a pedestal blower; 0 is a legal height, so the check is
       // on the type rather than on truthiness. A negative or fractional mast is
       // not something the app can produce, and is read as a plain blower.
-      if (
+      const pedestalFeet =
         typeof value.pedestalFeet === "number" &&
         Number.isInteger(value.pedestalFeet) &&
         value.pedestalFeet >= 0
-      ) {
-        part.pedestalFeet = value.pedestalFeet;
-      }
+          ? value.pedestalFeet
+          : undefined;
+      const part: BlowerPart = {
+        id,
+        type: "blower",
+        cell: value.cell,
+        dir: value.dir,
+        ...(pedestalFeet === undefined ? {} : { pedestalFeet })
+      };
       return { ok: true, part };
     }
     case "terminal": {
@@ -177,10 +182,15 @@ function parsePart(
     case "tube": {
       if (!isVec3(value.from)) return fail(`parts[${index}] tube.from must be a 3-tuple.`);
       if (!isVec3(value.to)) return fail(`parts[${index}] tube.to must be a 3-tuple.`);
-      const part: TubePart = { id, type: "tube", from: value.from, to: value.to };
-      if (typeof value.length === "number") part.length = value.length;
-      // Forgiving: any other value means a manual part to this build.
-      if (value.source === "auto-build") part.source = "auto-build";
+      const part: TubePart = {
+        id,
+        type: "tube",
+        from: value.from,
+        to: value.to,
+        ...(typeof value.length === "number" ? { length: value.length } : {}),
+        // Forgiving: any other value means a manual part to this build.
+        ...(value.source === "auto-build" ? { source: "auto-build" } : {})
+      };
       return { ok: true, part };
     }
     case "bend": {
@@ -196,10 +206,10 @@ function parsePart(
         exit: value.exit,
         center: value.center,
         inDir: value.inDir,
-        outDir: value.outDir
+        outDir: value.outDir,
+        ...(typeof value.radius === "number" ? { radius: value.radius } : {}),
+        ...(value.source === "auto-build" ? { source: "auto-build" } : {})
       };
-      if (typeof value.radius === "number") part.radius = value.radius;
-      if (value.source === "auto-build") part.source = "auto-build";
       return { ok: true, part };
     }
     default:
@@ -215,9 +225,13 @@ function parseObstacle(
   if (typeof value.id !== "string") return fail(`obstacles[${index}].id must be a string.`);
   if (!isVec3(value.min)) return fail(`obstacles[${index}].min must be a 3-tuple.`);
   if (!isVec3(value.max)) return fail(`obstacles[${index}].max must be a 3-tuple.`);
-  const obstacle: Obstacle = { id: value.id, min: value.min, max: value.max };
   // Forgiving: anything but true reads as the impenetrable kind.
-  if (value.penetrable === true) obstacle.penetrable = true;
+  const obstacle: Obstacle = {
+    id: value.id,
+    min: value.min,
+    max: value.max,
+    ...(value.penetrable === true ? { penetrable: true } : {})
+  };
   return { ok: true, obstacle };
 }
 
@@ -226,7 +240,10 @@ function clonePart(part: Part): Part {
 }
 
 function cloneObstacle(obs: Obstacle): Obstacle {
-  const cloned: Obstacle = { id: obs.id, min: [...obs.min] as Vec3, max: [...obs.max] as Vec3 };
-  if (obs.penetrable) cloned.penetrable = true;
-  return cloned;
+  return {
+    id: obs.id,
+    min: [...obs.min] as Vec3,
+    max: [...obs.max] as Vec3,
+    ...(obs.penetrable ? { penetrable: true } : {})
+  };
 }

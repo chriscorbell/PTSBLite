@@ -26,12 +26,12 @@ describe("reconstructDesign", () => {
     expectGridMatchesDesign(result.design);
   });
 
-  it("copies parts and obstacles so later edits cannot reach back into the input", () => {
+  it("copies parts and their vectors instead of retaining input references", () => {
     const blower: BlowerPart = { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] };
     const result = rebuild([blower]);
     if (!result.ok) throw new Error("expected success");
-    (result.design.parts[0] as BlowerPart).cell[0] = 99;
-    expect(blower.cell).toEqual([0, 0, 0]);
+    expect(result.design.parts[0]).not.toBe(blower);
+    expect((result.design.parts[0] as BlowerPart).cell).not.toBe(blower.cell);
   });
 });
 
@@ -75,6 +75,13 @@ describe("reconstructDesign rejects parts it cannot represent", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.issues.map((i) => i.id)).toEqual(["a", "b"]);
+  });
+
+  it("rejects duplicate ids across the shared part and obstacle namespace", () => {
+    const result = rebuild([BLOWER], [{ id: "b1", min: [5, 0, 5], max: [5, 0, 5] }]);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues).toMatchObject([{ kind: "obstacle", id: "b1", reason: "duplicate-id" }]);
   });
 
   it("leaves no partial trace of a rejected part", () => {

@@ -1,4 +1,4 @@
-import { designFromScene } from "@/domain/design-state";
+import { removeObstacle, removePart, replacePart } from "@/domain/design-state";
 import type { DesignState, Obstacle, Part, TubePart, Vec3 } from "@/types";
 import { cellAt, cellCenter, dirOf, tubeCells, vAdd, vEq } from "@/domain/vec3";
 
@@ -46,16 +46,7 @@ function erasePartAtCell(design: DesignState, part: Part, cell: Vec3): EraseResu
 }
 
 function eraseWholePart(design: DesignState, part: Part): EraseResult {
-  return {
-    ok: true,
-    design: designFromScene(
-      {
-        parts: design.parts.filter((candidate) => candidate.id !== part.id),
-        obstacles: design.obstacles
-      },
-      design.metadata
-    )
-  };
+  return { ok: true, design: removePart(design, part.id) };
 }
 
 function tubeDirection(part: TubePart): Vec3 {
@@ -105,15 +96,7 @@ function eraseTubeCell(design: DesignState, part: TubePart, cell: Vec3): EraseRe
 
   return {
     ok: true,
-    design: designFromScene(
-      {
-        parts: design.parts.flatMap((candidate) =>
-          candidate.id === part.id ? replacementParts : [candidate]
-        ),
-        obstacles: design.obstacles
-      },
-      design.metadata
-    )
+    design: replacePart(design, part.id, replacementParts)
   };
 }
 
@@ -131,15 +114,6 @@ function obstacleContains(obstacle: Obstacle, cell: Vec3): boolean {
 function eraseObstacle(design: DesignState, obstacle: Obstacle): EraseResult {
   return {
     ok: true,
-    // Reconstruct rather than editing the grid by hand. A surviving obstacle
-    // may cover cells this one owned, and reconstruction assigns those cells
-    // again so the obstacle union remains blocked.
-    design: designFromScene(
-      {
-        parts: design.parts,
-        obstacles: design.obstacles.filter((candidate) => candidate.id !== obstacle.id)
-      },
-      design.metadata
-    )
+    design: removeObstacle(design, obstacle.id)
   };
 }

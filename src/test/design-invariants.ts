@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { obstacleCells, partCells } from "@/domain/design-reconstruction";
+import { obstacleCells, partCells } from "@/domain/occupant-footprints";
 import { cellKey } from "@/domain/vec3";
 import { validate } from "@/domain/validation";
 import type { DesignState, Warning } from "@/types";
@@ -20,15 +20,9 @@ import type { DesignState, Warning } from "@/types";
  *    marking space unavailable, so overlapping obstacles — and an obstacle over
  *    a part, which `validation.ts` flags rather than forbids — legitimately
  *    leave a cell owned by someone else. What matters is that it is spoken for.
- * 3. **No cell claims to belong to a part in this design unless that part's
- *    footprint contains it.** A cell still attributed to an erased or moved part
- *    is a leak in the other direction.
- *
- * Cells owned by an id that is *not* in the design are deliberately ignored.
- * Placement tests routinely seed the grid with opaque occupants — `"blocker"`,
- * `"riser"`, `"o1"` — to mean "something is in the way" without constructing a
- * whole part. That is legitimate scaffolding, and this assertion has no business
- * ruling on occupants the design does not claim.
+ * 3. **Every occupied grid cell belongs to an occupant in the design and lies
+ *    inside that occupant's footprint.** A cell still attributed to an erased
+ *    or moved occupant is a leak in the other direction.
  */
 export function expectGridMatchesDesign(design: DesignState): void {
   const { grid, parts, obstacles } = design;
@@ -49,6 +43,12 @@ export function expectGridMatchesDesign(design: DesignState): void {
   }
 
   for (const obstacle of obstacles) {
+    const keys = new Set(
+      obstacleCells(obstacle)
+        .filter((cell) => grid.withinBounds(cell))
+        .map(cellKey)
+    );
+    footprints.set(obstacle.id, obstacle.penetrable ? new Set() : keys);
     if (obstacle.penetrable) {
       // A penetrable obstacle's cells must NOT be attributed to it: claiming
       // them is exactly what would stop tubes routing through (ADR-0016).
@@ -71,10 +71,11 @@ export function expectGridMatchesDesign(design: DesignState): void {
 
   for (const [key, owner] of gridEntries(design)) {
     const footprint = footprints.get(owner);
-    if (!footprint) continue; // not a part of this design; see the note above
+    expect(footprint, `grid cell ${key} belongs to unknown occupant "${owner}"`).toBeDefined();
+    if (!footprint) continue;
     expect(
       footprint.has(key),
-      `grid cell ${key} is still attributed to part "${owner}", which no longer covers it`
+      `grid cell ${key} is still attributed to occupant "${owner}", which no longer covers it`
     ).toBe(true);
   }
 }

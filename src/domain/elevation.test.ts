@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validBendOrientations } from "@/domain/bend-placement";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { placeFreePart } from "@/domain/free-placement";
 import { placeObstacleVolume } from "@/domain/obstacle-placement";
 import { placeTube } from "@/domain/tube-placement";
@@ -37,9 +37,10 @@ describe("active build plane elevation", () => {
   });
 
   it("snaps tube placement to the source port's actual Y even when the hover cell is on a different plane", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 5, 0], dir: [1, 0, 0] }];
-    design.grid.place([0, 5, 0], "b1");
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [0, 5, 0], dir: [1, 0, 0] }],
+      obstacles: []
+    });
 
     const result = placeTube(design, {
       id: "t1",
@@ -55,9 +56,10 @@ describe("active build plane elevation", () => {
 
   it("enumerates vertical bend exits for a horizontal source port", () => {
     // Elevated so the downward exit has headroom above the ground plane.
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 5, 0], dir: [1, 0, 0] }];
-    design.grid.place([0, 5, 0], "b1");
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [0, 5, 0], dir: [1, 0, 0] }],
+      obstacles: []
+    });
 
     const outDirs = validBendOrientations(design, [1, 5, 0]).map((o) => o.outDir.join(","));
 

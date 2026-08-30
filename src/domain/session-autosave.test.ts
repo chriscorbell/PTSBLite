@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { serializeDesign } from "@/domain/design-file";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { isWorthKeeping, readStoredSession } from "@/domain/session-autosave";
 import { expectGridMatchesDesign } from "@/test/design-invariants";
 import type { DesignState, Part } from "@/types";
@@ -11,6 +11,10 @@ function stored(design: DesignState): string {
   return JSON.stringify(serializeDesign(design, "test"));
 }
 
+function designWithBlower(): DesignState {
+  return designFromScene({ parts: [blower], obstacles: [] });
+}
+
 describe("isWorthKeeping", () => {
   it("ignores the untouched design every visit starts from", () => {
     // Autosaving this would offer to restore nothing, and would overwrite real
@@ -19,12 +23,15 @@ describe("isWorthKeeping", () => {
   });
 
   it("keeps a design with a part", () => {
-    expect(isWorthKeeping({ ...emptyDesign(), parts: [blower] })).toBe(true);
+    expect(isWorthKeeping(designWithBlower())).toBe(true);
   });
 
   it("keeps a design with only an obstacle", () => {
-    const design = { ...emptyDesign(), obstacles: [{ id: "o", min: [0, 0, 0], max: [1, 1, 1] }] };
-    expect(isWorthKeeping(design as DesignState)).toBe(true);
+    const design = designFromScene({
+      parts: [],
+      obstacles: [{ id: "o", min: [0, 0, 0], max: [1, 1, 1] }]
+    });
+    expect(isWorthKeeping(design)).toBe(true);
   });
 
   it("keeps metadata-only work", () => {
@@ -34,8 +41,7 @@ describe("isWorthKeeping", () => {
     const renamed = emptyDesign({ room: { width: 24, depth: 24, height: 9 } });
     expect(isWorthKeeping(renamed)).toBe(true);
 
-    const resized = emptyDesign();
-    resized.metadata.room = { width: 80, depth: 40, height: 14 };
+    const resized = emptyDesign({ room: { width: 80, depth: 40, height: 14 } });
     expect(isWorthKeeping(resized)).toBe(true);
   });
 
@@ -51,7 +57,7 @@ describe("readStoredSession", () => {
   });
 
   it("restores a design that has work in it", () => {
-    const result = readStoredSession(stored({ ...emptyDesign(), parts: [blower] }));
+    const result = readStoredSession(stored(designWithBlower()));
     expect(result.status).toBe("restorable");
     if (result.status !== "restorable") return;
     expect(result.design.parts).toHaveLength(1);
@@ -61,7 +67,7 @@ describe("readStoredSession", () => {
     // The invariant AGENTS.md calls the second most likely thing to get wrong.
     // It holds here for free: restoring goes through `deserializeDesign`, which
     // runs `reconstructDesign` rather than trusting the payload.
-    const result = readStoredSession(stored({ ...emptyDesign(), parts: [blower] }));
+    const result = readStoredSession(stored(designWithBlower()));
     if (result.status !== "restorable") throw new Error("expected a restorable design");
     expectGridMatchesDesign(result.design);
   });
@@ -78,7 +84,7 @@ describe("readStoredSession", () => {
   it("reports a schema this build does not know as unreadable", () => {
     // A rollback, or a payload from a newer deployment. Neither is the
     // visitor's problem, and neither should be silently discarded.
-    const future = JSON.parse(stored({ ...emptyDesign(), parts: [blower] })) as {
+    const future = JSON.parse(stored(designWithBlower())) as {
       schemaVersion: string;
     };
     future.schemaVersion = "99";

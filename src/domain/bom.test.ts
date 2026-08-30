@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { bomRows, partLength, totalPathLength, tubeFeet } from "@/domain/parts";
 import type { DesignState, Part } from "@/types";
 
 function designWith(parts: Part[]): DesignState {
-  return { ...emptyDesign(), parts };
+  return designFromScene({ parts, obstacles: [] });
 }
 
 const sampleParts: Part[] = [
   { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
   { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
-  { id: "t2", type: "terminal", cell: [20, 0, 0], axis: [1, 0, 0] },
+  { id: "t2", type: "terminal", cell: [30, 0, 0], axis: [1, 0, 0] },
   { id: "st1", type: "tube", from: [2, 0.5, 0], to: [8, 0.5, 0] },
   { id: "st2", type: "tube", from: [8, 0.5, 0], to: [14, 0.5, 0] },
   { id: "st3", type: "tube", from: [14, 0.5, 0], to: [17, 0.5, 0] },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { partCells } from "@/domain/design-reconstruction";
-import { emptyDesign } from "@/domain/design-state";
+import { partCells } from "@/domain/occupant-footprints";
+import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { eraseAtCell } from "@/domain/erase-placement";
 import { FREE_PLACEMENT_MESSAGES, placeFreePart } from "@/domain/free-placement";
 import { FLOOR_SEPARATOR_FEET } from "@/domain/floors";
@@ -157,15 +157,20 @@ describe("the mast is drawn but not counted", () => {
 
 describe("the mast is solid", () => {
   it("is reported when it passes through an obstacle", () => {
-    const design = emptyDesign();
-    design.obstacles = [{ id: "o1", min: [0, 1, 0], max: [0, 1, 0] }];
-    // The obstacle is placed after the blower, which is a state the model
-    // allows and validation exists to report (ADR-0007).
-    const placed = placePedestalBlower(design, [0, 3, 0]);
+    const placed = placePedestalBlower(emptyDesign(), [0, 3, 0]);
     expect(placed.ok).toBe(true);
     if (!placed.ok) return;
+    // The obstacle is placed after the blower, which is a state the model
+    // allows and validation exists to report (ADR-0007).
+    const design = designFromScene(
+      {
+        parts: placed.design.parts,
+        obstacles: [{ id: "o1", min: [0, 1, 0], max: [0, 1, 0] }]
+      },
+      placed.design.metadata
+    );
 
-    const warnings = checkObstacleIntersections(placed.design);
+    const warnings = checkObstacleIntersections(design);
     expect(warnings).toHaveLength(1);
     expect(warnings[0].id).toBe("obstacle-intersection");
   });

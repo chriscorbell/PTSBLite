@@ -25,13 +25,17 @@ export function partLength(p: Part): number {
   }
 }
 
-export function totalPathLength(input: Part[] | DesignState): number {
-  const parts = Array.isArray(input) ? input : input.parts;
+function isDesignState(input: readonly Part[] | DesignState): input is DesignState {
+  return !Array.isArray(input);
+}
+
+export function totalPathLength(input: readonly Part[] | DesignState): number {
+  const parts = isDesignState(input) ? input.parts : input;
   return parts.reduce((a, p) => a + partLength(p), 0);
 }
 
-export function tubeFeet(input: Part[] | DesignState): number {
-  const parts = Array.isArray(input) ? input : input.parts;
+export function tubeFeet(input: readonly Part[] | DesignState): number {
+  const parts = isDesignState(input) ? input.parts : input;
   return parts
     .filter((p): p is Extract<Part, { type: "tube" }> => p.type === "tube")
     .reduce((a, p) => a + partLength(p), 0);
@@ -57,8 +61,8 @@ export type BomRow = {
  * A pure function of the parts, and of nothing else. Prices are not part of the
  * product or this model.
  */
-export function bomRows(input: Part[] | DesignState): BomRow[] {
-  const parts = Array.isArray(input) ? input : input.parts;
+export function bomRows(input: readonly Part[] | DesignState): BomRow[] {
+  const parts = isDesignState(input) ? input.parts : input;
   // The two blowers are separate catalog items, so they are separate rows. The
   // mast under a pedestal blower is not a row of its own and adds nothing to
   // the tube footage: it is how the unit is mounted, not part of the run (see

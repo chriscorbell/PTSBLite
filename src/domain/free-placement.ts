@@ -1,4 +1,5 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
+import { addPart } from "@/domain/design-state";
 import { pedestalCells, pedestalHeightAt } from "@/domain/pedestal";
 import { computeTopology } from "@/domain/topology";
 import type {
@@ -239,8 +240,6 @@ export function placeFreePart(
 ): PlaceFreePartResult {
   const validity = validateFreePlacementFootprint(design, type, cell);
   if (!validity.ok) return validity;
-  const footprint = freePlacementFootprint(type, cell, design.metadata);
-
   const part: Part =
     type === "terminal"
       ? { id, type, cell, axis: orientation }
@@ -253,19 +252,10 @@ export function placeFreePart(
             dir: orientation,
             pedestalFeet: pedestalHeightAt(design.metadata, cell)
           };
-  const grid = design.grid.clone();
-  for (const footprintCell of footprint) {
-    grid.place(footprintCell, id);
-  }
-
   return {
     ok: true,
     part,
-    design: {
-      ...design,
-      parts: [...design.parts, part],
-      grid
-    }
+    design: addPart(design, part)
   };
 }
 

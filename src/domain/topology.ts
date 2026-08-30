@@ -190,7 +190,7 @@ export class Topology {
   private _connected = new Set<string>();
   private _runByPart = new Map<string, string>();
 
-  constructor(items: Array<Part | Port> = [], registry: PartRegistry = partRegistry) {
+  constructor(items: readonly (Part | Port)[] = [], registry: PartRegistry = partRegistry) {
     this.registry = registry;
     for (const item of items) {
       if (isPart(item)) {

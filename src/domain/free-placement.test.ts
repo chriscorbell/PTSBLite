@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene, emptyDesign } from "@/domain/design-state";
 import {
   DEFAULT_FREE_PLACEMENT_MEMORY,
   freePlacementGhost,
@@ -14,10 +14,10 @@ import type { DesignState, Vec3 } from "@/types";
 import { expectGridMatchesDesign } from "@/test/design-invariants";
 
 function withObstacle(cell: Vec3): DesignState {
-  const design = emptyDesign();
-  design.obstacles = [{ id: "o1", min: cell, max: cell }];
-  design.grid.place(cell, "o1");
-  return design;
+  return designFromScene({
+    parts: [],
+    obstacles: [{ id: "o1", min: cell, max: cell }]
+  });
 }
 
 describe("free placement orientation", () => {
@@ -90,9 +90,10 @@ describe("free placement orientation", () => {
   });
 
   it("auto-snaps to an adjacent open port when that orientation connects cleanly", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([0, 0, 0], "b1");
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }],
+      obstacles: []
+    });
     const memory = rememberFreePlacementOrientation(
       DEFAULT_FREE_PLACEMENT_MEMORY,
       "terminal",
@@ -185,9 +186,10 @@ describe("free placement commits", () => {
   });
 
   it("commits Terminal 2 using the same free-placement grid rules", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "t1", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] }];
-    design.grid.place([0, 0, 0], "t1");
+    const design = designFromScene({
+      parts: [{ id: "t1", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] }],
+      obstacles: []
+    });
 
     const result = placeFreePart(design, {
       id: "t2",
@@ -209,9 +211,10 @@ describe("free placement commits", () => {
   });
 
   it("rejects occupied, out-of-bounds, and obstacle cells with corrective messages", () => {
-    const occupied = emptyDesign();
-    occupied.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
-    occupied.grid.place([0, 0, 0], "b1");
+    const occupied = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }],
+      obstacles: []
+    });
 
     expect(
       placeFreePart(occupied, {

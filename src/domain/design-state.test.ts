@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { designFromScene, emptyDesign, newOccupantId } from "@/domain/design-state";
-import { bendFootprint } from "@/domain/bend-placement";
+import {
+  addObstacle,
+  addPart,
+  designFromScene,
+  emptyDesign,
+  newOccupantId
+} from "@/domain/design-state";
+import { bendFootprint } from "@/domain/occupant-footprints";
 import { DEFAULT_ROOM, SparseGrid } from "@/domain/sparse-grid";
 import type { BendPart, Scene } from "@/types";
 
@@ -40,14 +46,63 @@ describe("DesignState", () => {
       obstacles: []
     };
     const d = designFromScene(scene);
-    d.parts.push({ id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] });
+    const edited = addPart(d, {
+      id: "t1",
+      type: "terminal",
+      cell: [1, 0, 0],
+      axis: [1, 0, 0]
+    });
     expect(scene.parts).toHaveLength(1);
+    expect(d.parts).toHaveLength(1);
+    expect(edited.parts).toHaveLength(2);
   });
 
   it("designFromScene applies metadata overrides", () => {
     const scene: Scene = { parts: [], obstacles: [] };
     const d = designFromScene(scene, { room: { width: 24, depth: 24, height: 9 } });
     expect(d.metadata.room).toEqual({ width: 24, depth: 24, height: 9 });
+  });
+});
+
+describe("DesignState changes", () => {
+  it("adds a part and its footprint without changing the previous design", () => {
+    const before = emptyDesign();
+    const after = addPart(before, {
+      id: "b1",
+      type: "blower",
+      cell: [2, 0, 3],
+      dir: [1, 0, 0]
+    });
+
+    expect(before.parts).toEqual([]);
+    expect(before.grid.query([2, 0, 3])).toBeUndefined();
+    expect(after.parts.map((part) => part.id)).toEqual(["b1"]);
+    expect(after.grid.query([2, 0, 3])).toBe("b1");
+  });
+
+  it("adds a penetrable obstacle without claiming grid cells", () => {
+    const after = addObstacle(emptyDesign(), {
+      id: "o1",
+      min: [2, 0, 3],
+      max: [4, 2, 5],
+      penetrable: true
+    });
+
+    expect(after.obstacles.map((obstacle) => obstacle.id)).toEqual(["o1"]);
+    expect(after.grid.query([3, 1, 4])).toBeUndefined();
+  });
+
+  it("rejects ids already used by another occupant kind", () => {
+    const design = addPart(emptyDesign(), {
+      id: "shared",
+      type: "blower",
+      cell: [0, 0, 0],
+      dir: [1, 0, 0]
+    });
+
+    expect(() => addObstacle(design, { id: "shared", min: [5, 0, 5], max: [5, 0, 5] })).toThrow(
+      'already contains occupant "shared"'
+    );
   });
 });
 

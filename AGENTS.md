@@ -42,11 +42,14 @@ User-facing copy must interpolate engineering constants rather than restating th
 `unitPrice`, and the UI tests assert no money reaches the screen. The application exports a BOM,
 never a quote. See [ADR-0011](docs/adr/0011-lite-has-no-commercial-data-path.md).
 
-**3. `parts` and `obstacles` must agree with `grid`.** `reconstructDesign` is the checked path that
-rebuilds all three together. Call `expectGridMatchesDesign` after operations that add or remove an
-occupant. Parts are strict; impenetrable obstacles union, clip to the build area, and may overlap
-a part so validation can report it. Penetrable obstacles claim no grid cells at all — that is what
-lets tubes route through them (ADR-0016).
+**3. `parts` and `obstacles` must agree with `grid`.** `design-state.ts` is the write boundary. Use
+`addPart`, `addObstacle`, `replacePart`, `removePart`, or `removeObstacle` for one change, and
+`designFromScene` or `reconstructDesign` when rebuilding a whole design. `DesignState` exposes
+read-only lists and a read-only grid; do not cast around that boundary. Call
+`expectGridMatchesDesign` after operations that add or remove an occupant. Parts are strict;
+impenetrable obstacles union, clip to the build area, and may overlap a part so validation can
+report it. Penetrable obstacles claim no grid cells at all. That is what lets tubes route through
+them (ADR-0016).
 
 ## Layout
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bendFootprint } from "@/domain/bend-placement";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene } from "@/domain/design-state";
 import { computeTopology } from "@/domain/topology";
 import {
   TUBE_BLOCKED_MESSAGE,
@@ -9,18 +8,19 @@ import {
   tubeLandingCells,
   tubePlacementGhost
 } from "@/domain/tube-placement";
-import type { BendPart } from "@/types";
+import type { BendPart, Obstacle, Part } from "@/types";
 import { expectGridMatchesDesign } from "@/test/design-invariants";
+
+function designWith(parts: Part[], obstacles: Obstacle[] = []) {
+  return designFromScene({ parts, obstacles });
+}
 
 describe("Straight tube snap placement", () => {
   it("computes landing cells adjacent to every open port", () => {
-    const design = emptyDesign();
-    design.parts = [
+    const design = designWith([
       { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
       { id: "t2", type: "terminal", cell: [10, 0, 0], axis: [1, 0, 0] }
-    ];
-    design.grid.place([0, 0, 0], "b1");
-    design.grid.place([10, 0, 0], "t2");
+    ]);
 
     expect(tubeLandingCells(design)).toEqual([
       [1, 0, 0],
@@ -30,9 +30,7 @@ describe("Straight tube snap placement", () => {
   });
 
   it("snaps the ghost to the open port direction for a highlighted landing cell", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([0, 0, 0], "b1");
+    const design = designWith([{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }]);
 
     expect(tubePlacementGhost(design, [1, 0, 0])).toEqual({
       type: "tube",
@@ -52,11 +50,7 @@ describe("Straight tube snap placement", () => {
       outDir: [0, 0, 1],
       radius: 3
     };
-    const design = emptyDesign();
-    design.parts = [bend];
-    for (const cell of bendFootprint(bend)) {
-      design.grid.place(cell, bend.id);
-    }
+    const design = designWith([bend]);
 
     expect(tubePlacementGhost(design, [4, 0, 4], { sourcePartId: "bn1" })).toEqual({
       type: "tube",
@@ -66,9 +60,7 @@ describe("Straight tube snap placement", () => {
   });
 
   it("commits a 6-cell tube and registers the near connected port plus far open port", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([0, 0, 0], "b1");
+    const design = designWith([{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }]);
 
     const result = placeTube(design, { id: "st1", cell: [1, 0, 0] });
 
@@ -91,9 +83,7 @@ describe("Straight tube snap placement", () => {
   });
 
   it("truncates downward vertical tubes at the ground plane", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 3, 0], dir: [0, -1, 0] }];
-    design.grid.place([0, 3, 0], "b1");
+    const design = designWith([{ id: "b1", type: "blower", cell: [0, 3, 0], dir: [0, -1, 0] }]);
 
     expect(tubePlacementGhost(design, [0, 2, 0])).toEqual({
       type: "tube",
@@ -120,9 +110,7 @@ describe("Straight tube snap placement", () => {
   });
 
   it("rejects non-landing cells with the PRD corrective message and no ghost", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([0, 0, 0], "b1");
+    const design = designWith([{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }]);
 
     expect(tubePlacementGhost(design, [3, 0, 0])).toBeNull();
     expect(placeTube(design, { id: "st1", cell: [3, 0, 0] })).toEqual({
@@ -132,13 +120,10 @@ describe("Straight tube snap placement", () => {
   });
 
   it("uses the clicked source part to resolve a multi-candidate landing cell", () => {
-    const design = emptyDesign();
-    design.parts = [
+    const design = designWith([
       { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
       { id: "b2", type: "blower", cell: [1, 0, 1], dir: [0, 0, -1] }
-    ];
-    design.grid.place([0, 0, 0], "b1");
-    design.grid.place([1, 0, 1], "b2");
+    ]);
 
     expect(tubePlacementGhost(design, [1, 0, 0])).toBeNull();
     expect(tubePlacementGhost(design, [1, 0, 0], { sourcePartId: "b2" })).toEqual({
@@ -161,10 +146,10 @@ describe("Straight tube snap placement", () => {
 
 describe("Straight tube partial placement", () => {
   it("places as many segments as fit when an obstacle blocks the path", () => {
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([0, 0, 0], "b1");
-    design.grid.place([4, 0, 0], "o1"); // obstacle cell three steps down the run
+    const design = designWith(
+      [{ id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] }],
+      [{ id: "o1", min: [4, 0, 0], max: [4, 0, 0] }]
+    );
 
     // Ghost previews the truncated run (cells 1..3) up to the obstacle.
     expect(tubePlacementGhost(design, [1, 0, 0])).toEqual({
@@ -186,9 +171,7 @@ describe("Straight tube partial placement", () => {
   it("places as many segments as fit before the build-area edge", () => {
     // The build area is fixed at 300 ft: X spans [-150, 150), so a blower at
     // 145 leaves exactly cells 146..149 before the edge.
-    const design = emptyDesign();
-    design.parts = [{ id: "b1", type: "blower", cell: [145, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([145, 0, 0], "b1");
+    const design = designWith([{ id: "b1", type: "blower", cell: [145, 0, 0], dir: [1, 0, 0] }]);
 
     const result = placeTube(design, { id: "st1", cell: [146, 0, 0] });
     expect(result.ok).toBe(true);
@@ -199,13 +182,10 @@ describe("Straight tube partial placement", () => {
   });
 
   it("places as many segments as fit before an existing part", () => {
-    const design = emptyDesign();
-    design.parts = [
+    const design = designWith([
       { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
       { id: "t2", type: "terminal", cell: [3, 0, 0], axis: [1, 0, 0] }
-    ];
-    design.grid.place([0, 0, 0], "b1");
-    design.grid.place([3, 0, 0], "t2");
+    ]);
 
     const result = placeTube(design, { id: "st1", cell: [1, 0, 0] });
     expect(result.ok).toBe(true);
@@ -216,10 +196,8 @@ describe("Straight tube partial placement", () => {
   });
 
   it("reports blocked when not even one segment fits", () => {
-    const design = emptyDesign();
     // Blower at the +X edge facing out: its only port is already out of bounds.
-    design.parts = [{ id: "b1", type: "blower", cell: [149, 0, 0], dir: [1, 0, 0] }];
-    design.grid.place([149, 0, 0], "b1");
+    const design = designWith([{ id: "b1", type: "blower", cell: [149, 0, 0], dir: [1, 0, 0] }]);
 
     expect(placeTube(design, { id: "st1", cell: [150, 0, 0] })).toEqual({
       ok: false,

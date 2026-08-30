@@ -3,7 +3,7 @@ import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "@/App";
 import { serializeDesign } from "@/domain/design-file";
-import { emptyDesign } from "@/domain/design-state";
+import { designFromScene, emptyDesign } from "@/domain/design-state";
 import { webPlatform } from "@/platform/web";
 import { ROOM_LIMITS } from "@/domain/sparse-grid";
 import type { Part } from "@/types";
@@ -26,7 +26,9 @@ afterEach(() => {
 
 function storedDesign(): string {
   const blower: Part = { id: "b", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] };
-  return JSON.stringify(serializeDesign({ ...emptyDesign(), parts: [blower] }, "test"));
+  return JSON.stringify(
+    serializeDesign(designFromScene({ parts: [blower], obstacles: [] }), "test")
+  );
 }
 
 async function renderApp() {
