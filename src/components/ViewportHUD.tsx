@@ -4,8 +4,7 @@ import {
   type ObstacleKind,
   type ObstaclePlacementDraft
 } from "@/domain/obstacle-placement";
-import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
-import type { BuildArea, Scene, ToolId } from "@/types";
+import type { Scene, ToolId } from "@/types";
 import "@/components/ViewportHUD.css";
 
 export type ViewportHUDProps = {
@@ -20,9 +19,8 @@ export type ViewportHUDProps = {
   obstacleKind: ObstacleKind;
   onObstacleKindChange: (kind: ObstacleKind) => void;
   obstacleDraft: ObstaclePlacementDraft | null;
-  /** Bounds the base/height steppers, so they cannot offer a rejected value. */
-  buildArea: BuildArea;
-  onObstacleBaseYChange: (y: number) => void;
+  /** Bounds the height stepper, so it cannot offer a value the domain rejects. */
+  obstacleMaxHeight: number;
   onObstacleHeightChange: (height: number) => void;
   onObstacleConfirm: () => void;
   onObstacleCancel: () => void;
@@ -37,16 +35,15 @@ export function ViewportHUD({
   obstacleKind,
   onObstacleKindChange,
   obstacleDraft,
-  buildArea,
-  onObstacleBaseYChange,
+  obstacleMaxHeight,
   onObstacleHeightChange,
   onObstacleConfirm,
   onObstacleCancel
 }: ViewportHUDProps) {
   const obstacleReady = obstaclePlacementDraftHasFootprint(obstacleDraft);
-  // The domain clamps these too; disabling here is what stops the control
+  // The domain clamps this too; disabling here is what stops the control
   // advertising a value it would then silently refuse.
-  const atCeiling = obstacleReady && obstacleDraft.baseY + obstacleDraft.height >= buildArea.height;
+  const atCeiling = obstacleReady && obstacleDraft.height >= obstacleMaxHeight;
   return (
     <div className="hud nosel">
       {tool === "obstacle" && (
@@ -88,14 +85,8 @@ export function ViewportHUD({
       {obstacleReady && (
         <div className="hud__obstacle-controls">
           <Icons.Obstacle size={12} className="hud__obstacle-icon" />
-          <ObstacleStepper
-            label="Base"
-            value={`Y=${obstacleDraft.baseY}ft`}
-            onDecrement={() => onObstacleBaseYChange(obstacleDraft.baseY - 1)}
-            onIncrement={() => onObstacleBaseYChange(obstacleDraft.baseY + 1)}
-            disableDecrement={obstacleDraft.baseY <= GROUND_PLANE_Y}
-            disableIncrement={atCeiling}
-          />
+          {/* Height only: an obstacle stands on the floor of the storey it was
+              drawn on, so there is no base to set. */}
           <ObstacleStepper
             label="Height"
             value={`${obstacleDraft.height}ft`}

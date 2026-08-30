@@ -28,7 +28,12 @@ import {
   plenumBands
 } from "@/domain/floors";
 import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
-import { restOnObstacles, type ObstacleKind } from "@/domain/obstacle-placement";
+import {
+  obstacleBaseElevation,
+  obstacleHeightLimit,
+  restOnObstacles,
+  type ObstacleKind
+} from "@/domain/obstacle-placement";
 import {
   attemptPlacement,
   commitObstacleDraft,
@@ -368,19 +373,23 @@ export default function App({ platform }: AppProps) {
     dispatchPlacement({ type: "set-obstacle-kind", kind });
   }, []);
 
-  const setObstacleBaseY = useCallback(
-    (baseY: number) => {
-      dispatchPlacement({ type: "set-obstacle-base", baseY, buildArea });
-    },
-    [buildArea]
-  );
-
   const setObstacleHeight = useCallback(
     (height: number) => {
-      dispatchPlacement({ type: "set-obstacle-height", height, buildArea });
+      dispatchPlacement({
+        type: "set-obstacle-height",
+        height,
+        metadata: design.metadata,
+        buildArea
+      });
     },
-    [buildArea]
+    [buildArea, design.metadata]
   );
+
+  // What the stepper may offer: the ceiling of the storey the draft stands on
+  // inside the room, the build area outside it.
+  const obstacleMaxHeight = obstacleDraft
+    ? obstacleHeightLimit(obstacleDraft, design.metadata, buildArea)
+    : 1;
 
   /**
    * Where the pointer's cell actually lands. A blower or terminal aimed at an
@@ -598,8 +607,14 @@ export default function App({ platform }: AppProps) {
   // What the armed part would be placed at. Read off the ghost itself, not the
   // placement plane: a part resting on an obstacle sits above the plane, and an
   // obstacle draft carries a base and height of its own that the plane knows
-  // nothing about.
-  const armedElevation = ghostState ? ghostElevation(ghostState) : activeElevation;
+  // nothing about. Before an obstacle draft exists there is no ghost to read,
+  // and the plane is the wrong answer too — the volume will stand on the floor
+  // of the storey, whatever height the plane was nudged to.
+  const armedElevation = ghostState
+    ? ghostElevation(ghostState)
+    : tool === "obstacle"
+      ? obstacleBaseElevation(design.metadata, activeElevation)
+      : activeElevation;
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
   // Heights are labelled only while a placement tool is armed: they answer the
@@ -684,8 +699,7 @@ export default function App({ platform }: AppProps) {
             autoBuilding={autoBuilding}
             errorFlash={errorFlash ?? autosaveError ?? exportError}
             obstacleDraft={obstacleDraft}
-            buildArea={buildArea}
-            onObstacleBaseYChange={setObstacleBaseY}
+            obstacleMaxHeight={obstacleMaxHeight}
             onObstacleHeightChange={setObstacleHeight}
             onObstacleConfirm={commitObstacle}
             onObstacleCancel={cancelObstacleDraft}

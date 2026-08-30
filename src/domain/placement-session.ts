@@ -13,7 +13,7 @@ import {
 } from "@/domain/free-placement";
 import {
   cancelObstaclePlacement,
-  moveObstaclePlacementBase,
+  obstacleBaseElevation,
   obstaclePlacementDraftBounds,
   obstaclePlacementDraftHasFootprint,
   obstaclePlacementGhost,
@@ -26,7 +26,7 @@ import {
 } from "@/domain/obstacle-placement";
 import { clampElevation } from "@/domain/sparse-grid";
 import { placeTube, tubeLandingCells, tubePlacementGhost } from "@/domain/tube-placement";
-import type { BuildArea, DesignState, Ghost, ToolId, Vec3 } from "@/types";
+import type { BuildArea, DesignMetadata, DesignState, Ghost, ToolId, Vec3 } from "@/types";
 
 /**
  * Everything about a placement in progress: which tool is armed, where the
@@ -76,9 +76,13 @@ export type PlacementAction =
   | { type: "nudge-elevation"; delta: number; buildArea: BuildArea }
   /** Jump the placement plane, e.g. the floor selector picking a floor's base. */
   | { type: "set-elevation"; elevation: number; buildArea: BuildArea }
-  /** The build area changed: re-derive what no longer fits inside it. */
-  | { type: "set-obstacle-base"; baseY: number; buildArea: BuildArea }
-  | { type: "set-obstacle-height"; height: number; buildArea: BuildArea }
+  /** Grow or shrink the obstacle draft, within whatever it has above it. */
+  | {
+      type: "set-obstacle-height";
+      height: number;
+      metadata: DesignMetadata;
+      buildArea: BuildArea;
+    }
   | { type: "cancel-obstacle-draft" }
   /** Switch what the obstacle tool draws. An in-flight draft keeps its shape. */
   | { type: "set-obstacle-kind"; kind: ObstacleKind }
@@ -152,19 +156,16 @@ export function placementSessionReducer(
     case "set-elevation":
       return withElevation(session, clampElevation(action.elevation, action.buildArea));
 
-    case "set-obstacle-base":
-      return {
-        ...session,
-        obstacleDraft: session.obstacleDraft
-          ? moveObstaclePlacementBase(session.obstacleDraft, action.baseY, action.buildArea)
-          : session.obstacleDraft
-      };
-
     case "set-obstacle-height":
       return {
         ...session,
         obstacleDraft: session.obstacleDraft
-          ? resizeObstaclePlacementHeight(session.obstacleDraft, action.height, action.buildArea)
+          ? resizeObstaclePlacementHeight(
+              session.obstacleDraft,
+              action.height,
+              action.metadata,
+              action.buildArea
+            )
           : session.obstacleDraft
       };
 
@@ -379,11 +380,13 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
  *
  * For the tools that place a part, these are the legal targets, worked out
  * from the design and standing still under the pointer. The obstacle tool has
- * no such set — it draws on the placement plane, so every cell inside the
- * build area is a legal corner — and it highlights the one cell under the
- * cursor instead, which is the only thing there is to say about where a click
- * would land. Out-of-bounds cells stay unlit: the hover plane extends well
- * past the build area, and there is no grid out there to point at.
+ * no such set — every cell inside the build area is a legal corner — and it
+ * highlights the one cell under the cursor instead, which is the only thing
+ * there is to say about where a click would land. That cell is on the floor of
+ * the active storey rather than on the placement plane, because that is where
+ * the volume itself will be drawn. Out-of-bounds cells stay unlit: the hover
+ * plane extends well past the build area, and there is no grid out there to
+ * point at.
  */
 export function placementLandingCells(session: PlacementSession, design: DesignState): Vec3[] {
   switch (session.tool) {
@@ -394,10 +397,11 @@ export function placementLandingCells(session: PlacementSession, design: DesignS
       return tubeLandingCells(design);
     case "bend":
       return bendLandingCells(design);
-    case "obstacle":
-      return session.hoverCell && design.grid.withinBounds(session.hoverCell)
-        ? [session.hoverCell]
-        : [];
+    case "obstacle": {
+      const cell = session.hoverCell;
+      if (!cell || !design.grid.withinBounds(cell)) return [];
+      return [[cell[0], obstacleBaseElevation(design.metadata, cell[1]), cell[2]]];
+    }
     default:
       return [];
   }

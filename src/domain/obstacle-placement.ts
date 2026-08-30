@@ -1,5 +1,11 @@
-import { clampElevation, GROUND_PLANE_Y } from "@/domain/sparse-grid";
-import type { BuildArea, DesignState, Ghost, Vec3 } from "@/types";
+import {
+  floorAtElevation,
+  floorBaseElevation,
+  overlapsRoomFootprint,
+  roomRect
+} from "@/domain/floors";
+import { clampElevation } from "@/domain/sparse-grid";
+import type { BuildArea, DesignMetadata, DesignState, Ghost, Vec3 } from "@/types";
 
 /**
  * Which kind of volume the obstacle tool draws. Impenetrable obstacles claim
@@ -34,12 +40,23 @@ export function startObstaclePlacement(
   if (!design.grid.withinBounds(cornerA)) {
     return { ok: false, message: OBSTACLE_PLACEMENT_MESSAGES.outOfBounds };
   }
+  // An obstacle has a height, not an elevation: it stands on the floor of the
+  // storey being worked on however high the placement plane has been nudged.
+  // The draft used to start at the plane and carry a base stepper of its own,
+  // which meant a shelf's marker read as its underside and the visitor had two
+  // numbers to set where the real object has one.
+  const anchor: Vec3 = [cornerA[0], obstacleBaseElevation(design.metadata, cornerA[1]), cornerA[2]];
   // A penetrable volume may legitimately be drawn through existing parts, so
   // only the impenetrable kind cares whether the corner cell is taken.
-  if (kind === "impenetrable" && design.grid.query(cornerA)) {
+  if (kind === "impenetrable" && design.grid.query(anchor)) {
     return { ok: false, message: OBSTACLE_PLACEMENT_MESSAGES.occupied };
   }
-  return { ok: true, draft: { cornerA } };
+  return { ok: true, draft: { cornerA: anchor } };
+}
+
+/** The floor an obstacle drawn while the plane is at `elevation` rests on. */
+export function obstacleBaseElevation(metadata: DesignMetadata, elevation: number): number {
+  return floorBaseElevation(metadata, floorAtElevation(metadata, elevation));
 }
 
 export function cancelObstaclePlacement(_draft: ObstaclePlacementDraft | null): null {
@@ -64,21 +81,53 @@ export function obstaclePlacementDraftHasFootprint(
   return !!draft?.cornerB && typeof draft.baseY === "number" && typeof draft.height === "number";
 }
 
+/**
+ * Close the footprint on the second click. Both corners sit on the floor the
+ * first one anchored to, so the volume starts one foot tall and grows upward
+ * from the HUD.
+ */
 export function setObstaclePlacementFootprint(
   draft: ObstaclePlacementDraft,
   cornerB: Vec3
 ): ObstaclePlacementDraft {
-  const { min, max } = obstacleVolumeBounds(draft.cornerA, cornerB);
+  const baseY = draft.cornerA[1];
   return {
-    cornerA: [draft.cornerA[0], min[1], draft.cornerA[2]],
-    cornerB: [cornerB[0], min[1], cornerB[2]],
-    baseY: min[1],
-    height: max[1] - min[1] + 1
+    cornerA: draft.cornerA,
+    cornerB: [cornerB[0], baseY, cornerB[2]],
+    baseY,
+    height: 1
   };
 }
 
 /**
- * Resize a draft, keeping it inside the design's build area.
+ * How tall a draft may grow.
+ *
+ * Inside the room, the ceiling of the storey it stands on: an obstacle drawn in
+ * a 12 ft room stops at 12 ft rather than carrying on through the ceiling into
+ * the space above. Outside the room there is no ceiling to stop at, so the
+ * build area is the only limit. A footprint straddling a wall counts as inside,
+ * since part of it would otherwise come through the ceiling.
+ */
+export function obstacleHeightLimit(
+  draft: ObstaclePlacementDraft,
+  metadata: DesignMetadata,
+  area: BuildArea
+): number {
+  const baseY = draft.baseY ?? draft.cornerA[1];
+  const { min, max } = obstaclePlacementDraftBounds(draft);
+  const ceiling = overlapsRoomFootprint(roomRect(metadata), min, max)
+    ? Math.min(area.height, storeyCeilingY(metadata, baseY))
+    : area.height;
+  return Math.max(1, ceiling - baseY);
+}
+
+/** Where the storey at `elevation` stops: its own floor plus the room's height. */
+function storeyCeilingY(metadata: DesignMetadata, elevation: number): number {
+  return obstacleBaseElevation(metadata, elevation) + metadata.room.height;
+}
+
+/**
+ * Resize a draft, keeping it under whatever it has above it.
  *
  * The clamp lives here rather than in the HUD because the HUD used a hardcoded
  * 150 ft ceiling that the domain neither knew about nor agreed with: a design
@@ -88,27 +137,14 @@ export function setObstaclePlacementFootprint(
 export function resizeObstaclePlacementHeight(
   draft: ObstaclePlacementDraft,
   height: number,
+  metadata: DesignMetadata,
   area: BuildArea
 ): ObstaclePlacementDraft {
   if (!obstaclePlacementDraftHasFootprint(draft)) return draft;
-  const maxHeight = Math.max(1, area.height - draft.baseY);
+  const limit = obstacleHeightLimit(draft, metadata, area);
   return {
     ...draft,
-    height: Math.min(maxHeight, Math.max(1, Math.floor(height)))
-  };
-}
-
-/** Move a draft's floor, keeping the whole volume inside the build area. */
-export function moveObstaclePlacementBase(
-  draft: ObstaclePlacementDraft,
-  baseY: number,
-  area: BuildArea
-): ObstaclePlacementDraft {
-  if (!obstaclePlacementDraftHasFootprint(draft)) return draft;
-  const maxBase = Math.max(GROUND_PLANE_Y, area.height - draft.height);
-  return {
-    ...draft,
-    baseY: Math.min(maxBase, clampElevation(baseY, area))
+    height: Math.min(limit, Math.max(1, Math.floor(height)))
   };
 }
 
@@ -118,7 +154,10 @@ export function obstaclePlacementDraftBounds(
 ): { min: Vec3; max: Vec3 } {
   if (!obstaclePlacementDraftHasFootprint(draft)) {
     if (!currentCell) return obstacleVolumeBounds(draft.cornerA, draft.cornerA);
-    return obstacleVolumeBounds(draft.cornerA, currentCell);
+    // The drag draws on the floor the first corner anchored to; where the
+    // pointer's own plane happens to be does not stretch the preview upward.
+    const opposite: Vec3 = [currentCell[0], draft.cornerA[1], currentCell[2]];
+    return obstacleVolumeBounds(draft.cornerA, opposite);
   }
   const cornerB = draft.cornerB;
   return {
