@@ -150,7 +150,9 @@ port.
 
 ## Architecture
 
-Layers separated by kind, not by subject:
+Layers separated by kind, not by subject. The import rules below are enforced by
+`no-restricted-imports` blocks in `eslint.config.js`, so a violation fails `pnpm run check` rather
+than waiting for review:
 
 - `src/domain/` — pure logic: geometry, placement rules, topology, routing, validation, design
   serialization, and the autosaved session. No React, no Three.js. This is where most tests live.

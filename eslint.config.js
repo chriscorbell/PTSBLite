@@ -44,6 +44,61 @@ export default tseslint.config(
     }
   },
 
+  // The layering CONTEXT.md describes, enforced rather than remembered. Each
+  // layer names what it must never import; everything else is open.
+  {
+    files: ["src/domain/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["react", "react-dom", "react/*", "three", "three/*"],
+              message: "src/domain is pure logic: no React, no Three.js (CONTEXT.md)."
+            },
+            {
+              group: ["@/renderer/*", "@/components/*", "@/platform/*", "@/App"],
+              message: "src/domain must not depend on the layers built on top of it."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: ["src/components/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["three", "three/*"],
+              message: "Three.js lives in src/renderer; components stay plain React."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: ["src/renderer/**", "src/platform/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/components/*", "@/App"],
+              message: "The renderer and platform layers must not reach into the React UI."
+            }
+          ]
+        }
+      ]
+    }
+  },
+
   // Build config runs in Node.
   {
     files: ["*.config.ts", "*.config.js"],
