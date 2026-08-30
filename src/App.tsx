@@ -509,7 +509,8 @@ export default function App({ platform }: AppProps) {
       lengthFeet: totalPathLength(result.parts),
       bends: result.parts.filter((part) => part.type === "bend").length,
       obstacles: design.obstacles.filter((obstacle) => !obstacle.penetrable).length,
-      unrouted: result.unroutedPairs.length
+      unrouted: result.unroutedPairs.length,
+      runBand: result.runBand
     });
     setAutoBuildJustRan(true);
     selectTool("cursor");

@@ -110,8 +110,14 @@ like an obstacle.
 occupying the top of each of the room's floors (directly under the separator slab on floor 1) and
 spanning the room's footprint — outside the room there is no drop ceiling to be above. The declared
 per-floor height includes it. Drawn as a tinted band via `plenumBands`, and fully buildable — it
-restricts nothing. Auto-Build prefers carrying horizontal runs and bends inside it, and gives no
-such credit outside the room.
+restricts nothing. Auto-Build carries horizontal runs and bends inside it whenever there is one,
+and gives no such credit outside the room.
+
+**Run band** — where Auto-Build carries a horizontal run: the plenum when the design has one, and
+otherwise the foot below the ceiling of a room 12 ft or lower, or below a 12 ft "ghost" ceiling in
+a taller one (`runBandVolume`, ADR-0023). One band per floor, spanning the room's footprint. The
+room's height does not vote: a riser is priced as a tie-breaker, so no climb the build area can
+hold outweighs a foot of banded run.
 
 **Ground plane** — `Y = 0`. Nothing may occupy a cell below it.
 
@@ -137,8 +143,8 @@ perspective alone cannot. Quieter than a landing cell and outlined rather than f
 landing cell is somewhere you may click and this only reports where something already is.
 
 **Auto-Build** — the routing pass that connects open port pairs automatically. One behavior, no
-modes: shortest path with a per-bend penalty, plus a soft preference for carrying horizontal runs
-and bends in the plenum when the design has one.
+modes: shortest path with a per-bend penalty, plus carrying horizontal runs and bends in the run
+band.
 
 **BOM** — bill of materials: catalog rows with quantities derived from the design. **Stock tube** is
 the count of 6 ft sections to purchase (`ceil(total tube feet / 6)`), distinct from the tube *parts*
