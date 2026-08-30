@@ -379,13 +379,34 @@ describe("how big a height marker draws", () => {
     expect(pixels(120)).toBeCloseTo(pixels(60) / 2, 4);
   });
 
-  it("frames the default room's opening view with a readable marker", () => {
+  it("still draws a marker at the default opening, small as it is", () => {
+    // The client traded legibility here away for smaller markers — "that's
+    // what zoom is for" — so this no longer asks for a readable 11 px. What it
+    // does hold is that shrinking them did not make them vanish from the view
+    // every design opens on.
     const opening = openingCameraDistance(DEFAULT_ROOM);
     expect(heightMarkerScale(opening, VIEWPORT).visible).toBe(true);
-    expect(pixels(opening)).toBeGreaterThan(11);
+    expect(pixels(opening)).toBeLessThan(11);
   });
 
-  it("stops drawing once a marker would be too small to read", () => {
+  it("keeps a marker smaller than the cell it labels", () => {
+    // The complaint that started this: markers were bigger than some parts. A
+    // part is one 1 ft cell, so beyond the near clamp a marker must be under a
+    // cell tall at every distance it is drawn at.
+    for (const distance of [40, 80, openingCameraDistance(DEFAULT_ROOM), 140]) {
+      expect(heightMarkerScale(distance, VIEWPORT).feet).toBeLessThan(1);
+    }
+  });
+
+  it("keeps markers through a good pull-back past the opening view", () => {
+    // Dropping the legibility floor with the size would have swapped one
+    // complaint for another: markers disappearing the moment you zoom out.
+    expect(heightMarkerScale(openingCameraDistance(DEFAULT_ROOM) * 1.4, VIEWPORT).visible).toBe(
+      true
+    );
+  });
+
+  it("stops drawing once there is nothing left of a marker to read", () => {
     // Pulled right back over the build area a label is fuzz; the elevation is
     // still shown beside the armed tool, so nothing is actually lost.
     expect(heightMarkerScale(maxCameraDistance(BUILD_AREA), VIEWPORT).visible).toBe(false);

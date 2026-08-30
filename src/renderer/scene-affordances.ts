@@ -638,14 +638,17 @@ const MARKER_FONT = "'Geist Variable', system-ui, -apple-system, sans-serif";
 
 /**
  * How tall a height marker stands in the world, in feet, before the viewport
- * clamps it at either end of the zoom range. About a cell tall, so it reads as
- * attached to the part rather than floating over the scene. Trimmed from 1.8,
- * which the client found too big — but only so far: below about 1.3 a marker
- * drops under the legibility floor at the distance the default room opens at,
- * and vanishes. What actually stopped them covering the parts is the offset in
- * `partMarkerAnchor` and the tighter on-screen cap in the viewport.
+ * clamps it at either end of the zoom range. Shorter than the 1 ft cell it
+ * labels, so a marker can no longer be the biggest thing on the grid.
+ *
+ * 1.8 came down to 1.5 and the client still found them too big — "markers are
+ * actually bigger than some parts" — and told us what to trade away to fix it:
+ * "let's ignore legibility at the default zoom distance, that's what zoom is
+ * for". So this is no longer held up by a legibility floor at the opening
+ * view; `MARKER_MIN_PIXELS` in the viewport came down with it, and only stops
+ * a marker being drawn once it carries no information at all.
  */
-export const HEIGHT_MARKER_FEET = 1.5;
+export const HEIGHT_MARKER_FEET = 0.9;
 
 function roundedRect(
   ctx: CanvasRenderingContext2D,
