@@ -163,13 +163,18 @@ function partMarkerAnchor(part: Part): Vec3 {
  * asked for them "off to the side of the thing they're denoting". Sprites face
  * the camera, so the offset is diagonal in X and Z: whichever way the view is
  * turned, the label lands beside the part rather than across it.
+ *
+ * Pushed out from 0.95 once the marker itself shrank, on the same request:
+ * "if they were smaller and more offset, we could reduce the collisions and
+ * view issues". The aside is more than a cell, so the whole label clears the
+ * cell it belongs to from any orbit rather than merely overhanging it.
  */
 function offsetAside(at: Vec3): Vec3 {
   return [at[0] + MARKER_ASIDE, at[1] + MARKER_LIFT, at[2] + MARKER_ASIDE];
 }
 
-const MARKER_ASIDE = 0.95;
-const MARKER_LIFT = 0.55;
+const MARKER_ASIDE = 1.6;
+const MARKER_LIFT = 0.9;
 
 /** The elevation a part reads as, matching where {@link partMarkerAnchor} puts it. */
 function partElevation(part: Part): number {

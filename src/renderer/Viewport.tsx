@@ -83,12 +83,18 @@ const CAMERA_FOV_DEG = 38;
 /**
  * The on-screen bounds a height marker is kept inside.
  *
- * Below the minimum a label is fuzz rather than text, and drawing it only adds
- * noise to a view that has zoomed past the detail it belongs to. Above the
- * maximum it starts covering the part it is describing — the failure that
+ * Below the minimum there is nothing left to read at all, and drawing it only
+ * adds noise to a view that has zoomed past the detail it belongs to. Above
+ * the maximum it starts covering the part it is describing — the failure that
  * screen-space sizing had at every zoom level.
+ *
+ * The minimum used to be a legibility floor: 11 px, enough to read at the
+ * distance the default room opens at, which in turn set how large a marker had
+ * to be in the world. The client gave that up to get smaller markers — "if
+ * users can't read it, they will zoom in" — so it now only decides when a
+ * marker has shrunk to a smudge worth dropping, well past the opening view.
  */
-const MARKER_MIN_PIXELS = 11;
+const MARKER_MIN_PIXELS = 6;
 const MARKER_MAX_PIXELS = 42;
 
 /**
@@ -142,8 +148,10 @@ function feetPerPixel(distance: number, viewportHeight: number): number {
  * World-scaled through the range that matters, so a marker shrinks with the
  * part it labels rather than growing to cover it. Clamped at the near end so
  * it cannot fill the screen when the camera is right on top of a part, and
- * dropped at the far end once it would be too small to read — at which point
- * the elevation is still on screen beside the armed tool, so nothing is lost.
+ * dropped at the far end once there is nothing left of it to read — at which
+ * point the elevation is still on screen beside the armed tool, so nothing is
+ * lost. Between those ends a marker may well be too small to read from where
+ * the camera happens to sit; the answer to that is the scroll wheel.
  */
 export function heightMarkerScale(
   distance: number,
