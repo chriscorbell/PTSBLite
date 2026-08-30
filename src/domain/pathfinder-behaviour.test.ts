@@ -27,6 +27,13 @@ import { routeWarnings } from "@/test/design-invariants";
  * specification. When one of them changes, decide whether the new value is
  * better before updating it — a moved number here is the question, not the
  * answer.
+ *
+ * Five rows lost exactly 2 ft when a terminal became 2 ft tall (ADR-0021).
+ * Every route that climbs out of both terminals now leaves a foot higher at
+ * each end, so it buys a foot less riser twice over — tube the terminal's own
+ * second foot has taken over. No row changed its bend count, its band or its
+ * warnings, which is what says the taller part moved the endpoints and not the
+ * routing.
  */
 
 const ROOM: DesignMetadata["room"] = { width: 60, depth: 60, height: 30 };
@@ -178,7 +185,7 @@ describe("what Auto-Build does, layout by layout", () => {
     expect(run(design(system([20, 31, 20]), TWO_FLOOR))).toEqual({
       routed: true,
       bends: 2,
-      feet: 64.42,
+      feet: 63.42,
       band: "floor 1",
       warnings: 0
     });
@@ -189,7 +196,7 @@ describe("what Auto-Build does, layout by layout", () => {
     expect(run(design(system([20, 0, 20]), ONE_FLOOR, [wall]))).toEqual({
       routed: true,
       bends: 2,
-      feet: 59.42,
+      feet: 57.42,
       band: "outside",
       warnings: 0
     });
@@ -220,7 +227,7 @@ describe("what Auto-Build does, layout by layout", () => {
     expect(run(design(lowRoomSystem([15, 0, -25]), LOW_ROOM_PLENUM))).toEqual({
       routed: true,
       bends: 3,
-      feet: 91.14,
+      feet: 89.14,
       band: "floor 1",
       warnings: 0
     });
@@ -233,7 +240,7 @@ describe("what Auto-Build does, layout by layout", () => {
     expect(run(design(lowRoomSystem([15, 0, 25]), LOW_ROOM_PLENUM))).toEqual({
       routed: true,
       bends: 2,
-      feet: 43.42,
+      feet: 41.42,
       band: "floor 1",
       warnings: 0
     });
@@ -248,7 +255,7 @@ describe("what Auto-Build does, layout by layout", () => {
     expect(run(design(lowRoomSystem([-9, 0, 25]), LOW_ROOM_PLENUM))).toEqual({
       routed: true,
       bends: 5,
-      feet: 40.56,
+      feet: 38.56,
       band: "floor 1",
       warnings: 0
     });

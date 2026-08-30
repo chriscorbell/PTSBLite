@@ -737,10 +737,11 @@ export function Viewport({
           s.partsGroup.add(pedestal);
         }
       } else if (p.type === "terminal") {
-        mesh = buildTerminalMesh();
+        // The mesh turns itself: a terminal stands upright whichever way its
+        // ports face, so only its fittings follow the axis.
+        mesh = buildTerminalMesh({ axis: p.axis });
         const c = cellCenter(p.cell);
         mesh.position.set(c[0], c[1], c[2]);
-        mesh.quaternion.copy(dirToQuat(p.axis));
       } else if (p.type === "tube") {
         mesh = buildTubeMesh(p.from, p.to);
       } else if (p.type === "bend") {
@@ -861,10 +862,9 @@ export function Viewport({
           s.ghostGroup.add(pedestal);
         }
       } else if (ghost.type === "terminal") {
-        mesh = buildTerminalMesh({ ghost: true });
+        mesh = buildTerminalMesh({ axis: ghost.axis, ghost: true });
         const c = cellCenter(ghost.cell);
         mesh.position.set(c[0], c[1], c[2]);
-        mesh.quaternion.copy(dirToQuat(ghost.axis));
       } else if (ghost.type === "tube") {
         mesh = buildTubeMesh(ghost.from, ghost.to, {
           ghost: true,

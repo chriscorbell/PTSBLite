@@ -1,4 +1,5 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
+import { terminalPortAnchor } from "@/domain/terminal";
 import type { DesignState, Part, Vec3 } from "@/types";
 import { cellAt, cellKey, dirOf, vAdd, vEq, vNeg, vSub } from "@/domain/vec3";
 
@@ -44,24 +45,30 @@ export function computePartPorts(part: Part, registry: PartRegistry = partRegist
       break;
     }
     case "terminal": {
-      const from = cellAt(part.cell);
+      // Each port leaves from the end of the 2 ft body it sits on, so an
+      // upward-facing one starts a foot higher than the cell the terminal was
+      // placed in. See terminal.ts.
+      const cell = cellAt(part.cell);
       const axis = part.axis;
+      const back = vNeg(axis);
+      const front = terminalPortAnchor(cell, axis);
+      const rear = terminalPortAnchor(cell, back);
       ports = [
         {
           partId: part.id,
           ownerType: "terminal",
           index: 0,
-          from,
-          cell: vAdd(from, axis),
+          from: front,
+          cell: vAdd(front, axis),
           dir: axis
         },
         {
           partId: part.id,
           ownerType: "terminal",
           index: 1,
-          from,
-          cell: vSub(from, axis),
-          dir: vNeg(axis)
+          from: rear,
+          cell: vAdd(rear, back),
+          dir: back
         }
       ];
       break;

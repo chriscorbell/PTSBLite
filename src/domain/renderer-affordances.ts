@@ -7,6 +7,7 @@ import {
   roomRect
 } from "@/domain/floors";
 import { hasPedestal, pedestalCells } from "@/domain/pedestal";
+import { terminalCells } from "@/domain/terminal";
 import { computeTopology, type Port } from "@/domain/topology";
 import { tubeCells } from "@/domain/vec3";
 import type { DesignMetadata, DesignState, Ghost, Obstacle, Part, ToolId, Vec3 } from "@/types";
@@ -318,8 +319,9 @@ function partFootprint(part: Part): Vec3[] {
   if (hasPedestal(part)) return [part.cell, ...pedestalCells(part.cell, part.pedestalFeet)];
   switch (part.type) {
     case "blower":
-    case "terminal":
       return [part.cell];
+    case "terminal":
+      return terminalCells(part.cell);
     case "tube":
       return tubeCells(part.from, part.to);
     case "bend":
@@ -335,7 +337,7 @@ function ghostFootprint(ghost: Ghost): Vec3[] {
         ? [ghost.cell]
         : [ghost.cell, ...pedestalCells(ghost.cell, ghost.pedestalFeet)];
     case "terminal":
-      return [ghost.cell];
+      return terminalCells(ghost.cell);
     case "tube":
       return tubeCells(ghost.from, ghost.to);
     case "bend":

@@ -49,7 +49,10 @@ that nothing may route through. See ADR-0020.
 **Remoting the blower** — running tubing and bends between a blower and its terminal rather than
 seating them together. The client's term. A legal layout, not a fault.
 
-**Terminal** — a send/receive station. Has exactly two ports, on the `axis` and its negation.
+**Terminal** — a send/receive station. **1 ft square and 2 ft tall**, so it claims the cell it
+stands in and the one above it, and stands upright however it is turned (ADR-0021). Has exactly two
+ports, on the `axis` and its negation; each leaves from the end of the body it sits on, so an
+upward port opens two cells above the base rather than one.
 - **Terminal 1** — the terminal on the blower-1 side of the run. Usually seated against the blower
   outlet, but tubing and bends may sit between them (see *remoting the blower*).
 - **Terminal 2** — the terminal at the far end of the run, before any tubing to blower 2.
