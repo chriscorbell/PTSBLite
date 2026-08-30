@@ -114,6 +114,14 @@ describe("validation engine", () => {
     expect(warnings[0].detail).toContain("obstacle");
   });
 
+  it("warns when an obstacle sits in a terminal's second foot", () => {
+    // The terminal at [1, 0, 0] stands 2 ft tall, so [1, 1, 0] is as much the
+    // terminal as the cell it was placed in. An obstacle there is a collision,
+    // not clearance above the unit.
+    const design = designWith(baseParts, [{ id: "o1", min: [1, 1, 0], max: [1, 1, 0] }]);
+    expect(checkObstacleIntersections(design).map((w) => w.id)).toEqual(["obstacle-intersection"]);
+  });
+
   it("does not fault a path passing through a penetrable obstacle", () => {
     const design = designWith(baseParts, [
       { id: "o1", min: [4, 0, 0], max: [4, 0, 0], penetrable: true }

@@ -16,10 +16,13 @@ import type { Vec3 } from "@/types";
  * update lifecycles, which is the seam that matters here rather than file size.
  */
 
-function buildTransportArrow(): THREE.ArrowHelper {
+function buildTransportArrow(
+  dir: THREE.Vector3 = new THREE.Vector3(1, 0, 0),
+  from: Vec3 = [-0.38, 0.82, 0]
+): THREE.ArrowHelper {
   return new THREE.ArrowHelper(
-    new THREE.Vector3(1, 0, 0),
-    new THREE.Vector3(-0.38, 0.82, 0),
+    dir,
+    new THREE.Vector3(from[0], from[1], from[2]),
     0.82,
     VP.accent,
     0.22,
@@ -139,10 +142,35 @@ export function buildPedestalMesh(feet: number, { ghost = false } = {}): THREE.G
   return g;
 }
 
-export function buildTerminalMesh({ ghost = false } = {}): THREE.Group {
+/**
+ * A terminal: one square of floor, two feet of it standing up.
+ *
+ * Unlike a blower, the group is not turned to face its port — a terminal is a
+ * cabinet on the floor, and turning the whole body would lie it on its side the
+ * moment its ports ran vertically. The body stays upright and only the two port
+ * fittings move: to the top and bottom faces for a vertical axis, and around to
+ * the sides, yawed to the heading, for a horizontal one. Where they sit is the
+ * geometry `terminalPortAnchor` reports, so the tube meets the fitting it is
+ * drawn leaving.
+ *
+ * The group's origin is the centre of the cell the terminal was placed in, so
+ * the body runs from that cell's floor to the top of the cell above it.
+ */
+export function buildTerminalMesh({
+  axis = [0, 1, 0],
+  ghost = false
+}: { axis?: Vec3; ghost?: boolean } = {}): THREE.Group {
   const g = new THREE.Group();
+  const vertical = axis[1] !== 0;
+  // Half a foot below the origin to the base, one and a half above it to the
+  // top: two cells of body, inset a little as the blower's box is.
+  const height = 1.9;
+  const midY = 0.5;
+  const topY = 1.45;
+  const baseY = -0.45;
+
   const box = new THREE.Mesh(
-    new THREE.BoxGeometry(0.92, 0.78, 0.92),
+    new THREE.BoxGeometry(0.92, height, 0.92),
     new THREE.MeshStandardMaterial({
       color: VP.terminal,
       roughness: 0.5,
@@ -151,7 +179,7 @@ export function buildTerminalMesh({ ghost = false } = {}): THREE.Group {
       opacity: ghost ? 0.45 : 1
     })
   );
-  box.position.y = -0.07;
+  box.position.y = midY;
   g.add(box);
   const hood = new THREE.Mesh(
     new THREE.BoxGeometry(0.84, 0.18, 0.84),
@@ -163,52 +191,77 @@ export function buildTerminalMesh({ ghost = false } = {}): THREE.Group {
       opacity: ghost ? 0.5 : 1
     })
   );
-  hood.position.y = 0.4;
+  // Banding the join between the two feet rather than capping the unit: the top
+  // face is where a vertical port leaves, and a lid there would swallow it.
+  hood.position.y = 0.5;
   g.add(hood);
+  // Chest height on the front face, which is where a display is read from.
   const display = new THREE.Mesh(
     new THREE.BoxGeometry(0.3, 0.18, 0.02),
     new THREE.MeshBasicMaterial({ color: 0x0a0f18 })
   );
-  display.position.set(0, 0.05, 0.465);
+  display.position.set(0, 1.05, 0.465);
   g.add(display);
   const pixel = new THREE.Mesh(
     new THREE.PlaneGeometry(0.04, 0.04),
     new THREE.MeshBasicMaterial({ color: 0x4ade80 })
   );
-  pixel.position.set(0.1, 0.05, 0.477);
+  pixel.position.set(0.1, 1.05, 0.477);
   g.add(pixel);
+
   const mat = new THREE.MeshStandardMaterial({
     color: VP.terminalEdge,
     roughness: 0.4,
     metalness: 0.5
   });
-  const f1 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.08, 24), mat);
-  f1.rotation.z = Math.PI / 2;
-  f1.position.set(0.5, -0.07, 0);
-  g.add(f1);
-  const f2 = f1.clone();
-  f2.position.set(-0.5, -0.07, 0);
-  g.add(f2);
-  for (const x of [0.52, -0.52]) {
-    const h = new THREE.Mesh(
+  // Where each port leaves the body, and which way it faces. A vertical axis
+  // puts them on the top and bottom faces of the 2 ft body; a horizontal one on
+  // opposite sides of its lower foot, which is the cell those ports connect
+  // from.
+  const fittings: { at: THREE.Vector3; out: THREE.Vector3 }[] = vertical
+    ? [
+        { at: new THREE.Vector3(0, topY, 0), out: new THREE.Vector3(0, 1, 0) },
+        { at: new THREE.Vector3(0, baseY, 0), out: new THREE.Vector3(0, -1, 0) }
+      ]
+    : [
+        { at: new THREE.Vector3(0.5, 0, 0), out: new THREE.Vector3(1, 0, 0) },
+        { at: new THREE.Vector3(-0.5, 0, 0), out: new THREE.Vector3(-1, 0, 0) }
+      ];
+  for (const { at, out } of fittings) {
+    const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.08, 24), mat);
+    if (out.y === 0) flange.rotation.z = Math.PI / 2;
+    flange.position.copy(at);
+    g.add(flange);
+    const hole = new THREE.Mesh(
       new THREE.CylinderGeometry(TUBE_R + 0.01, TUBE_R + 0.01, 0.12, 18),
       new THREE.MeshStandardMaterial({ color: 0x05080c, roughness: 1 })
     );
-    h.rotation.z = Math.PI / 2;
-    h.position.set(x, -0.07, 0);
-    g.add(h);
+    if (out.y === 0) hole.rotation.z = Math.PI / 2;
+    hole.position.copy(at).addScaledVector(out, 0.02);
+    g.add(hole);
   }
+
   const edges = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(0.92, 0.78, 0.92)),
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(0.92, height, 0.92)),
     new THREE.LineBasicMaterial({
       color: VP.terminalEdge,
       transparent: ghost,
       opacity: ghost ? 0.6 : 0.75
     })
   );
-  edges.position.y = -0.07;
+  edges.position.y = midY;
   g.add(edges);
-  if (ghost) g.add(buildTransportArrow());
+  if (ghost) {
+    // The arrow says which way the run leaves, so it follows the ports rather
+    // than the body: up the axis when they are vertical, out the side when not.
+    const arrow = vertical
+      ? buildTransportArrow(new THREE.Vector3(0, Math.sign(axis[1]), 0), [0.9, midY, 0])
+      : buildTransportArrow(new THREE.Vector3(1, 0, 0), [-0.38, 0.82, 0]);
+    g.add(arrow);
+  }
+  // Yaw only, so a horizontal axis turns the fittings to their heading while
+  // the cabinet stays standing. A vertical axis needs no turn at all.
+  if (!vertical) g.rotation.y = Math.atan2(-axis[2], axis[0]);
   return g;
 }
 

@@ -73,10 +73,13 @@ describe("Topology port computation", () => {
           [5, 0, 6]
         ]
       ],
+      // Vertically, the ports clear a 2 ft body: the upward one leaves the top
+      // of it, two cells above the base, rather than landing inside the
+      // terminal's own second foot. See terminal.ts and ADR-0021.
       [
         [0, 1, 0],
         [
-          [5, 1, 5],
+          [5, 2, 5],
           [5, -1, 5]
         ]
       ],
@@ -84,7 +87,7 @@ describe("Topology port computation", () => {
         [0, -1, 0],
         [
           [5, -1, 5],
-          [5, 1, 5]
+          [5, 2, 5]
         ]
       ]
     ];

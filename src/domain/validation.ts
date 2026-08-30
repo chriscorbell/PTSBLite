@@ -2,6 +2,7 @@ import { partRegistry, type PartRegistry } from "@/domain/part-registry";
 import { totalPathLength } from "@/domain/parts";
 import { bendFootprint } from "@/domain/occupant-footprints";
 import { hasPedestal, pedestalCells } from "@/domain/pedestal";
+import { terminalCells } from "@/domain/terminal";
 import { computeTopology } from "@/domain/topology";
 import type { BlowerPart, DesignState, Obstacle, Part, TerminalPart, Vec3, Warning } from "@/types";
 import { cellAt, tubeCells } from "@/domain/vec3";
@@ -125,7 +126,9 @@ function partFootprint(part: Part, registry: PartRegistry): Vec3[] {
   if (hasPedestal(part)) {
     return [cellAt(part.cell), ...pedestalCells(cellAt(part.cell), part.pedestalFeet)];
   }
-  if (part.type === "blower" || part.type === "terminal") return [cellAt(part.cell)];
+  if (part.type === "blower") return [cellAt(part.cell)];
+  // Both feet of a terminal are solid, so an obstacle through either is a fault.
+  if (part.type === "terminal") return terminalCells(cellAt(part.cell));
   if (part.type === "tube") return tubeCells(part.from, part.to);
   return bendFootprint(part, registry);
 }
