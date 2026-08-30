@@ -16,11 +16,13 @@ pnpm run format # fix formatting
 pnpm dev        # browser development server
 pnpm run build  # production build into dist/
 pnpm preview    # serve the production build
+pnpm run test:e2e # Playwright smoke suite against the production build (real Chromium)
 ```
 
-
-Check the production build in a real browser before calling browser-facing work done. happy-dom has
-no WebGL, downloads, or meaningful storage behavior.
+happy-dom has no WebGL, downloads, or meaningful storage behavior. `pnpm run test:e2e` covers the
+basics in a real browser — boot, render, place, autosave/restore, PDF export — and CI runs it after
+the build. Still check the production build by hand when your change is visual or outside what the
+smoke suite exercises.
 
 Every PR must leave `pnpm run check` green.
 

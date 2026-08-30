@@ -37,3 +37,11 @@ jobs:
 
       - name: Build PTSBLite
         run: pnpm run build
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Runs against the dist/ the previous step built. The only place in CI
+      # that executes the app: WebGL, real localStorage, real downloads.
+      - name: Browser smoke test
+        run: pnpm run test:e2e
