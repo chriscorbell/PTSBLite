@@ -107,6 +107,42 @@ describe("deserializeDesign", () => {
     expect(result.design.grid.query([3, 1, 3])).toBeUndefined();
   });
 
+  it("roundtrips a pedestal blower, mast cells and all", () => {
+    const original = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [2, 3, 2], dir: [0, 1, 0], pedestalFeet: 3 }],
+      obstacles: []
+    });
+    const result = deserializeDesign(JSON.stringify(serializeDesign(original, TEST_APP_VERSION)));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.parts[0]).toMatchObject({ pedestalFeet: 3 });
+    // The mast is registered on restore too, or the reloaded design would show
+    // tube nothing could collide with.
+    expect(result.design.grid.query([2, 0, 2])).toBe("b1");
+  });
+
+  it("reads a mast height it cannot represent as a plain blower", () => {
+    // Presence of the field is what marks the variant, so a payload claiming a
+    // negative or fractional mast must not create one the app cannot draw.
+    const payload = JSON.parse(
+      JSON.stringify(
+        serializeDesign(
+          designFromScene({
+            parts: [{ id: "b1", type: "blower", cell: [2, 0, 2], dir: [0, 1, 0] }],
+            obstacles: []
+          }),
+          TEST_APP_VERSION
+        )
+      )
+    ) as { parts: Array<Record<string, unknown>> };
+    payload.parts[0].pedestalFeet = -2;
+
+    const result = deserializeDesign(JSON.stringify(payload));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect("pedestalFeet" in result.design.parts[0]).toBe(false);
+  });
+
   it("roundtrips the Auto-Build mark and ignores any other source value", () => {
     const marked = JSON.parse(
       JSON.stringify(serializeDesign(designFromScene(FULL_SCENE), TEST_APP_VERSION))

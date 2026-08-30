@@ -1,6 +1,7 @@
 import { bendFootprint } from "@/domain/bend-placement";
 
 import { obstacleVolumeCells } from "@/domain/obstacle-placement";
+import { hasPedestal, pedestalCells } from "@/domain/pedestal";
 import { boundsFromBuildArea, BUILD_AREA, SparseGrid } from "@/domain/sparse-grid";
 import { cellKey, tubeCells } from "@/domain/vec3";
 import type { DesignMetadata, DesignState, Obstacle, Part, Vec3 } from "@/types";
@@ -46,6 +47,9 @@ import type { DesignMetadata, DesignState, Obstacle, Part, Vec3 } from "@/types"
 
 /** The grid cells a part occupies. Must match what `reconstructDesign` registers. */
 export function partCells(part: Part): Vec3[] {
+  // A pedestal blower also holds the column of mast beneath it, down to the
+  // floor. Uncounted in the BOM, but as solid as any other part on the grid.
+  if (hasPedestal(part)) return [part.cell, ...pedestalCells(part.cell, part.pedestalFeet)];
   if (part.type === "blower" || part.type === "terminal") return [part.cell];
   if (part.type === "tube") return tubeCells(part.from, part.to);
   if (part.type === "bend") return bendFootprint(part);

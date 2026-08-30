@@ -7,6 +7,14 @@
     "cells": 1,
     "ports": 1
   },
+  "blowerPedestal": {
+    "type": "blower",
+    "name": "Blower Unit with Pedestal",
+    "partNo": "BL-2020-P",
+    "color": "#3F4A60",
+    "cells": 1,
+    "ports": 1
+  },
   "terminal": {
     "type": "terminal",
     "name": "Terminal Station",

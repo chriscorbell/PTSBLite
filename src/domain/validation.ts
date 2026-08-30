@@ -1,6 +1,7 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
 import { totalPathLength } from "@/domain/parts";
 import { bendFootprint } from "@/domain/bend-placement";
+import { hasPedestal, pedestalCells } from "@/domain/pedestal";
 import { computeTopology } from "@/domain/topology";
 import type { BlowerPart, DesignState, Obstacle, Part, TerminalPart, Vec3, Warning } from "@/types";
 import { cellAt, tubeCells } from "@/domain/vec3";
@@ -119,6 +120,11 @@ export function validate(design: DesignState, registry: PartRegistry = partRegis
 }
 
 function partFootprint(part: Part, registry: PartRegistry): Vec3[] {
+  // The mast under a pedestal blower is drawn and occupies cells, so an
+  // obstacle it passes through is as much a fault as one a tube passes through.
+  if (hasPedestal(part)) {
+    return [cellAt(part.cell), ...pedestalCells(cellAt(part.cell), part.pedestalFeet)];
+  }
   if (part.type === "blower" || part.type === "terminal") return [cellAt(part.cell)];
   if (part.type === "tube") return tubeCells(part.from, part.to);
   return bendFootprint(part, registry);

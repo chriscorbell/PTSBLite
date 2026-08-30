@@ -161,8 +161,9 @@ describe("free placement orientation", () => {
 
 describe("free placement commits", () => {
   it("uses the registry-backed endpoint footprint for occupancy", () => {
-    expect(freePlacementFootprint("blower", [3, 0, 4])).toEqual([[3, 0, 4]]);
-    expect(freePlacementFootprint("terminal", [4, 0, 4])).toEqual([[4, 0, 4]]);
+    const { metadata } = emptyDesign();
+    expect(freePlacementFootprint("blower", [3, 0, 4], metadata)).toEqual([[3, 0, 4]]);
+    expect(freePlacementFootprint("terminal", [4, 0, 4], metadata)).toEqual([[4, 0, 4]]);
   });
 
   it("commits a blower through the grid and leaves its topology port open", () => {

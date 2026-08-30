@@ -97,7 +97,7 @@ export type PlacementAction =
   | { type: "apply-attempt"; session: PlacementSession };
 
 function isFreePlacementTool(tool: ToolId): tool is FreePlacementType {
-  return tool === "blower" || tool === "terminal";
+  return tool === "blower" || tool === "blowerPedestal" || tool === "terminal";
 }
 
 /**
@@ -232,8 +232,10 @@ export function attemptPlacement(
     // Blowers and terminals place identically: anywhere legal, snapping to an
     // open port when there is one under the cursor. Terminal 1 used to be a
     // third case, pinned to the blower's outlet cell, until the client withdrew
-    // that rule (ADR-0019).
+    // that rule (ADR-0019). A pedestal blower is a fourth tool but not a fourth
+    // rule — it places as a blower and grows its mast underneath.
     case "blower":
+    case "blowerPedestal":
     case "terminal": {
       // The ghost resolves the orientation, so what gets placed is what was
       // previewed rather than a second, independently derived answer.
@@ -349,8 +351,9 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
   if (!hoverCell || tool === "cursor" || tool === "erase") return null;
   switch (tool) {
     case "blower":
+    case "blowerPedestal":
       return freePlacementGhost({
-        type: "blower",
+        type: tool,
         design,
         cell: hoverCell,
         memory: session.freePlacementMemory,
@@ -391,6 +394,7 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
 export function placementLandingCells(session: PlacementSession, design: DesignState): Vec3[] {
   switch (session.tool) {
     case "blower":
+    case "blowerPedestal":
     case "terminal":
       return freePlacementLandingCells(design);
     case "tube":

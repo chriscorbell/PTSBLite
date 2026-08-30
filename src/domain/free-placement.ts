@@ -1,14 +1,32 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
+import { pedestalCells, pedestalHeightAt } from "@/domain/pedestal";
 import { computeTopology } from "@/domain/topology";
-import type { BlowerPart, DesignState, Ghost, Part, TerminalPart, Vec3 } from "@/types";
+import type {
+  BlowerPart,
+  DesignMetadata,
+  DesignState,
+  Ghost,
+  Part,
+  TerminalPart,
+  Vec3
+} from "@/types";
 import { cellKey, vEq, vNeg } from "@/domain/vec3";
 
-export type FreePlacementType = "blower" | "terminal";
+/**
+ * The three things that place freely. A blower with a pedestal is a blower —
+ * it drives the same air, closes the same end of a system and carries the same
+ * `type` once placed — so it snaps, turns and validates identically. What sets
+ * it apart is the mast it grows underneath when it is raised off the floor,
+ * which is geometry rather than behaviour. See pedestal.ts.
+ */
+export type FreePlacementType = "blower" | "blowerPedestal" | "terminal";
 
 export type FreePlacementMemory = Record<FreePlacementType, Vec3>;
 
-/** The two ghost shapes free placement can produce, and no others. */
-export type FreePlacementGhost = Extract<Ghost, { type: FreePlacementType }>;
+/** The two ghost shapes free placement can produce, and no others. Both kinds
+ * of blower preview as one: a pedestal is a taller drawing of a blower, not a
+ * different part. */
+export type FreePlacementGhost = Extract<Ghost, { type: "blower" | "terminal" }>;
 
 /** How many times `R` has been pressed since the tool was armed. */
 export type FreePlacementRotation = number;
@@ -51,13 +69,19 @@ export const FREE_PLACEMENT_ORIENTATIONS: Vec3[] = [
  */
 export const DEFAULT_FREE_PLACEMENT_MEMORY: FreePlacementMemory = {
   blower: UP,
+  blowerPedestal: UP,
   terminal: UP
 };
 
 export const FREE_PLACEMENT_MESSAGES = {
   occupied: "That cell is already occupied.",
   outOfBounds: "Place inside the build area.",
-  obstacle: "Place on an open grid cell, not an obstacle."
+  obstacle: "Place on an open grid cell, not an obstacle.",
+  // The mast has to reach the floor, so a pedestal blower is refused for
+  // something in the column beneath it as well as in its own cell. Said
+  // separately because "that cell is already occupied" points at the wrong
+  // cell — the one under the cursor is free, and the blocked one is below it.
+  pedestalBlocked: "The pedestal cannot reach the floor — something is in the way."
 } as const;
 
 export type PlaceFreePartResult =
@@ -127,9 +151,17 @@ export function validateFreePlacementCell(
   return { ok: false, message: FREE_PLACEMENT_MESSAGES.occupied };
 }
 
+/**
+ * The cells a free-placed part would claim: the one under the cursor, plus, for
+ * a pedestal blower, the mast beneath it down to the floor.
+ *
+ * `metadata` is what tells the mast where the floor is — the ground on floor 1,
+ * the slab on floor 2 — so it is an argument rather than an assumption.
+ */
 export function freePlacementFootprint(
   type: FreePlacementType,
   cell: Vec3,
+  metadata: DesignMetadata,
   registry: PartRegistry = partRegistry
 ): Vec3[] {
   const cells = registry.get(type).cells ?? 1;
@@ -138,7 +170,29 @@ export function freePlacementFootprint(
       `Free placement supports only 1-cell endpoint footprints; ${type} has ${cells}`
     );
   }
-  return [cell];
+  if (type !== "blowerPedestal") return [cell];
+  return [cell, ...pedestalCells(cell, pedestalHeightAt(metadata, cell))];
+}
+
+/**
+ * Whether the whole footprint is free, naming the mast separately when it is
+ * the mast that is blocked: the cell under the cursor is fine in that case, and
+ * reporting it as occupied would point at the wrong square.
+ */
+function validateFreePlacementFootprint(
+  design: DesignState,
+  type: FreePlacementType,
+  cell: Vec3
+): { ok: true } | { ok: false; message: string } {
+  const [own, ...mast] = freePlacementFootprint(type, cell, design.metadata);
+  const ownCell = validateFreePlacementCell(design, own);
+  if (!ownCell.ok) return ownCell;
+  for (const mastCell of mast) {
+    if (!validateFreePlacementCell(design, mastCell).ok) {
+      return { ok: false, message: FREE_PLACEMENT_MESSAGES.pedestalBlocked };
+    }
+  }
+  return { ok: true };
 }
 
 export function freePlacementGhost({
@@ -154,15 +208,19 @@ export function freePlacementGhost({
   memory: FreePlacementMemory;
   rotationSteps: number;
 }): FreePlacementGhost | null {
-  for (const footprintCell of freePlacementFootprint(type, cell)) {
-    if (!validateFreePlacementCell(design, footprintCell).ok) return null;
-  }
+  if (!validateFreePlacementFootprint(design, type, cell).ok) return null;
   const orientation = resolveFreePlacementOrientation(
     defaultFreePlacementOrientation(design, type, cell, memory),
     rotationSteps
   );
+  if (type === "terminal") return { type, cell, axis: orientation };
   if (type === "blower") return { type, cell, dir: orientation };
-  return { type, cell, axis: orientation };
+  return {
+    type: "blower",
+    cell,
+    dir: orientation,
+    pedestalFeet: pedestalHeightAt(design.metadata, cell)
+  };
 }
 
 export function placeFreePart(
@@ -179,16 +237,22 @@ export function placeFreePart(
     orientation: Vec3;
   }
 ): PlaceFreePartResult {
-  const footprint = freePlacementFootprint(type, cell);
-  for (const footprintCell of footprint) {
-    const validity = validateFreePlacementCell(design, footprintCell);
-    if (!validity.ok) return validity;
-  }
+  const validity = validateFreePlacementFootprint(design, type, cell);
+  if (!validity.ok) return validity;
+  const footprint = freePlacementFootprint(type, cell, design.metadata);
 
   const part: Part =
-    type === "blower"
-      ? { id, type, cell, dir: orientation }
-      : { id, type, cell, axis: orientation };
+    type === "terminal"
+      ? { id, type, cell, axis: orientation }
+      : type === "blower"
+        ? { id, type, cell, dir: orientation }
+        : {
+            id,
+            type: "blower",
+            cell,
+            dir: orientation,
+            pedestalFeet: pedestalHeightAt(design.metadata, cell)
+          };
   const grid = design.grid.clone();
   for (const footprintCell of footprint) {
     grid.place(footprintCell, id);

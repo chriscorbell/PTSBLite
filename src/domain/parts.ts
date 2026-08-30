@@ -1,4 +1,5 @@
 import { partRegistry } from "@/domain/part-registry";
+import { hasPedestal } from "@/domain/pedestal";
 import type { DesignState, Part } from "@/types";
 
 export type { PartCatalogEntry } from "@/domain/part-registry";
@@ -55,7 +56,12 @@ export type BomRow = {
  */
 export function bomRows(input: Part[] | DesignState): BomRow[] {
   const parts = Array.isArray(input) ? input : input.parts;
-  const blowers = parts.filter((p) => p.type === "blower").length;
+  // The two blowers are separate catalog items, so they are separate rows. The
+  // mast under a pedestal blower is not a row of its own and adds nothing to
+  // the tube footage: it is how the unit is mounted, not part of the run (see
+  // pedestal.ts and ADR-0020).
+  const blowers = parts.filter((p) => p.type === "blower" && !hasPedestal(p)).length;
+  const pedestalBlowers = parts.filter(hasPedestal).length;
   const terminals = parts.filter((p) => p.type === "terminal").length;
   const bends = parts.filter((p) => p.type === "bend").length;
   const ft = tubeFeet(parts);
@@ -69,6 +75,7 @@ export function bomRows(input: Part[] | DesignState): BomRow[] {
 
   return [
     row("blower", blowers),
+    row("blowerPedestal", pedestalBlowers),
     row("terminal", terminals),
     row(
       "tube6",

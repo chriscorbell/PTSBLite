@@ -1,4 +1,5 @@
 import { bendFootprint } from "@/domain/bend-placement";
+import { partCells } from "@/domain/design-reconstruction";
 import type { DesignState, Obstacle, Part, TubePart, Vec3 } from "@/types";
 import { cellAt, cellCenter, dirOf, tubeCells, vAdd, vEq } from "@/domain/vec3";
 
@@ -25,7 +26,10 @@ export function eraseAtCell(design: DesignState, cell: Vec3): EraseResult {
 
   const part = design.parts.find((candidate) => candidate.id === occupant);
   if (part?.type === "blower" || part?.type === "terminal") {
-    return eraseWholePart(design, part, [part.cell]);
+    // `partCells` rather than the cell itself, so a pedestal blower gives back
+    // the column of mast under it as well. Clicking any cell of that mast
+    // erases the blower it holds up, since the grid maps them all to its id.
+    return eraseWholePart(design, part, partCells(part));
   }
   if (part?.type === "tube") {
     return eraseTubeCell(design, part, cell);
