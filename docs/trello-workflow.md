@@ -47,8 +47,10 @@ working blind. Append `key=$TRELLO_API_KEY&token=$TRELLO_TOKEN` to every query s
 curl "https://api.trello.com/1/boards/bWnb6qXO/lists?cards=open&card_fields=name,desc,dateLastActivity&..."
 # A card's comments, newest first
 curl "https://api.trello.com/1/cards/$CARD/actions?filter=commentCard&limit=50&..."
-# Recent comments across the whole board, newest first (one call, every card)
-curl "https://api.trello.com/1/boards/bWnb6qXO/actions?filter=commentCard&limit=50&..."
+# Every comment on the board, newest first (one call, every card). Not limit=50:
+# a busy day passes fifty comments, and a truncated sweep looks exactly like a
+# clean board. On 2026-08-30 that hid eight of Nick's replies for half a day.
+curl "https://api.trello.com/1/boards/bWnb6qXO/actions?filter=commentCard&limit=1000&..."
 # Post a comment
 curl -X POST "https://api.trello.com/1/cards/$CARD/actions/comments?..." --data-urlencode "text=..."
 # Move to another list, or archive
@@ -71,7 +73,9 @@ Run the steps in order. A run that finds nothing to do ends quietly.
 New input is any card in Intake other than the pinned one, plus any comment from Nick anywhere
 on the board that we have not answered. Nick comments on whatever card seems relevant to him,
 not where the process would like him to, so sweep the whole board with the board-wide comments
-call: every comment of his on any card, in any list, with no later reply from us, is intake.
+call: every comment of his on any card, in any list, with no later reply from us, is intake. Reach
+far enough back to cover every card, not just today's — the sweep returns nothing to say it was
+truncated, so a short one is indistinguishable from an empty board.
 
 Handle a swept comment where it makes sense: fold it into the card it sits on when it belongs
 there, or split it out like any other input when it does not (a comment on a Done card asking
