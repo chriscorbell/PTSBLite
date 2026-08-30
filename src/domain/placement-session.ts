@@ -130,6 +130,20 @@ function isFreePlacementTool(tool: ToolId): tool is FreePlacementType {
 }
 
 /**
+ * Whether `[` and `]` change anything for the armed tool.
+ *
+ * An obstacle stands on the floor of whichever storey is selected rather than
+ * on the placement plane, so once the elevation stepper went away the keys had
+ * nothing left to move — except, across a storey boundary, the floor itself,
+ * which the floor selector and the `1`/`2` keys own. They are inert for the
+ * obstacle tool and hidden from the controls that offer them, so what is on
+ * screen and what the keys do agree.
+ */
+export function elevationKeysApply(tool: ToolId): boolean {
+  return tool !== "obstacle";
+}
+
+/**
  * Move the placement plane, dragging the hover cell — and the ghost derived
  * from it — along. Without this, pressing an elevation key changed nothing on
  * screen until the pointer happened to move again, which read as the key doing
@@ -177,6 +191,7 @@ export function placementSessionReducer(
       };
 
     case "nudge-elevation":
+      if (!elevationKeysApply(session.tool)) return session;
       return withElevation(
         session,
         clampElevation(session.activeElevation + action.delta, action.buildArea)
