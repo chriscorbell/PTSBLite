@@ -171,14 +171,16 @@ function Cylinder({
 
 // Box + cylindrical motor drum on top + a side port (dark hole) ringed with the
 // teal connector accent — mirrors buildBlowerMesh in the viewport.
-function Blower({ color }: { color: string }) {
+// The unit itself, drawn `y` feet up its own axis so the pedestal variant can
+// raise it without a second copy of the geometry.
+function BlowerBody({ color, y = 0 }: { color: string; y?: number }) {
   const motor = "#2a3140";
   return (
-    <g transform="translate(0,-3)">
-      <Box x0={-1.6} x1={1.6} y0={-1.6} y1={1.6} z0={-1.6} z1={1.6} color={color} />
+    <>
+      <Box x0={-1.6} x1={1.6} y0={y - 1.6} y1={y + 1.6} z0={-1.6} z1={1.6} color={color} />
       <Cylinder
-        c0={[0, 1.6, 0]}
-        c1={[0, 2.5, 0]}
+        c0={[0, y + 1.6, 0]}
+        c1={[0, y + 2.5, 0]}
         r={0.72}
         basisA={[1, 0, 0]}
         basisB={[0, 0, 1]}
@@ -186,17 +188,57 @@ function Blower({ color }: { color: string }) {
         capColor={shade(motor, 0.32)}
       />
       <Cylinder
-        c0={[1.6, 0, 0]}
-        c1={[2.35, 0, 0]}
+        c0={[1.6, y, 0]}
+        c1={[2.35, y, 0]}
         r={0.72}
         basisA={[0, 1, 0]}
         basisB={[0, 0, 1]}
         color={shade(color, 0.18)}
         capColor="#05080c"
       />
-      <g transform={faceMatrix([0, 0, 1], [0, 1, 0], [2.4, 0, 0])}>
+      <g transform={faceMatrix([0, 0, 1], [0, 1, 0], [2.4, y, 0])}>
         <circle cx={0} cy={0} r={0.95} fill="none" stroke="#5eead4" strokeWidth={0.12} />
       </g>
+    </>
+  );
+}
+
+function Blower({ color }: { color: string }) {
+  return (
+    <g transform="translate(0,-3)">
+      <BlowerBody color={color} />
+    </g>
+  );
+}
+
+// The same unit standing on its mast — what the drawer's fifth card shows, and
+// what the viewport draws once the blower is raised off the floor. The mast is
+// tube-coloured because that is what it is made of, even though it is counted
+// in no BOM row (see domain/pedestal.ts).
+function PedestalBlower({ color }: { color: string }) {
+  const tube = "#9AA4B4";
+  const lift = 2.5;
+  return (
+    <g transform="translate(0,1.5)">
+      <Cylinder
+        c0={[0, -3.6, 0]}
+        c1={[0, -3.2, 0]}
+        r={1.25}
+        basisA={[1, 0, 0]}
+        basisB={[0, 0, 1]}
+        color={shade(tube, -0.3)}
+        capColor={shade(tube, -0.12)}
+      />
+      <Cylinder
+        c0={[0, -3.2, 0]}
+        c1={[0, lift - 1.5, 0]}
+        r={0.5}
+        basisA={[1, 0, 0]}
+        basisB={[0, 0, 1]}
+        color={tube}
+        capColor={shade(tube, 0.2)}
+      />
+      <BlowerBody color={color} y={lift} />
     </g>
   );
 }
@@ -308,7 +350,17 @@ function Bend({ color }: { color: string }) {
   );
 }
 
-export function PartThumbnail({ type, color }: { type: string; color: string }) {
+export function PartThumbnail({
+  type,
+  color,
+  pedestal = false
+}: {
+  type: string;
+  color: string;
+  /** Draw a blower standing on its mast. The catalog calls a pedestal blower a
+   * blower, which is right about the part and wrong about the picture. */
+  pedestal?: boolean;
+}) {
   return (
     <svg
       width="100%"
@@ -317,7 +369,8 @@ export function PartThumbnail({ type, color }: { type: string; color: string }) 
       preserveAspectRatio="xMidYMid meet"
       className="part-thumbnail"
     >
-      {type === "blower" && <Blower color={color} />}
+      {type === "blower" &&
+        (pedestal ? <PedestalBlower color={color} /> : <Blower color={color} />)}
       {type === "terminal" && <Terminal color={color} />}
       {type === "tube" && <Tube color={color} />}
       {type === "bend" && <Bend color={color} />}

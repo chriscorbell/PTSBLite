@@ -69,6 +69,12 @@ describe("BOM derivation", () => {
   it("bomRows yields zero quantities for an empty design", () => {
     const rows = bomRows(emptyDesign());
     expect(rows.every((r) => r.qty === 0)).toBe(true);
-    expect(rows.map((r) => r.key).sort()).toEqual(["bend90", "blower", "terminal", "tube6"]);
+    expect(rows.map((r) => r.key).sort()).toEqual([
+      "bend90",
+      "blower",
+      "blowerPedestal",
+      "terminal",
+      "tube6"
+    ]);
   });
 });

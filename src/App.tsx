@@ -397,6 +397,10 @@ export default function App({ platform }: AppProps) {
    * the client builds shelves out of them and stands equipment on top. Tubes
    * and bends continue from a port and are left alone, and the obstacle tool
    * has to be able to draw over what is already there.
+   *
+   * A pedestal blower is deliberately not in that list: its mast runs to the
+   * floor, so standing one on a shelf would ask the mast to pass through the
+   * shelf holding it up. It is refused there instead, and says so (ADR-0020).
    */
   const restingCell = useCallback(
     (cell: Vec3): Vec3 =>

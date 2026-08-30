@@ -156,6 +156,16 @@ function parsePart(
       if (!isVec3(value.cell)) return fail(`parts[${index}] blower.cell must be a 3-tuple.`);
       if (!isVec3(value.dir)) return fail(`parts[${index}] blower.dir must be a 3-tuple.`);
       const part: BlowerPart = { id, type: "blower", cell: value.cell, dir: value.dir };
+      // Present means a pedestal blower; 0 is a legal height, so the check is
+      // on the type rather than on truthiness. A negative or fractional mast is
+      // not something the app can produce, and is read as a plain blower.
+      if (
+        typeof value.pedestalFeet === "number" &&
+        Number.isInteger(value.pedestalFeet) &&
+        value.pedestalFeet >= 0
+      ) {
+        part.pedestalFeet = value.pedestalFeet;
+      }
       return { ok: true, part };
     }
     case "terminal": {

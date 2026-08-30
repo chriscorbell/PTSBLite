@@ -100,6 +100,45 @@ export function buildBlowerMesh({ ghost = false } = {}): THREE.Group {
   return g;
 }
 
+/**
+ * The mast under a blower with a pedestal: straight tube from the underside of
+ * the unit down to the floor, with a foot plate where it lands.
+ *
+ * Built as a sibling of the blower rather than a child of it, because the
+ * blower's group is turned to face its port and the mast must stay vertical
+ * however the unit is pointed. Positioned by the caller at the blower's cell
+ * centre, so `feet` runs downward from the origin.
+ */
+export function buildPedestalMesh(feet: number, { ghost = false } = {}): THREE.Group | null {
+  if (feet <= 0) return null;
+  const g = new THREE.Group();
+  const mast = new THREE.Mesh(
+    new THREE.CylinderGeometry(TUBE_R, TUBE_R, feet, 18),
+    new THREE.MeshStandardMaterial({
+      color: VP.tube,
+      roughness: 0.45,
+      metalness: 0.25,
+      transparent: ghost,
+      opacity: ghost ? 0.6 : 1
+    })
+  );
+  mast.position.y = -0.46 - feet / 2;
+  g.add(mast);
+  const foot = new THREE.Mesh(
+    new THREE.CylinderGeometry(TUBE_R * 2.1, TUBE_R * 2.1, 0.12, 20),
+    new THREE.MeshStandardMaterial({
+      color: VP.blowerEdge,
+      roughness: 0.5,
+      metalness: 0.5,
+      transparent: ghost,
+      opacity: ghost ? 0.6 : 1
+    })
+  );
+  foot.position.y = -0.46 - feet + 0.06;
+  g.add(foot);
+  return g;
+}
+
 export function buildTerminalMesh({ ghost = false } = {}): THREE.Group {
   const g = new THREE.Group();
   const box = new THREE.Mesh(

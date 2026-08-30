@@ -14,6 +14,7 @@ import type { ToolId } from "@/types";
 const TOOL_LABELS: Record<ToolId, string> = {
   cursor: "Select",
   blower: catalogLabel("blower"),
+  blowerPedestal: catalogLabel("blowerPedestal"),
   terminal: catalogLabel("terminal"),
   tube: catalogLabel("tube6"),
   bend: catalogLabel("bend90"),
@@ -39,7 +40,12 @@ export function ActiveToolBar({
   floor: 1 | 2 | null;
 }) {
   if (tool === "cursor") return null;
-  const placesPart = tool === "blower" || tool === "terminal" || tool === "tube" || tool === "bend";
+  const placesPart =
+    tool === "blower" ||
+    tool === "blowerPedestal" ||
+    tool === "terminal" ||
+    tool === "tube" ||
+    tool === "bend";
   const usesElevation = placesPart || tool === "obstacle";
   return (
     <div className="active-tool-bar">

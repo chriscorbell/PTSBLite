@@ -3,6 +3,7 @@ import * as THREE from "three";
 import {
   buildBendMesh,
   buildBlowerMesh,
+  buildPedestalMesh,
   buildObstacleMesh,
   buildTerminalMesh,
   buildTubeMesh
@@ -709,6 +710,14 @@ export function Viewport({
         const c = cellCenter(p.cell);
         mesh.position.set(c[0], c[1], c[2]);
         mesh.quaternion.copy(dirToQuat(p.dir));
+        // The mast stays upright while the blower turns, so it is its own
+        // unrotated mesh sharing the blower's id — clicking it erases the unit.
+        const pedestal = p.pedestalFeet ? buildPedestalMesh(p.pedestalFeet) : null;
+        if (pedestal) {
+          pedestal.position.set(c[0], c[1], c[2]);
+          pedestal.userData.partId = p.id;
+          s.partsGroup.add(pedestal);
+        }
       } else if (p.type === "terminal") {
         mesh = buildTerminalMesh();
         const c = cellCenter(p.cell);
@@ -822,6 +831,15 @@ export function Viewport({
         const c = cellCenter(ghost.cell);
         mesh.position.set(c[0], c[1], c[2]);
         mesh.quaternion.copy(dirToQuat(ghost.dir));
+        // Its own mesh for the same reason as a placed one: the mast is
+        // vertical whichever way the blower is turned.
+        const pedestal = ghost.pedestalFeet
+          ? buildPedestalMesh(ghost.pedestalFeet, { ghost: true })
+          : null;
+        if (pedestal) {
+          pedestal.position.set(c[0], c[1], c[2]);
+          s.ghostGroup.add(pedestal);
+        }
       } else if (ghost.type === "terminal") {
         mesh = buildTerminalMesh({ ghost: true });
         const c = cellCenter(ghost.cell);

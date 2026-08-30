@@ -70,6 +70,16 @@ and the renderer treat one no differently. What went was the base stepper the HU
 at the client's request: a shelf has a height, not two numbers. Restoring a floating volume is a
 control and a clamp, not a model change.
 
+**A blower's pedestal is the only uncounted geometry, and it is a property rather than a part.**
+`BlowerPart.pedestalFeet` holds the height of the mast under a blower placed with a pedestal; it is
+drawn and it claims grid cells, but it reaches no BOM row, no tube footage and no centerline
+([ADR-0020](adr/0020-a-pedestal-is-drawn-but-not-counted.md)). Nothing generalizes from it: there
+is no notion of an uncounted part, and a second piece of hardware that "does not count" — a hanger,
+a bracket, a wall mount — would be another property on another part rather than a category the
+model already has. The mast measures to the floor of the storey and is refused when something is in
+that column; it does not stand on an obstacle, and it does not follow a blower that is later
+re-elevated, because placed parts cannot be moved at all (see *Selection and move*).
+
 **A design's geometry answers are fixed once it is created.** The room, and the multi-floor
 and plenum answers, are collected on the welcome screen and cannot be changed afterwards. Changing
 one means starting a new design. `DesignMetadata` would hold an edit fine; what was deliberately

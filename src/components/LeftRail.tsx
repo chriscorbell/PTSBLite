@@ -15,10 +15,14 @@ type RailItem = {
 type BuildPart = {
   id: ToolId;
   regKey: string;
+  /** Draws the thumbnail standing on its mast. The catalog says a pedestal
+   * blower *is* a blower, which is true of the part but not of its picture. */
+  pedestal?: boolean;
 };
 
 const BUILD_PARTS: BuildPart[] = [
   { id: "blower", regKey: "blower" },
+  { id: "blowerPedestal", regKey: "blowerPedestal", pedestal: true },
   { id: "terminal", regKey: "terminal" },
   { id: "tube", regKey: "tube6" },
   { id: "bend", regKey: "bend90" }
@@ -332,7 +336,7 @@ function PartCard({
       aria-pressed={active}
     >
       <div className="part-card__preview">
-        <PartThumbnail type={entry.type} color={entry.color} />
+        <PartThumbnail type={entry.type} color={entry.color} pedestal={part.pedestal} />
       </div>
       <div>
         <div className="part-card__name">{entry.name}</div>

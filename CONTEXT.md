@@ -35,7 +35,16 @@ Obstacles are **not** parts. Modelled by `Part`.
 *Avoid:* "component", "element", "piece".
 
 **Blower** — the unit that drives air through the system. Has exactly one **port**, facing `dir`.
-A complete system has one at **each** end; see ADR-0019.
+A complete system has one at **each** end; see ADR-0019. The catalog stocks two: a plain one, and
+one **with a pedestal**.
+
+**Pedestal** — the mast under a blower placed with the pedestal tool: straight tube from the
+underside of the unit down to the floor of the storey it stands on, its height stored as
+`pedestalFeet`. It is how the blower is mounted, not part of the run air travels through, so it is
+**drawn but not counted** — no BOM row, no tube footage, nothing against the 300 ft centerline. It
+does claim grid cells, unlike the room's own structure, because it is a physical column of tube
+that nothing may route through. See ADR-0020.
+*Avoid:* "stand", "riser" (a riser is tube that carries air).
 
 **Remoting the blower** — running tubing and bends between a blower and its terminal rather than
 seating them together. The client's term. A legal layout, not a fault.
