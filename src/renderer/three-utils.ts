@@ -13,8 +13,14 @@ import type { Vec3 } from "@/types";
 
 export const VP = {
   bg: 0x0b0e13,
-  grid: 0x1f2530,
-  gridStrong: 0x2a3140,
+  // The grid lines and the scenery drawn over them (walls, ceiling, the slab
+  // between floors) used to share one color, which is why the grid vanished
+  // under a wall: the lines and the wash over them were the same shade. They
+  // are separate now, and the grid is pitched to hold its contrast against the
+  // room's floor seen through two translucent walls at once.
+  grid: 0x2e3746,
+  gridMajor: 0x4a5570,
+  structure: 0x2a3140,
   ground: 0x10141b,
   // The room's floor, a step brighter than the ground outside it so the room
   // reads as a place without shouting over the parts placed in it.
