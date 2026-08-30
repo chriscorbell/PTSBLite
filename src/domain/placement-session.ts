@@ -18,6 +18,7 @@ import {
   obstaclePlacementDraftHasFootprint,
   obstaclePlacementGhost,
   placeObstacleVolume,
+  prospectiveObstacleDraft,
   restOnObstacles,
   resizeObstaclePlacementHeight,
   setObstaclePlacementFootprint,
@@ -418,8 +419,13 @@ export function placementGhost(session: PlacementSession, design: DesignState): 
       return tubePlacementGhost(design, hoverCell);
     case "bend":
       return bendPlacementGhost(design, hoverCell, { rotationIndex: session.ghostRotation });
-    case "obstacle":
-      return obstaclePlacementGhost(session.obstacleDraft, hoverCell, session.obstacleKind);
+    case "obstacle": {
+      // Before the first click there is no draft, so stand in the one a click
+      // would start: the volume itself is previewed from the moment the tool is
+      // armed, not only once a corner has been anchored.
+      const draft = session.obstacleDraft ?? prospectiveObstacleDraft(design, hoverCell);
+      return obstaclePlacementGhost(draft, hoverCell, session.obstacleKind);
+    }
   }
 }
 
