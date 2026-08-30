@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icons, type IconProps } from "@/components/Icons";
-import { elevationKeysApply } from "@/domain/placement-session";
+import { elevationKeysApply, rotationKeysApply } from "@/domain/placement-session";
 import type { ComponentType, ReactNode } from "react";
 import type { ToolId } from "@/types";
 import "@/components/ControlsLegend.css";
@@ -44,7 +44,8 @@ const CONTROLS: Control[] = [
         <kbd>⇧R</kbd>
       </>
     ),
-    action: "Rotate"
+    action: "Rotate",
+    applies: rotationKeysApply
   },
   {
     icon: Icons.Keys,
