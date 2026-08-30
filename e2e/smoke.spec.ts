@@ -6,6 +6,12 @@ import { expect, test, type Page } from "@playwright/test";
  * suites prove the logic while this proves the assembled production build
  * actually boots, renders, places through the raycaster, autosaves, and
  * exports. Anything more belongs in a domain or component test, not here.
+ *
+ * Deliberately no screenshot or pixel assertions: these tests prove the app
+ * *runs*, not that it looks right — a shader change rendering everything
+ * magenta still passes. Visual regression testing was considered and rejected
+ * as too flaky for a project this size; looking right stays a human check
+ * (see CLAUDE.md's note on checking the production build by hand).
  */
 
 /** Uncaught page errors collected from `page`; asserted empty at the end. */

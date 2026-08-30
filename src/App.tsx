@@ -141,6 +141,13 @@ export default function App({ platform }: AppProps) {
   const obstacleKind = placement.obstacleKind;
   const activeElevation = placement.activeElevation;
 
+  // The transient UI state below is individual `useState` calls on purpose:
+  // each value is independent, and the logic that matters lives in tested
+  // domain modules. If a future change adds values that move *together* —
+  // arming one thing must clear another — reach for the placement-session
+  // pattern above (one reducer, rules stated once) rather than growing this
+  // list and holding the coupling by hand.
+
   // Every visit starts on the welcome screen: a continue/new/delete choice when
   // a design is stored, the setup form otherwise. Null once answered. "New"
   // from the top bar reopens it, without the greeting.
