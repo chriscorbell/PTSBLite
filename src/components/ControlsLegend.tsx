@@ -24,14 +24,16 @@ type Control = {
 const CONTROLS: Control[] = [
   { icon: Icons.MouseLeft, input: "Left click", action: "Place" },
   { icon: Icons.MouseRight, input: "Right click", action: "Erase" },
-  { icon: Icons.Orbit, input: "Drag", action: "Orbit" },
-  { icon: Icons.Pan, input: "Right drag", action: "Pan" },
+  { icon: Icons.Orbit, input: "Left click drag", action: "Orbit" },
+  { icon: Icons.Pan, input: "Right click drag", action: "Pan" },
   { icon: Icons.Scroll, input: "Scroll", action: "Zoom" },
   {
     icon: Icons.Keys,
     input: (
       <>
-        <kbd>R</kbd> <kbd>⇧R</kbd>
+        <kbd>R</kbd>
+        <span className="legend__or">/</span>
+        <kbd>⇧R</kbd>
       </>
     ),
     action: "Rotate"
@@ -40,7 +42,9 @@ const CONTROLS: Control[] = [
     icon: Icons.Keys,
     input: (
       <>
-        <kbd>[</kbd> <kbd>]</kbd>
+        <kbd>[</kbd>
+        <span className="legend__or">/</span>
+        <kbd>]</kbd>
       </>
     ),
     action: "Elevation"
