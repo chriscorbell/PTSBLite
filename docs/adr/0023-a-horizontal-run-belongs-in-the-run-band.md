@@ -2,6 +2,9 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-30
+- **Amended:** 2026-08-31 — `runBandVolume` no longer returns one band per floor. A two-floor
+  building has a single band, upstairs: [ADR-0025](0025-a-two-floor-building-runs-upstairs.md).
+  The three kinds and the "always, at any height" rule below are unchanged.
 
 Auto-Build carried horizontal runs in the plenum when the climb repaid itself and along the floor
 when it did not. The client was asked where the line should fall and drew it nowhere: asked whether
