@@ -132,6 +132,12 @@ and keep. That is a deliberate decision, recorded in
 [ADR-0013](adr/0013-lite-publishes-placeholder-part-numbers.md), and it is the one place invented
 data reaches a customer-facing artifact on purpose. Issue #94.
 
+**The parts now look real, and are still named wrong.** The blower and terminal are modelled from
+the Kel2020 marketing media rather than from CAD, accepted by the client as the final Lite
+appearance ([ADR-0026](adr/0026-parts-are-modelled-from-marketing-media.md)). Their *shape* is
+sourced; their names and numbers are not, which makes the gap above easier to overlook than it was
+when both were obviously placeholders.
+
 **The exported PDF carries pictures.** Five rendered views are captured from the live scene and
 embedded after the parts list ([ADR-0018](adr/0018-the-exported-bom-carries-rendered-views.md)).
 A document is now on the order of a megabyte rather than a few kilobytes, and a browser with no

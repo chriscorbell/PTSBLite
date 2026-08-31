@@ -29,10 +29,22 @@ export const VP = {
   accentDim: 0x2e7e78,
   warn: 0xf4b43a,
   danger: 0xef5667,
-  blower: 0x3f4a60,
-  blowerEdge: 0x6a7691,
-  terminal: 0x5b6477,
-  terminalEdge: 0x8b95a7,
+  // The Kel2020 hardware, modelled from the media at kellytubesystems.com/kel2020
+  // (ADR-0026). The real power unit is matte black; graphite rather than black
+  // because the viewport's ground is nearly black already and a true black drum
+  // disappears into the room floor.
+  blower: 0x30363f,
+  blowerEdge: 0x7a8598,
+  // A terminal is a clear barrel between two brushed collars, so its body colour
+  // is the collar and the barrel has its own, near-transparent, tint.
+  terminal: 0x8f97a6,
+  terminalEdge: 0xb3bbc9,
+  terminalGlass: 0xd7e3f0,
+  // The door cage over the barrel, tan-anodised on the real unit.
+  terminalDoor: 0xa9a390,
+  // The green a Kel2020 signs itself with: the power light, the send button and
+  // the wordmark down the door.
+  signal: 0x4ade80,
   tube: 0x8e96a5,
   tubeEdge: 0xb8bfcd,
   bend: 0x8e96a5,
