@@ -22,9 +22,11 @@ describe("Straight tube snap placement", () => {
       { id: "t2", type: "terminal", cell: [10, 0, 0], axis: [1, 0, 0] }
     ]);
 
+    // The terminal lies along X across [10] and [11], so the port at its far
+    // end lands a tube at [12] rather than [11] (ADR-0027).
     expect(tubeLandingCells(design)).toEqual([
       [1, 0, 0],
-      [11, 0, 0],
+      [12, 0, 0],
       [9, 0, 0]
     ]);
   });

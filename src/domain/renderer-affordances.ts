@@ -336,7 +336,7 @@ function partFootprint(part: Part): Vec3[] {
     case "blower":
       return [part.cell];
     case "terminal":
-      return terminalCells(part.cell);
+      return terminalCells(part.cell, part.axis);
     case "tube":
       return tubeCells(part.from, part.to);
     case "bend":
@@ -352,7 +352,7 @@ function ghostFootprint(ghost: Ghost): Vec3[] {
         ? [ghost.cell]
         : [ghost.cell, ...pedestalCells(ghost.cell, ghost.pedestalFeet)];
     case "terminal":
-      return terminalCells(ghost.cell);
+      return terminalCells(ghost.cell, ghost.axis);
     case "tube":
       return tubeCells(ghost.from, ghost.to);
     case "bend":

@@ -29,7 +29,7 @@ export function partCells(part: Part): Vec3[] {
     case "blower":
       return [part.cell];
     case "terminal":
-      return terminalCells(part.cell);
+      return terminalCells(part.cell, part.axis);
     case "tube":
       return tubeCells(part.from, part.to);
     case "bend":

@@ -12,15 +12,17 @@ const sampleParts: Part[] = [
   { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
   { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
   { id: "t2", type: "terminal", cell: [30, 0, 0], axis: [1, 0, 0] },
-  { id: "st1", type: "tube", from: [2, 0.5, 0], to: [8, 0.5, 0] },
-  { id: "st2", type: "tube", from: [8, 0.5, 0], to: [14, 0.5, 0] },
-  { id: "st3", type: "tube", from: [14, 0.5, 0], to: [17, 0.5, 0] },
+  // The run starts a foot past the terminal at [1, 0, 0]: it lies along X, so
+  // [2, 0, 0] is its second foot (ADR-0027). Every length is unchanged.
+  { id: "st1", type: "tube", from: [3, 0.5, 0], to: [9, 0.5, 0] },
+  { id: "st2", type: "tube", from: [9, 0.5, 0], to: [15, 0.5, 0] },
+  { id: "st3", type: "tube", from: [15, 0.5, 0], to: [18, 0.5, 0] },
   {
     id: "bn1",
     type: "bend",
-    entry: [17, 0.5, 0],
-    exit: [20, 0.5, 3],
-    center: [20, 0.5, 0],
+    entry: [18, 0.5, 0],
+    exit: [21, 0.5, 3],
+    center: [21, 0.5, 0],
     inDir: [1, 0, 0],
     outDir: [0, 0, 1],
     radius: 3

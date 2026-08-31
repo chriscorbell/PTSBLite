@@ -10,13 +10,20 @@ import {
 } from "@/domain/validation";
 import type { BuildArea, DesignState, Part } from "@/types";
 
-/** Blower, Terminal 1, tubing, Terminal 2, blower — a complete system (ADR-0019). */
+/**
+ * Blower, Terminal 1, tubing, Terminal 2, blower — a complete system (ADR-0019).
+ *
+ * The terminals lie along X, so each takes two squares of floor and the run
+ * leaves the far end of the body rather than the cell it was placed in
+ * (ADR-0027). That is what the gaps between the parts are: `t1` is [1] and [2],
+ * and the tube starts a foot past it.
+ */
 const baseParts: Part[] = [
   { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
   { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
-  { id: "st1", type: "tube", from: [2, 0, 0], to: [8, 0, 0] },
-  { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] },
-  { id: "b2", type: "blower", cell: [9, 0, 0], dir: [-1, 0, 0] }
+  { id: "st1", type: "tube", from: [3, 0, 0], to: [9, 0, 0] },
+  { id: "t2", type: "terminal", cell: [9, 0, 0], axis: [1, 0, 0] },
+  { id: "b2", type: "blower", cell: [11, 0, 0], dir: [-1, 0, 0] }
 ];
 
 function designWith(
@@ -85,21 +92,16 @@ describe("validation engine", () => {
       { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
       { id: "st0", type: "tube", from: [1, 0, 0], to: [4, 0, 0] },
       { id: "t1", type: "terminal", cell: [4, 0, 0], axis: [1, 0, 0] },
-      { id: "st1", type: "tube", from: [5, 0, 0], to: [8, 0, 0] },
-      { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] },
-      { id: "b2", type: "blower", cell: [9, 0, 0], dir: [-1, 0, 0] }
+      { id: "st1", type: "tube", from: [6, 0, 0], to: [10, 0, 0] },
+      { id: "t2", type: "terminal", cell: [10, 0, 0], axis: [1, 0, 0] },
+      { id: "b2", type: "blower", cell: [12, 0, 0], dir: [-1, 0, 0] }
     ]);
 
     expect(validate(remoted)).toEqual([]);
   });
 
   it("warns when open ports indicate the system is not fully connected", () => {
-    const design = designWith([
-      baseParts[0],
-      baseParts[1],
-      { id: "t2", type: "terminal", cell: [8, 0, 0], axis: [1, 0, 0] },
-      { id: "b2", type: "blower", cell: [9, 0, 0], dir: [-1, 0, 0] }
-    ]);
+    const design = designWith([baseParts[0], baseParts[1], baseParts[3], baseParts[4]]);
 
     const warnings = checkConnectivity(design);
     expect(warnings.map((w) => w.id)).toEqual(["connectivity"]);
@@ -115,10 +117,10 @@ describe("validation engine", () => {
   });
 
   it("warns when an obstacle sits in a terminal's second foot", () => {
-    // The terminal at [1, 0, 0] stands 2 ft tall, so [1, 1, 0] is as much the
-    // terminal as the cell it was placed in. An obstacle there is a collision,
-    // not clearance above the unit.
-    const design = designWith(baseParts, [{ id: "o1", min: [1, 1, 0], max: [1, 1, 0] }]);
+    // The terminal at [1, 0, 0] is 2 ft long and lying along X, so [2, 0, 0] is
+    // as much the terminal as the cell it was placed in. An obstacle there is a
+    // collision, not clearance beside the unit.
+    const design = designWith(baseParts, [{ id: "o1", min: [2, 0, 0], max: [2, 0, 0] }]);
     expect(checkObstacleIntersections(design).map((w) => w.id)).toEqual(["obstacle-intersection"]);
   });
 

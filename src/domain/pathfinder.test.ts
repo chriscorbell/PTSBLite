@@ -20,10 +20,20 @@ function designWith(parts: Part[], obstacles: Obstacle[] = []): DesignState {
   return designFromScene({ parts, obstacles });
 }
 
+/**
+ * A blower, Terminal 1 lying along X against it, and Terminal 2 wherever the
+ * case under test wants it.
+ *
+ * Terminal 1 lies across [-1+1] and [1] with the run leaving its far end at
+ * [2, 0, 0], which is where every route in this file starts. It stands one cell
+ * back from the origin so that it still does: a terminal turned sideways takes
+ * two squares of floor rather than one (ADR-0027), and the routes here are
+ * written in terms of the port, not the cell the unit was placed in.
+ */
 function basicParts(targetCell: Vec3, targetAxis: Vec3 = [1, 0, 0]): Part[] {
   return [
-    { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
-    { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
+    { id: "b1", type: "blower", cell: [-1, 0, 0], dir: [1, 0, 0] },
+    { id: "t1", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] },
     { id: "t2", type: "terminal", cell: targetCell, axis: targetAxis }
   ];
 }
@@ -530,9 +540,12 @@ describe("Pathfinder run band preference", () => {
     // bias saves and the route went straight through the building — which then
     // read as a system that must obey the plenum rules.
     const room = { room: { width: 20, depth: 20, height: 10 }, plenumHeightFeet: 2 };
+    // Terminal 1 stands a cell further out than the building's other side so
+    // that its port — which lies a foot past the 2 ft body (ADR-0027) — is the
+    // same distance from Terminal 2's as it was when this case was written.
     const eitherSide: Part[] = [
-      { id: "b1", type: "blower", cell: [-16, 0, 0], dir: [1, 0, 0] },
-      { id: "t1", type: "terminal", cell: [-15, 0, 0], axis: [1, 0, 0] },
+      { id: "b1", type: "blower", cell: [-17, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [-16, 0, 0], axis: [1, 0, 0] },
       { id: "t2", type: "terminal", cell: [15, 0, 0], axis: [1, 0, 0] }
     ];
     const design = designFromScene({ parts: eitherSide, obstacles: [] }, room);
@@ -749,11 +762,14 @@ describe("why Auto-Build failed", () => {
     { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
     { id: "t2", type: "terminal", cell: [6, 0, 6], axis: [1, 0, 0] }
   ];
+  // The shell reaches to x=8 because the terminal inside it lies along X across
+  // [6] and [7], with its far port opening at [8] (ADR-0027). A wall stopping
+  // at [7] would leave that port in open air, which is not "walled in" at all.
   const nearShell: Obstacle[] = [
-    { id: "n1", min: [5, 0, 5], max: [7, 1, 5] },
-    { id: "n2", min: [5, 0, 7], max: [7, 1, 7] },
+    { id: "n1", min: [5, 0, 5], max: [8, 1, 5] },
+    { id: "n2", min: [5, 0, 7], max: [8, 1, 7] },
     { id: "n3", min: [5, 0, 6], max: [5, 1, 6] },
-    { id: "n4", min: [7, 0, 6], max: [7, 1, 6] }
+    { id: "n4", min: [8, 0, 6], max: [8, 1, 6] }
   ];
 
   it("claims no route only after exhausting the reachable space", () => {

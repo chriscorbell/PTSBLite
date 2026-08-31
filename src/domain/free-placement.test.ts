@@ -164,11 +164,16 @@ describe("free placement orientation", () => {
 describe("free placement commits", () => {
   it("uses the registry-backed endpoint footprint for occupancy", () => {
     const { metadata } = emptyDesign();
-    expect(freePlacementFootprint("blower", [3, 0, 4], metadata)).toEqual([[3, 0, 4]]);
-    // A terminal is 2 ft tall, and the catalog says so: both feet are claimed.
-    expect(freePlacementFootprint("terminal", [4, 0, 4], metadata)).toEqual([
+    expect(freePlacementFootprint("blower", [3, 0, 4], metadata, UP)).toEqual([[3, 0, 4]]);
+    // A terminal is 2 ft long, and the catalog says so: both feet are claimed.
+    expect(freePlacementFootprint("terminal", [4, 0, 4], metadata, UP)).toEqual([
       [4, 0, 4],
       [4, 1, 4]
+    ]);
+    // Turned on its side it is the same two feet, laid across the floor.
+    expect(freePlacementFootprint("terminal", [4, 0, 4], metadata, [0, 0, 1])).toEqual([
+      [4, 0, 4],
+      [4, 0, 5]
     ]);
   });
 
@@ -283,5 +288,61 @@ describe("free placement commits", () => {
     expect(
       placeFreePart(lowCeiling, { id: "b2", type: "blower", cell: [4, 0, 4], orientation: UP })
     ).toMatchObject({ ok: true });
+
+    // And the same cell takes the terminal once it is turned on its side: the
+    // second foot is then beside the cursor, where nothing is standing.
+    expect(placeFreePart(lowCeiling, { ...attempt, orientation: [1, 0, 0] })).toMatchObject({
+      ok: true
+    });
+  });
+
+  it("refuses a terminal with no room to lie down, and points beside the cell", () => {
+    // Turned on its side the blocked square is next to the cursor rather than
+    // over it, so the headroom message would be pointing at the wrong one.
+    const crowded = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [5, 0, 4], dir: [1, 0, 0] }],
+      obstacles: []
+    });
+    const attempt = {
+      id: "t1",
+      type: "terminal",
+      cell: [4, 0, 4],
+      orientation: [1, 0, 0]
+    } as const;
+
+    expect(placeFreePart(crowded, attempt)).toMatchObject({
+      ok: false,
+      message: "A terminal turned on its side is 2ft long — there is no room beside that cell."
+    });
+    // Standing up, the same cell is fine — nothing is above it.
+    expect(placeFreePart(crowded, { ...attempt, orientation: UP })).toMatchObject({ ok: true });
+  });
+
+  it("previews and places a terminal in the orientation R has turned it to", () => {
+    // The ghost decides the footprint from the orientation, and the click that
+    // follows resolves the same one, so what is refused is what was on screen.
+    const design = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [5, 0, 4], dir: [1, 0, 0] }],
+      obstacles: []
+    });
+    const armed = {
+      type: "terminal",
+      design,
+      cell: [4, 0, 4],
+      memory: DEFAULT_FREE_PLACEMENT_MEMORY
+    } as const;
+
+    // Unturned it stands up and previews; one press of R lays it into the cell
+    // the blower is standing in, and the preview goes.
+    expect(freePlacementGhost({ ...armed, rotationSteps: 0 })).toMatchObject({
+      type: "terminal",
+      axis: [0, 1, 0]
+    });
+    expect(freePlacementGhost({ ...armed, rotationSteps: 1 })).toBeNull();
+    // Another press turns it along Z, where there is room again.
+    expect(freePlacementGhost({ ...armed, rotationSteps: 2 })).toMatchObject({
+      type: "terminal",
+      axis: [0, 0, 1]
+    });
   });
 });

@@ -87,7 +87,11 @@ export const FREE_PLACEMENT_MESSAGES = {
   // Same reasoning one cell in the other direction: a terminal stands 2 ft
   // tall, so the cell above the cursor has to be free — and out at the top of
   // the build area there is no cell above it at all.
-  terminalHeadroom: `A terminal stands ${TERMINAL_HEIGHT_CELLS}ft tall — there is no room above that cell.`
+  terminalHeadroom: `A terminal stands ${TERMINAL_HEIGHT_CELLS}ft tall — there is no room above that cell.`,
+  // And once R has turned it onto its side the second foot is beside the
+  // cursor rather than above it, so the message has to point somewhere else.
+  // Naming the direction is what stops it reading as a repeat of the last one.
+  terminalClearance: `A terminal turned on its side is ${TERMINAL_HEIGHT_CELLS}ft long — there is no room beside that cell.`
 } as const;
 
 export type PlaceFreePartResult =
@@ -121,6 +125,29 @@ const LENGTH = FREE_PLACEMENT_ORIENTATIONS.length;
 
 export function resolveFreePlacementOrientation(base: Vec3, steps: FreePlacementRotation): Vec3 {
   return rotateOrientation(base, steps);
+}
+
+/**
+ * The orientation an armed part would be set down in: where it would snap, or
+ * what it was last turned to, carried `steps` further round the ring.
+ *
+ * Worked out on its own rather than read off the ghost, because a terminal's
+ * footprint now depends on it: the ghost is refused when the cells that
+ * orientation needs are taken, and the click that follows still has to report
+ * *which* orientation was refused rather than fall back to a different one and
+ * name the wrong blocked cell.
+ */
+export function freePlacementOrientation(
+  design: DesignState,
+  type: FreePlacementType,
+  cell: Vec3,
+  memory: FreePlacementMemory,
+  rotationSteps: FreePlacementRotation
+): Vec3 {
+  return resolveFreePlacementOrientation(
+    defaultFreePlacementOrientation(design, type, cell, memory),
+    rotationSteps
+  );
 }
 
 export function rememberFreePlacementOrientation(
@@ -168,16 +195,17 @@ export function freePlacementFootprint(
   type: FreePlacementType,
   cell: Vec3,
   metadata: DesignMetadata,
+  orientation: Vec3,
   registry: PartRegistry = partRegistry
 ): Vec3[] {
-  const body = freePlacementBody(type, cell, registry);
+  const body = freePlacementBody(type, cell, orientation, registry);
   if (type !== "blowerPedestal") return body;
   return [...body, ...pedestalCells(cell, pedestalHeightAt(metadata, cell))];
 }
 
 /**
- * The unit itself, before anything it grows: one cell for a blower, two stacked
- * for a terminal (terminal.ts).
+ * The unit itself, before anything it grows: one cell for a blower, two end to
+ * end for a terminal, along whichever way it is turned (terminal.ts).
  *
  * The catalog's declared `cells` is checked against that rather than assumed,
  * for the reason `assertDeclaredCellCount` gives for bends: the field is load
@@ -186,8 +214,13 @@ export function freePlacementFootprint(
  * check — it is how the unit is mounted, not part of the unit, and its length
  * depends on where it stands.
  */
-function freePlacementBody(type: FreePlacementType, cell: Vec3, registry: PartRegistry): Vec3[] {
-  const cells = type === "terminal" ? terminalCells(cell) : [cell];
+function freePlacementBody(
+  type: FreePlacementType,
+  cell: Vec3,
+  orientation: Vec3,
+  registry: PartRegistry
+): Vec3[] {
+  const cells = type === "terminal" ? terminalCells(cell, orientation) : [cell];
   const declared = registry.get(type).cells ?? 1;
   if (cells.length !== declared) {
     throw new Error(
@@ -206,18 +239,25 @@ function freePlacementBody(type: FreePlacementType, cell: Vec3, registry: PartRe
 function validateFreePlacementFootprint(
   design: DesignState,
   type: FreePlacementType,
-  cell: Vec3
+  cell: Vec3,
+  orientation: Vec3
 ): { ok: true } | { ok: false; message: string } {
   const ownCell = validateFreePlacementCell(design, cell);
   if (!ownCell.ok) return ownCell;
   if (type === "terminal") {
-    const [, above] = terminalCells(cell);
-    if (!validateFreePlacementCell(design, above).ok) {
-      return { ok: false, message: FREE_PLACEMENT_MESSAGES.terminalHeadroom };
+    const [, second] = terminalCells(cell, orientation);
+    if (!validateFreePlacementCell(design, second).ok) {
+      return {
+        ok: false,
+        message:
+          second[1] === cell[1]
+            ? FREE_PLACEMENT_MESSAGES.terminalClearance
+            : FREE_PLACEMENT_MESSAGES.terminalHeadroom
+      };
     }
     return { ok: true };
   }
-  const [, ...mast] = freePlacementFootprint(type, cell, design.metadata);
+  const [, ...mast] = freePlacementFootprint(type, cell, design.metadata, orientation);
   for (const mastCell of mast) {
     if (!validateFreePlacementCell(design, mastCell).ok) {
       return { ok: false, message: FREE_PLACEMENT_MESSAGES.pedestalBlocked };
@@ -239,11 +279,11 @@ export function freePlacementGhost({
   memory: FreePlacementMemory;
   rotationSteps: number;
 }): FreePlacementGhost | null {
-  if (!validateFreePlacementFootprint(design, type, cell).ok) return null;
-  const orientation = resolveFreePlacementOrientation(
-    defaultFreePlacementOrientation(design, type, cell, memory),
-    rotationSteps
-  );
+  // Orientation first: a terminal turned on its side claims a different pair of
+  // cells from one standing up, so which cells have to be free is not known
+  // until the ghost knows which way it is facing.
+  const orientation = freePlacementOrientation(design, type, cell, memory, rotationSteps);
+  if (!validateFreePlacementFootprint(design, type, cell, orientation).ok) return null;
   if (type === "terminal") return { type, cell, axis: orientation };
   if (type === "blower") return { type, cell, dir: orientation };
   return {
@@ -268,7 +308,7 @@ export function placeFreePart(
     orientation: Vec3;
   }
 ): PlaceFreePartResult {
-  const validity = validateFreePlacementFootprint(design, type, cell);
+  const validity = validateFreePlacementFootprint(design, type, cell, orientation);
   if (!validity.ok) return validity;
   const part: Part =
     type === "terminal"

@@ -12,22 +12,27 @@ import type { Part, Vec3 } from "@/types";
 const at = (s: SplitSleeve): string => s.at.join(",");
 const positions = (parts: Part[]): string[] => splitSleeves(parts).map(at).sort();
 
-/** Blower, terminal seated against it, six feet of tube, a bend, and tube out. */
+/**
+ * Blower, terminal seated against it, six feet of tube, a bend, and tube out.
+ *
+ * The terminal lies along X across [1] and [2], so the run leaves its far end
+ * at [3] (ADR-0027).
+ */
 const run: Part[] = [
   { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
   { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
-  { id: "st1", type: "tube", from: [2.5, 0.5, 0.5], to: [8.5, 0.5, 0.5] },
+  { id: "st1", type: "tube", from: [3.5, 0.5, 0.5], to: [9.5, 0.5, 0.5] },
   {
     id: "bn1",
     type: "bend",
-    entry: [8.5, 0.5, 0.5],
-    exit: [11.5, 0.5, 3.5],
-    center: [11.5, 0.5, 0.5],
+    entry: [9.5, 0.5, 0.5],
+    exit: [12.5, 0.5, 3.5],
+    center: [12.5, 0.5, 0.5],
     inDir: [1, 0, 0],
     outDir: [0, 0, 1],
     radius: 3
   },
-  { id: "st2", type: "tube", from: [11.5, 0.5, 4.5], to: [11.5, 0.5, 8.5] }
+  { id: "st2", type: "tube", from: [12.5, 0.5, 4.5], to: [12.5, 0.5, 8.5] }
 ];
 
 describe("split sleeve derivation", () => {
@@ -44,7 +49,7 @@ describe("split sleeve derivation", () => {
   it("gives each of the client's cases a sleeve", () => {
     // One between the blower and the terminal, one immediately after the
     // terminal, and one on each end of the bend — none of them special-cased.
-    expect(positions(run)).toEqual(["1,0.5,0.5", "11.5,0.5,4", "2,0.5,0.5", "8,0.5,0.5"].sort());
+    expect(positions(run)).toEqual(["1,0.5,0.5", "12.5,0.5,4", "3,0.5,0.5", "9,0.5,0.5"].sort());
   });
 
   it("leaves an open end alone: a sleeve joins two pieces", () => {
@@ -78,12 +83,14 @@ describe("split sleeve derivation", () => {
   it("turns a sleeve onto its run, whichever side the joint is read from", () => {
     expect(splitSleeves([run[0], run[1]])[0].along).toEqual([1, 0, 0]);
     // The same joint built facing the other way is the same sleeve, turned the
-    // same way: a collar looks identical from either end.
+    // same way: a collar looks identical from either end. The terminal lies
+    // across [1] and [2] whichever end it points, so the blower it mates with
+    // stands at [3].
     const mirrored: Part[] = [
-      { id: "b1", type: "blower", cell: [1, 0, 0], dir: [-1, 0, 0] },
-      { id: "t1", type: "terminal", cell: [0, 0, 0], axis: [-1, 0, 0] }
+      { id: "b1", type: "blower", cell: [3, 0, 0], dir: [-1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [-1, 0, 0] }
     ];
-    expect(splitSleeves(mirrored)[0].at).toEqual([1, 0.5, 0.5]);
+    expect(splitSleeves(mirrored)[0].at).toEqual([3, 0.5, 0.5]);
     expect(splitSleeves(mirrored)[0].along).toEqual([1, 0, 0]);
   });
 

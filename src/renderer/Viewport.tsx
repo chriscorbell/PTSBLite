@@ -747,8 +747,9 @@ export function Viewport({
           s.partsGroup.add(pedestal);
         }
       } else if (p.type === "terminal") {
-        // The mesh turns itself: a terminal stands upright whichever way its
-        // ports face, so only its fittings follow the axis.
+        // The mesh turns itself, body and all: a terminal whose ports run
+        // sideways lies on its side (ADR-0027), and it is drawn from the cell
+        // it was placed in outward, so the position is the same either way.
         mesh = buildTerminalMesh({ axis: p.axis });
         const c = cellCenter(p.cell);
         mesh.position.set(c[0], c[1], c[2]);

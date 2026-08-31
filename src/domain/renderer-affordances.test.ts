@@ -248,10 +248,11 @@ describe("placedPartShadows", () => {
 
   it("merges the columns of every part on one plane", () => {
     // Two parts sharing a column produce one square, not two overlapping ones.
+    // The terminal lies along X, so it casts two squares on its own — and the
+    // blower under one end of it adds none.
     const parts: Part[] = [
       { id: "b1", type: "blower", cell: [0, 5, 0], dir: [1, 0, 0] },
-      { id: "t1", type: "terminal", cell: [0, 9, 0], axis: [1, 0, 0] },
-      { id: "t2", type: "terminal", cell: [1, 9, 0], axis: [1, 0, 0] }
+      { id: "t1", type: "terminal", cell: [0, 9, 0], axis: [1, 0, 0] }
     ];
     const [ground] = placedPartShadows(designFromScene({ parts, obstacles: [] }, oneFloor));
     expect(ground.cells).toEqual([

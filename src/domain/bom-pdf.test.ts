@@ -10,7 +10,9 @@ const sampleParts: Part[] = [
   { id: "b", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] },
   { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] },
   { id: "t2", type: "terminal", cell: [9, 0, 0], axis: [1, 0, 0] },
-  { id: "u1", type: "tube", from: [2, 0, 0], to: [8, 0, 0] },
+  // The run starts a foot past the terminal at [1, 0, 0]: it lies along X, so
+  // [2, 0, 0] is its second foot (ADR-0027).
+  { id: "u1", type: "tube", from: [3, 0, 0], to: [9, 0, 0] },
   {
     id: "n1",
     type: "bend",

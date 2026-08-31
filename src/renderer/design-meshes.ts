@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { terminalAxisIsVertical, terminalBodyDir } from "@/domain/terminal";
+import { vEq } from "@/domain/vec3";
 import { TUBE_R, v3, VP } from "@/renderer/three-utils";
 import type { Vec3 } from "@/types";
 
@@ -154,35 +156,39 @@ export function buildPedestalMesh(feet: number, { ghost = false } = {}): THREE.G
 }
 
 /**
- * A terminal: one square of floor, two feet of it standing up.
+ * A terminal: a 1 ft square, 2 ft long unit, standing up or lying down.
  *
  * Modelled from the media at kellytubesystems.com/kel2020 (ADR-0026): a clear
  * barrel ribbed along its length, held between two brushed collars, with the
  * slatted door cage over the front and the green wordmark down it. The send
  * button sits on the lower collar, where it is on the real unit.
  *
- * Unlike a blower, the group is not turned to face its port — a terminal is a
- * cabinet on the floor, and turning the whole body would lie it on its side the
- * moment its ports ran vertically. The body stays upright and only the two port
- * fittings move: to the top and bottom faces for a vertical axis, and around to
- * the sides, yawed to the heading, for a horizontal one. Where they sit is the
- * geometry `terminalPortAnchor` reports, so the tube meets the fitting it is
- * drawn leaving.
+ * The whole unit turns with its ports: `R` on a terminal used to swing the two
+ * fittings around a cabinet that stayed standing, and the client asked for the
+ * body itself to turn (ADR-0027). So the group is laid down onto its axis, and
+ * a terminal whose ports run sideways lies on its side, taking two squares of
+ * floor and one of height instead of the other way round.
  *
- * The door rides on the body rather than on the ports, so it turns with the
- * yaw a horizontal axis applies and ends up across the run — which is where it
- * belongs, since a carrier is loaded from the front while the tube leaves the
- * side.
+ * It is built upright and rotated, which is why every measurement below is in
+ * the standing unit's own frame: the body runs up its local +Y from the floor
+ * of the cell it was placed in to the top of the next one, a port fitting caps
+ * each end of it, and the door faces local +Z. Laying it down maps that +Y onto
+ * the body direction and keeps +Z horizontal, so the door ends up across the
+ * run rather than into the floor — which is where it belongs, since a carrier
+ * is loaded from the front while the tube leaves the end.
  *
- * The group's origin is the centre of the cell the terminal was placed in, so
- * the body runs from that cell's floor to the top of the cell above it.
+ * The two fittings land where `terminalPortAnchor` says the ports leave from,
+ * so the tube meets the fitting it is drawn leaving whichever way the unit is
+ * turned. The group's origin is the centre of the cell the terminal was placed
+ * in.
  */
 export function buildTerminalMesh({
   axis = [0, 1, 0],
   ghost = false
 }: { axis?: Vec3; ghost?: boolean } = {}): THREE.Group {
   const g = new THREE.Group();
-  const vertical = axis[1] !== 0;
+  const body = terminalBodyDir(axis);
+  const vertical = terminalAxisIsVertical({ axis });
   // Half a foot below the origin to the base, one and a half above it to the
   // top: two cells of body, inset a little as the blower's drum is.
   const topY = 1.45;
@@ -294,29 +300,24 @@ export function buildTerminalMesh({
     roughness: 0.4,
     metalness: 0.5
   });
-  // Where each port leaves the body, and which way it faces. A vertical axis
-  // puts them on the top and bottom faces of the 2 ft body; a horizontal one on
-  // opposite sides of its lower foot, which is the cell those ports connect
-  // from.
-  const fittings: { at: THREE.Vector3; out: THREE.Vector3 }[] = vertical
-    ? [
-        { at: new THREE.Vector3(0, topY, 0), out: new THREE.Vector3(0, 1, 0) },
-        { at: new THREE.Vector3(0, baseY, 0), out: new THREE.Vector3(0, -1, 0) }
-      ]
-    : [
-        { at: new THREE.Vector3(0.5, 0, 0), out: new THREE.Vector3(1, 0, 0) },
-        { at: new THREE.Vector3(-0.5, 0, 0), out: new THREE.Vector3(-1, 0, 0) }
-      ];
+  // Where each port leaves the body: one fitting capping each end of the 2 ft
+  // barrel. In the standing frame that is the top and bottom faces, and laying
+  // the group down carries them onto the two ends of the unit wherever it
+  // points — the same two cells `terminalPortAnchor` anchors the ports to.
+  const fittings: { at: THREE.Vector3; out: THREE.Vector3 }[] = [
+    { at: new THREE.Vector3(0, topY, 0), out: new THREE.Vector3(0, 1, 0) },
+    { at: new THREE.Vector3(0, baseY, 0), out: new THREE.Vector3(0, -1, 0) }
+  ];
+  // Both cylinders are built along +Y, which is already the body's axis in this
+  // frame, so neither needs turning before the group is laid down.
   for (const { at, out } of fittings) {
     const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.08, 24), mat);
-    if (out.y === 0) flange.rotation.z = Math.PI / 2;
     flange.position.copy(at);
     g.add(flange);
     const hole = new THREE.Mesh(
       new THREE.CylinderGeometry(TUBE_R + 0.01, TUBE_R + 0.01, 0.12, 18),
       new THREE.MeshStandardMaterial({ color: 0x05080c, roughness: 1 })
     );
-    if (out.y === 0) hole.rotation.z = Math.PI / 2;
     hole.position.copy(at).addScaledVector(out, 0.02);
     g.add(hole);
   }
@@ -334,16 +335,30 @@ export function buildTerminalMesh({
   edges.position.y = 0.5;
   g.add(edges);
   if (ghost) {
-    // The arrow says which way the run leaves, so it follows the ports rather
-    // than the body: up the axis when they are vertical, out the side when not.
-    const arrow = vertical
-      ? buildTransportArrow(new THREE.Vector3(0, Math.sign(axis[1]), 0), [0.9, 0.5, 0])
-      : buildTransportArrow(new THREE.Vector3(1, 0, 0), [-0.38, 0.82, 0]);
+    // The arrow says which way the run leaves. The body already lies along the
+    // axis, so in this frame that is simply one end or the other: +Y when the
+    // port faces the way the body runs, -Y when it faces back down it. Standing
+    // up it sits off to one side, lying down it sits out in front of the door,
+    // so that in both cases it clears the unit rather than crossing it.
+    const forward = vEq(axis, body) ? 1 : -1;
+    const arrow = buildTransportArrow(
+      new THREE.Vector3(0, forward, 0),
+      vertical ? [0.9, 0.5, 0] : [0, 0.5, 0.9]
+    );
     g.add(arrow);
   }
-  // Yaw only, so a horizontal axis turns the fittings to their heading while
-  // the cabinet stays standing. A vertical axis needs no turn at all.
-  if (!vertical) g.rotation.y = Math.atan2(-axis[2], axis[0]);
+  // Lay the unit onto its axis: local +Y runs along the body, local +Z stays
+  // horizontal and across it. A body that runs vertically is already in that
+  // pose and needs no turn at all.
+  if (!vertical) {
+    const along = new THREE.Vector3(body[0], body[1], body[2]);
+    const across = along
+      .clone()
+      .cross(new THREE.Vector3(0, 1, 0))
+      .normalize();
+    const side = new THREE.Vector3().crossVectors(along, across);
+    g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, along, across));
+  }
   return g;
 }
 

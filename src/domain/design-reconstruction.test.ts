@@ -13,7 +13,9 @@ function rebuild(parts: Part[], obstacles: Obstacle[] = []) {
 
 const BLOWER: Part = { id: "b1", type: "blower", cell: [0, 0, 0], dir: [1, 0, 0] };
 const TERMINAL: Part = { id: "t1", type: "terminal", cell: [1, 0, 0], axis: [1, 0, 0] };
-const TUBE: Part = { id: "st1", type: "tube", from: [2, 0, 0], to: [8, 0, 0] };
+// The terminal lies along X across [1] and [2], so the run leaves at [3]
+// rather than butting against the cell it was placed in (ADR-0027).
+const TUBE: Part = { id: "st1", type: "tube", from: [3, 0, 0], to: [9, 0, 0] };
 
 describe("reconstructDesign", () => {
   it("rebuilds a valid design with parts, obstacles and grid in agreement", () => {

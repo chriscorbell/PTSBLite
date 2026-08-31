@@ -5,6 +5,7 @@ import {
   DEFAULT_FREE_PLACEMENT_ROTATION,
   freePlacementGhost,
   freePlacementLandingCells,
+  freePlacementOrientation,
   placeFreePart,
   rememberFreePlacementOrientation,
   type FreePlacementMemory,
@@ -303,21 +304,19 @@ export function attemptPlacement(
     case "blower":
     case "blowerPedestal":
     case "terminal": {
-      // The ghost resolves the orientation, so what gets placed is what was
-      // previewed rather than a second, independently derived answer.
+      // The same orientation the ghost previews, resolved the same way, so what
+      // gets placed is what was on screen. It is worked out here rather than
+      // read back off the ghost because a refused ghost is null, and a terminal
+      // refused for want of room has to be refused in the orientation it was
+      // turned to — otherwise the message names the wrong blocked cell.
       const type: FreePlacementType = session.tool;
-      const preview = freePlacementGhost({
-        type,
+      const orientation = freePlacementOrientation(
         design,
+        type,
         cell,
-        memory: session.freePlacementMemory,
-        rotationSteps: session.freePlacementRotation
-      });
-      const orientation = preview
-        ? preview.type === "blower"
-          ? preview.dir
-          : preview.axis
-        : session.freePlacementMemory[type];
+        session.freePlacementMemory,
+        session.freePlacementRotation
+      );
       const placed = placeFreePart(design, { id: occupantId, type, cell, orientation });
       if (!placed.ok) return unchanged({ status: "error", message: placed.message });
       return {

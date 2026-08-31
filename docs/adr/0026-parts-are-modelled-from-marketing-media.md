@@ -37,8 +37,9 @@ What the units became:
   floor the way the real unit does, and one turned to a side lies along its own run.
 - A **terminal** is the clear barrel a carrier is loaded into: ribbed, held between two brushed
   collars, with the slotted door and its green wordmark across the front and the send button on the
-  lower collar. The body still stands upright whichever way its ports are turned, for the reason
-  `buildTerminalMesh` already gave.
+  lower collar. The body stood upright whichever way its ports were turned when this was written;
+  ADR-0027 later lays the whole unit onto its axis, and the shape described here is what gets laid
+  down.
 
 Two departures from the photographs, both deliberate and both about the viewport rather than the
 hardware:
