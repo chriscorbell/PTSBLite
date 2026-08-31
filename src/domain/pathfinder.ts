@@ -660,7 +660,11 @@ function commitRoute(design: DesignState, route: PlannedRoute): CommitRouteResul
       i--;
 
       while (runLength > 0) {
-        const length = runLength >= 6 ? 6 : 1;
+        // Full stock lengths, then the remainder as one cut piece. Cutting the
+        // remainder into 1 ft pieces would place the same footage, but each
+        // abutment between them is a real joint, and a joint earns a split
+        // sleeve — so a 4 ft rise came back wearing a sleeve every foot.
+        const length = Math.min(runLength, 6);
         const result = placeTube(currentDesign, {
           id: nextRouteId(existingIds),
           cell: currentCell,
