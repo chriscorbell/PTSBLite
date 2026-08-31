@@ -7,6 +7,8 @@ import {
   PATHFINDER_SEARCH_LIMIT_MESSAGE,
   runBandVolume
 } from "@/domain/pathfinder";
+import { inRoomVolume } from "@/domain/floors";
+import { partCells } from "@/domain/occupant-footprints";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import { splitSleeveCount } from "@/domain/split-sleeve";
 import { placeTube } from "@/domain/tube-placement";
@@ -512,6 +514,58 @@ describe("Pathfinder run band preference", () => {
     ];
     const result = autoBuildOpenPortPair(
       designFromScene({ parts: eitherSide, obstacles: [] }, tallRoom)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("plenum");
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("climbs over a building it can clear rather than taking the short way through", () => {
+    // The client, on the shipped rule: "buildings set to 10ft with a terminal on
+    // the outside of the wall bounds, the system stops the rise at the ceiling
+    // height and routes the autobuild through like normal". Both ports face
+    // along the ground twelve feet apart, so four bends cost more than the band
+    // bias saves and the route went straight through the building — which then
+    // read as a system that must obey the plenum rules.
+    const room = { room: { width: 20, depth: 20, height: 10 }, plenumHeightFeet: 2 };
+    const eitherSide: Part[] = [
+      { id: "b1", type: "blower", cell: [-16, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [-15, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [15, 0, 0], axis: [1, 0, 0] }
+    ];
+    const design = designFromScene({ parts: eitherSide, obstacles: [] }, room);
+    const result = autoBuildOpenPortPair(design);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("outside");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === MAX_RUN_HEIGHT_FEET - 1)).toBe(
+      true
+    );
+    // Over the roof, not through the room: a straight run of an outdoor build
+    // never has a cell inside the building.
+    expect(
+      result.parts
+        .filter((part) => part.type === "tube")
+        .every((tube) => partCells(tube).every((cell) => !inRoomVolume(design.metadata, cell)))
+    ).toBe(true);
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("goes through a building whose wall the terminal stands too close to turn beside", () => {
+    // A bend spans 3 ft, so a port a foot from the wall it faces cannot turn
+    // upward before it is inside the building. There is no route over the roof
+    // to prefer, and the plenum rules are the honest answer.
+    const room = { room: { width: 20, depth: 20, height: 10 }, plenumHeightFeet: 2 };
+    const againstTheWall: Part[] = [
+      { id: "b1", type: "blower", cell: [-13, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [-12, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [11, 0, 0], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: againstTheWall, obstacles: [] }, room)
     );
 
     expect(result.ok).toBe(true);

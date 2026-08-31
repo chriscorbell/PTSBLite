@@ -4,6 +4,7 @@ import {
   inRoomFootprint,
   inRoomVolume,
   plenumBands,
+  roomHeightFeet,
   roomRect,
   type RoomRect
 } from "@/domain/floors";
@@ -270,13 +271,37 @@ function bendCells(entryCell: Vec3, footprint: BendFootprint): Vec3[] {
   return cells.some((cell) => vEq(cell, exit)) ? cells : [...cells, exit];
 }
 
-function cellIsOpenForRoute(design: DesignState, cell: Vec3, goalCell: Vec3): boolean {
+function cellIsOpenForRoute(
+  design: DesignState,
+  cell: Vec3,
+  goalCell: Vec3,
+  band: RunBandVolume
+): boolean {
   if (!design.grid.withinBounds(cell)) return false;
   if (cell[1] < GROUND_PLANE_Y) return false;
+  if (band.closed?.(cell)) return false;
   if (vEq(cell, goalCell)) return true;
   return !design.grid.query(cell);
 }
 
+/**
+ * A bend is not held to `band.closed`, and its entry and exit cells — checked as
+ * ordinary cells — are what keep it honest.
+ *
+ * A bend's footprint is the square block its arc sweeps through, which is
+ * deliberately conservative everywhere else in the model. Held to a closed
+ * building it is too conservative to be useful: the turn from a riser 1 ft
+ * outside a 10 ft wall into a run at 11 ft has block cells inside the building
+ * below its roof, while the arc itself is already above 10 ft everywhere it
+ * overhangs the footprint. Rejecting it would leave a system beside a low
+ * building unable to climb over it at all — the very thing closing the building
+ * exists to make it do.
+ *
+ * A bend spans 3 ft, and its entry and exit both have to be outside, so what can
+ * fall inside is a corner of the building — or the whole of one at the 4 ft
+ * minimum the welcome screen allows. Neither is a horizontal run carried through
+ * the building, which is what the client's rule is about.
+ */
 function bendFits(design: DesignState, cells: Vec3[]): boolean {
   return cells.every(
     (cell) =>
@@ -307,9 +332,17 @@ export const MAX_RUN_HEIGHT_FEET = 12;
  *
  * `bands` stays a list because the shape outlived the two-band case by a day and
  * the outdoor band still uses it; today it holds exactly one entry.
+ *
+ * `closed` names cells the route may not use at all, and only the outdoor band
+ * sets it — see {@link outsideRunBandVolume}.
  */
 type RunBand = { floor: 1 | 2; base: number; top: number };
-type RunBandVolume = { kind: RunBandKind; rect: RoomRect; bands: RunBand[] };
+type RunBandVolume = {
+  kind: RunBandKind;
+  rect: RoomRect;
+  bands: RunBand[];
+  closed?: (cell: Vec3) => boolean;
+};
 
 /**
  * Which floor's band carries the horizontal run: the upper one whenever the
@@ -345,13 +378,25 @@ export function runBandVolume(metadata: DesignMetadata): RunBandVolume {
  * room's footprint. The client's rule — "If a system is 100% *outside* ...
  * default linear run heights to 12 ft" — with no ceiling anywhere to measure
  * against, so the room's own height gets no say.
+ *
+ * Over a building the band passes above, it closes that building to the route.
+ * The band is only a bias, and a bias loses: between two ports on the ground a
+ * few feet either side of a low building, four bends cost more than the penalty
+ * on a short run through it, so the route went straight through — and a route
+ * through the building is what puts the whole system back under the plenum
+ * rules. The system was demoted for a dip it never had to take. Closing the
+ * building makes the outdoor answer mean what ADR-0024 says it means: over the
+ * roof, or not outdoors at all. A building too tall to clear is left open,
+ * because there the dip is the honest answer and the demotion is correct.
  */
-function outsideRunBandVolume(): RunBandVolume {
+function outsideRunBandVolume(metadata: DesignMetadata): RunBandVolume {
   const b = boundsFromBuildArea(BUILD_AREA);
+  const base = MAX_RUN_HEIGHT_FEET - 1;
   return {
     kind: "outside",
     rect: { xMin: b.xMin, xMax: b.xMax, zMin: b.zMin, zMax: b.zMax },
-    bands: [{ floor: 1, base: MAX_RUN_HEIGHT_FEET - 1, top: MAX_RUN_HEIGHT_FEET }]
+    bands: [{ floor: 1, base, top: MAX_RUN_HEIGHT_FEET }],
+    closed: roomHeightFeet(metadata) <= base ? (cell) => inRoomVolume(metadata, cell) : undefined
   };
 }
 
@@ -396,7 +441,7 @@ function neighbors(
   reach: { yMin: number; yMax: number }
 ): Array<{ state: RouteState; edge: RouteEdge; cost: number; searchCost: number }> {
   const goalCell = target.from;
-  if (!cellIsOpenForRoute(design, state.cell, goalCell) && !vEq(state.cell, source.cell)) {
+  if (!cellIsOpenForRoute(design, state.cell, goalCell, band) && !vEq(state.cell, source.cell)) {
     return [];
   }
 
@@ -406,7 +451,7 @@ function neighbors(
   if (
     design.grid.withinBounds(state.cell) &&
     !design.grid.query(state.cell) &&
-    cellIsOpenForRoute(design, straightCell, goalCell) &&
+    cellIsOpenForRoute(design, straightCell, goalCell, band) &&
     inSearchBounds(straightCell, source, target, reach)
   ) {
     const horizontal = state.dir[1] === 0;
@@ -431,7 +476,7 @@ function neighbors(
 
     const exitCell = vAdd(state.cell, footprint.exit);
     const exitPortCell = vAdd(exitCell, footprint.outDir);
-    if (!cellIsOpenForRoute(design, exitPortCell, goalCell)) continue;
+    if (!cellIsOpenForRoute(design, exitPortCell, goalCell, band)) continue;
     if (!inSearchBounds(exitPortCell, source, target, reach)) continue;
 
     // A bend counts as in the band when any of its cells is: the bend that
@@ -814,12 +859,30 @@ export function autoBuildOpenPortPair(
   // Which band applies is the client's two-part test, and its second half is
   // only answerable once the routes exist: a system whose parts all stand
   // outdoors may still route straight through the building — two terminals
-  // either side of one — and that puts it back under the plenum rules. So
-  // build it outdoors and look; the reroute costs a second search only in the
-  // case that fails, which is the case he called unlikely.
+  // either side of one — and that puts it back under the plenum rules.
   if (!touchesBuilding(design.metadata, design.parts)) {
-    const outdoors = buildUnderBand(design, outsideRunBandVolume(), budget, maxExpansions);
-    if (outdoors.ok && !touchesBuilding(design.metadata, outdoors.parts)) return outdoors;
+    const band = outsideRunBandVolume(design.metadata);
+    const outdoors = buildUnderBand(design, band, budget, maxExpansions);
+    // Over a building the run passes above, the band closes it and the route
+    // could not have gone through, so there is nothing left to test: a bend may
+    // still overhang a corner of the footprint, but only above the roof, where
+    // its block of cells is wider than the arc inside it. Over one too tall to
+    // clear the building stays open, and what was built is the only answer to
+    // whether the route went through it.
+    if (
+      outdoors.ok &&
+      (band.closed !== undefined || !touchesBuilding(design.metadata, outdoors.parts))
+    ) {
+      if (outdoors.unroutedPairs.length === 0) return outdoors;
+      // A pair whose only path is through a closed building comes back
+      // unrouted, where the plenum rules would have joined it by going inside.
+      // Run height is not worth a connection, so ask for the indoor build and
+      // keep whichever joins more of the system.
+      const indoors = buildUnderBand(design, runBandVolume(design.metadata), budget, maxExpansions);
+      return indoors.ok && indoors.unroutedPairs.length < outdoors.unroutedPairs.length
+        ? indoors
+        : outdoors;
+    }
   }
 
   return buildUnderBand(design, runBandVolume(design.metadata), budget, maxExpansions);

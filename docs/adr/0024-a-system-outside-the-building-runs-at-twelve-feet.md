@@ -2,6 +2,9 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-31
+- **Amended:** 2026-08-31 — a building the outdoor band passes over is closed to the route, so
+  "clearing the roof counts as outside" describes what gets built rather than what happened to
+  get built. See "The route has to actually go over" below.
 
 ADR-0023 gave every design a run band and left one case open in as many words: "The separate rule
 for a system built entirely outside a building is its own card and is not implemented here." This
@@ -48,6 +51,43 @@ run that clears the roof is outdoors in the way that matters to whoever installs
 taller than `MAX_RUN_HEIGHT_FEET` cannot be cleared, and there the run does go through and the
 plenum rules apply, which is `pathfinder.test.ts`'s companion case. If the client wants the
 footprint alone to decide, that is a new card and a one-line change to `touchesBuilding`.
+
+## The route has to actually go over
+
+The client tested the section above and it did not hold: "buildings set to 10ft with a terminal on
+the outside of the wall bounds, the system stops the rise at the ceiling height and routes the
+autobuild through like normal."
+
+The band is a bias, and a bias can lose. Between two ports on the ground either side of a low
+building, climbing into the outdoor band costs four bends where the band saves only
+`OUT_OF_BAND_STRAIGHT_PENALTY` a foot, so on a short run the route went straight through the
+building rather than over it — and a route through the building is exactly what the test above
+reads as "this system obeys the plenum rules". The system was demoted for a dip it never had to
+take, and the demoted build then ran at the room's ceiling height, through the room, which is what
+he saw.
+
+So the outdoor band now closes the building to the route, whenever the band passes above its roof.
+The outdoor answer means what this ADR always said it meant — over the roof, or not outdoors at all
+— and the second test is answered before routing rather than after it. A building too tall to clear
+is left open, because there a dip is the honest answer and the demotion is correct; that is still
+the client's two-terminals-either-side case, unchanged.
+
+Two things follow, both deliberate:
+
+- **A bend may overhang the footprint.** A bend's cell block is the square its arc sweeps through,
+  and it is conservative: the turn from a riser a foot outside a 10 ft wall into a run at 11 ft has
+  block cells inside the building, while the arc inside that block is above the roof everywhere it
+  overhangs. Holding bends to the closed building would leave a system beside a low building unable
+  to climb over it at all, so only straight run is held to it. A bend spans 3 ft and both its ends
+  are outside, so what can fall inside is a corner of the building — or the whole of one at the 4 ft
+  minimum room the welcome screen allows. Neither is a run carried through the building.
+- **A port too close to the wall it faces still goes through.** A bend needs 3 ft to turn, so a
+  terminal a foot or two from the wall cannot rise outside the building; there is no route over the
+  roof to prefer, and the plenum rules take it.
+
+A pair whose only path is through a closed building comes back unrouted rather than routed indoors.
+Where that happens, the indoor build is asked for as well and the one that joins more of the system
+wins: run height is not worth losing a connection over.
 
 ## What the visitor is told
 
