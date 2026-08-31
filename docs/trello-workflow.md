@@ -109,9 +109,9 @@ edit, so a quiet board beats a constantly reshuffled one. In scope:
 - A card whose list no longer matches reality: a merged PR still sitting in In Progress, a
   "Question" card that no longer waits on anyone. Move it and say why in a comment only if Nick
   needs to know.
-- A stale claim: a card in In Progress whose newest comment is Claude's claim but that has no
-  open PR behind it. Return it to the top of "Ready for Chris" with a comment saying the earlier
-  run died.
+- A stale claim: a card in In Progress whose newest comment is Claude's claim, more than two
+  hours old, with no open PR behind it. Return it to the top of "Ready for Chris" with a comment
+  saying the earlier run died. A younger claim is a live run doing its work; leave it alone.
 - Duplicates: two cards asking for the same change. Fold both descriptions into the older card,
   archive the newer with a comment pointing at the survivor.
 - A description that events have overtaken (says "still to build" after it shipped, cites a
@@ -129,12 +129,17 @@ Take the top card of "Ready for Chris" that is clearly actionable. A card needin
 its question instead, per step 1; take the next card.
 
 First move the card to "In Progress by Chris" and comment "Building this now. — Claude". That
-claims it. A card already in In Progress belongs to whoever claimed it: touch one only if its
-newest comment is Claude's own claim, and then finish that work before starting anything new.
+claims it — but runs can start seconds apart, so a claim is not yours until checked: re-read the
+card's comments after claiming, and if a claim earlier than yours is there, back off to the next
+card and leave the earlier claimant to it.
+
+A card already sitting in In Progress belongs to another live run; leave it alone. Stale claims
+are step 3's job, and it returns them to Ready rather than adopting them mid-flight.
 
 Then the normal repository workflow from AGENTS.md: branch, implement, `pnpm run check` green,
 PR titled after the card and linking it. Merge once verify is green: `gh pr checks --watch`,
-then `gh pr merge --squash`.
+then `gh pr merge --squash`. Main requires branches to be up to date, so if the merge is
+rejected because another PR landed first: `gh pr update-branch`, wait for verify again, merge.
 
 Once the PR merges (Cloudflare Pages deploys main within a few minutes), move the card to
 Done and comment: what changed in Nick's terms, how to test it, and the PR link.
