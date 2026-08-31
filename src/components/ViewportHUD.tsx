@@ -130,7 +130,7 @@ export function ViewportHUD({
                 .join(" · ")}
             </div>
           )}
-          {/* The client's own wording for each case, kept as he wrote it. */}
+          {/* The client's own wording where he gave us some, kept as he wrote it. */}
           {scene.autoBuildSummary.runBand === "plenum" && (
             <div className="hud__banner-detail">Auto-build favors plenum when available</div>
           )}
@@ -138,6 +138,11 @@ export function ViewportHUD({
             <div className="hud__banner-detail">
               Autobuild stops at {MAX_RUN_HEIGHT_FEET}ft - please try building manually if you need
               more rise.
+            </div>
+          )}
+          {scene.autoBuildSummary.runBand === "outside" && (
+            <div className="hud__banner-detail">
+              Nothing under a ceiling - auto-build runs at {MAX_RUN_HEIGHT_FEET}ft.
             </div>
           )}
         </div>

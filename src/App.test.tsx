@@ -511,14 +511,15 @@ describe("Auto-Build", () => {
   it("says where it carried the run, in the client's words", async () => {
     // Two lines he wrote himself. The plenum one whenever the design has a
     // plenum, and the 12 ft one only when the ghost ceiling is what capped the
-    // route, so the visitor knows a taller rise is theirs to build by hand.
-    const routeAThreePartSystem = async () => {
+    // route, so the visitor knows a taller rise is theirs to build by hand. A
+    // third, ours, for a system built where there is no ceiling at all.
+    const routeAThreePartSystem = async (originX = 0, originZ = 0) => {
       fireEvent.click(screen.getByRole("button", { name: "Build" }));
       fireEvent.click(screen.getByRole("button", { name: "Blower Unit" }));
-      clickCell([0, 0, 0]);
+      clickCell([originX, 0, originZ]);
       fireEvent.click(screen.getByRole("button", { name: "Terminal Station" }));
-      clickCell([0, 1, 0]);
-      clickCell([12, 0, 0]);
+      clickCell([originX, 1, originZ]);
+      clickCell([originX + 12, 0, originZ]);
       fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
       await waitFor(() => {
         expect(screen.getByText(/Auto-Build complete/)).toBeTruthy();
@@ -554,6 +555,20 @@ describe("Auto-Build", () => {
       screen.getByText(
         `Autobuild stops at ${MAX_RUN_HEIGHT_FEET}ft - please try building manually if you need more rise.`
       )
+    ).toBeTruthy();
+
+    // And the same system built well clear of a 40 x 60 room that has a plenum.
+    // Nothing stands under a ceiling and nothing routes through one, so the
+    // plenum does not apply however good it would have been (ADR-0024).
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Start new design" }));
+    fireEvent.click(screen.getByLabelText("Plenum (drop ceiling)"));
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+    await routeAThreePartSystem(60, 60);
+
+    expect(screen.queryByText(/favors plenum/)).not.toBeTruthy();
+    expect(
+      screen.getByText(`Nothing under a ceiling - auto-build runs at ${MAX_RUN_HEIGHT_FEET}ft.`)
     ).toBeTruthy();
   });
 

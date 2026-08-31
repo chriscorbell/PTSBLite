@@ -2,13 +2,15 @@ import { placeBend, validBendOrientations } from "@/domain/bend-placement";
 import {
   floorBaseElevation,
   inRoomFootprint,
+  inRoomVolume,
   plenumBands,
   roomRect,
   type RoomRect
 } from "@/domain/floors";
+import { partCells } from "@/domain/occupant-footprints";
 import { partRegistry, type BendFootprint } from "@/domain/part-registry";
 import { totalPathLength } from "@/domain/parts";
-import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
+import { BUILD_AREA, boundsFromBuildArea, GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import { placeTube } from "@/domain/tube-placement";
 import { computeTopology, type Port, type Topology } from "@/domain/topology";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
@@ -295,12 +297,13 @@ export const MAX_RUN_HEIGHT_FEET = 12;
 
 /**
  * Where a horizontal run belongs: one band per floor, plus the footprint they
- * span and which of the client's three cases produced them.
+ * span and which of the client's cases produced them.
  *
  * A band is a volume, not a Y range — a cell outside the room at drop-ceiling
  * height is just open air, and the bias must not credit it. Every design has a
  * band: the plenum when there is one, and the ceiling or the ghost ceiling when
- * there is not.
+ * there is not. A system that never touches the building gets the outdoor band
+ * instead — see {@link outsideRunBandVolume}.
  */
 type RunBand = { floor: 1 | 2; base: number; top: number };
 type RunBandVolume = { kind: RunBandKind; rect: RoomRect; bands: RunBand[] };
@@ -323,6 +326,32 @@ export function runBandVolume(metadata: DesignMetadata): RunBandVolume {
       return { floor, base: top - 1, top };
     })
   };
+}
+
+/**
+ * The band for a system that never touches the building: the foot below
+ * {@link MAX_RUN_HEIGHT_FEET}, spanning the whole build area rather than the
+ * room's footprint. The client's rule — "If a system is 100% *outside* ...
+ * default linear run heights to 12 ft" — with no ceiling anywhere to measure
+ * against, so the room's own height gets no say.
+ */
+function outsideRunBandVolume(): RunBandVolume {
+  const b = boundsFromBuildArea(BUILD_AREA);
+  return {
+    kind: "outside",
+    rect: { xMin: b.xMin, xMax: b.xMax, zMin: b.zMin, zMax: b.zMax },
+    bands: [{ floor: 1, base: MAX_RUN_HEIGHT_FEET - 1, top: MAX_RUN_HEIGHT_FEET }]
+  };
+}
+
+/**
+ * Whether any of these parts stands inside the building. The client draws the
+ * line at touching it at all: "If a system is built with any part under a
+ * ceiling, _OR_ an auto-build path routes through a building ... always obey
+ * routing through the plenum."
+ */
+function touchesBuilding(metadata: DesignMetadata, parts: readonly Part[]): boolean {
+  return parts.some((part) => partCells(part).some((cell) => inRoomVolume(metadata, cell)));
 }
 
 function inRunBand(volume: RunBandVolume, cell: Vec3): boolean {
@@ -677,13 +706,19 @@ function commitRoute(design: DesignState, route: PlannedRoute): CommitRouteResul
   return { ok: true, design: currentDesign, parts: placed, cost: route.cost };
 }
 
-export function autoBuildOpenPortPair(
+/**
+ * Auto-Build, once, under one band.
+ *
+ * The band is fixed for the whole build rather than chosen per pair, because
+ * the client's rule is about the system: one run touching the building puts
+ * every run under the plenum rules.
+ */
+function buildUnderBand(
   design: DesignState,
-  options: AutoBuildOptions = {}
+  band: RunBandVolume,
+  budget: number,
+  maxExpansions: number
 ): AutoBuildPathResult {
-  const budget = options.maxBudgetFeet ?? MAX_CENTERLINE_FEET;
-  const maxExpansions = options.maxExpansions ?? MAX_ROUTE_EXPANSIONS;
-  const band = runBandVolume(design.metadata);
   const existingLength = totalPathLength(design);
 
   let currentDesign = design;
@@ -752,4 +787,25 @@ export function autoBuildOpenPortPair(
     unroutedPairs,
     runBand: band.kind
   };
+}
+
+export function autoBuildOpenPortPair(
+  design: DesignState,
+  options: AutoBuildOptions = {}
+): AutoBuildPathResult {
+  const budget = options.maxBudgetFeet ?? MAX_CENTERLINE_FEET;
+  const maxExpansions = options.maxExpansions ?? MAX_ROUTE_EXPANSIONS;
+
+  // Which band applies is the client's two-part test, and its second half is
+  // only answerable once the routes exist: a system whose parts all stand
+  // outdoors may still route straight through the building — two terminals
+  // either side of one — and that puts it back under the plenum rules. So
+  // build it outdoors and look; the reroute costs a second search only in the
+  // case that fails, which is the case he called unlikely.
+  if (!touchesBuilding(design.metadata, design.parts)) {
+    const outdoors = buildUnderBand(design, outsideRunBandVolume(), budget, maxExpansions);
+    if (outdoors.ok && !touchesBuilding(design.metadata, outdoors.parts)) return outdoors;
+  }
+
+  return buildUnderBand(design, runBandVolume(design.metadata), budget, maxExpansions);
 }

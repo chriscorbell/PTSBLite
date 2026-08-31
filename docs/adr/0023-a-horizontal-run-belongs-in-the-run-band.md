@@ -30,7 +30,8 @@ under, and a run out there is credited nothing — unchanged from the plenum bia
 
 `MAX_RUN_HEIGHT_FEET` is 12. It is the client's figure for how high Auto-Build climbs unaided, not
 a measurement from the PTS specification, and ADR-0001 governs the difference. The separate rule
-for a system built entirely outside a building is its own card and is not implemented here.
+for a system built entirely outside a building is its own card and is not implemented here — it
+became ADR-0024, which adds a fourth kind alongside these three.
 
 ## The riser is a tie-breaker, not a cost
 
