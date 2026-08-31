@@ -1,9 +1,11 @@
 import "@/components/PartThumbnail.css";
 
 // Isometric, shaded part illustrations for the Build drawer. Each part is drawn
-// from simple 3D primitives (boxes / cylinders) projected through a shared iso
-// transform, then face-mounted details (fan grille, ports) are placed with a
-// per-face affine matrix so circles sit on the correct plane.
+// from simple 3D primitives (cylinders, arcs) projected through a shared iso
+// transform, then face-mounted details (door slats, lights, ports) are placed
+// with a per-face affine matrix so they sit on the correct plane.
+//
+// Every Kel2020 part is a cylinder, which is why there is no box primitive here.
 
 type Vec3 = [number, number, number];
 
@@ -47,16 +49,6 @@ function shade(hex: string, pct: number): string {
   return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
 }
 
-function polyPoints(pts: Vec3[]): string {
-  return pts
-    .map(([x, y, z]) =>
-      iso(x, y, z)
-        .map((n) => n.toFixed(1))
-        .join(",")
-    )
-    .join(" ");
-}
-
 // Affine matrix mapping a 2D (u, v) face plane to screen, given the two 3D axis
 // directions of the plane and the 3D point that maps to local origin.
 function faceMatrix(uDir: Vec3, vDir: Vec3, originXYZ: Vec3): string {
@@ -64,56 +56,6 @@ function faceMatrix(uDir: Vec3, vDir: Vec3, originXYZ: Vec3): string {
   const v = projDir(...vDir);
   const [ox, oy] = iso(...originXYZ);
   return `matrix(${u[0].toFixed(3)},${u[1].toFixed(3)},${v[0].toFixed(3)},${v[1].toFixed(3)},${ox.toFixed(2)},${oy.toFixed(2)})`;
-}
-
-function Box({
-  x0,
-  x1,
-  y0,
-  y1,
-  z0,
-  z1,
-  color
-}: {
-  x0: number;
-  x1: number;
-  y0: number;
-  y1: number;
-  z0: number;
-  z1: number;
-  color: string;
-}) {
-  const edge = shade(color, -0.5);
-  const top: Vec3[] = [
-    [x0, y1, z0],
-    [x1, y1, z0],
-    [x1, y1, z1],
-    [x0, y1, z1]
-  ];
-  const xFace: Vec3[] = [
-    [x1, y0, z0],
-    [x1, y0, z1],
-    [x1, y1, z1],
-    [x1, y1, z0]
-  ];
-  const zFace: Vec3[] = [
-    [x0, y0, z1],
-    [x1, y0, z1],
-    [x1, y1, z1],
-    [x0, y1, z1]
-  ];
-  return (
-    <>
-      <polygon
-        points={polyPoints(zFace)}
-        fill={shade(color, -0.22)}
-        stroke={edge}
-        strokeWidth={0.5}
-      />
-      <polygon points={polyPoints(xFace)} fill={color} stroke={edge} strokeWidth={0.5} />
-      <polygon points={polyPoints(top)} fill={shade(color, 0.24)} stroke={edge} strokeWidth={0.5} />
-    </>
-  );
 }
 
 function Cylinder({
@@ -169,35 +111,50 @@ function Cylinder({
   );
 }
 
-// Box + cylindrical motor drum on top + a side port (dark hole) ringed with the
-// teal connector accent — mirrors buildBlowerMesh in the viewport.
-// The unit itself, drawn `y` feet up its own axis so the pedestal variant can
+/** The brushed metal the collars and fittings are made of (VP.blowerEdge). */
+const COLLAR = "#7a8598";
+
+// The Kel2020 power unit: a drum with a stepped neck, a metal collar where the
+// tube leaves it and a green power light on its side — mirrors buildBlowerMesh
+// in the viewport. Drawn standing with its port up, which is how a blower is
+// placed before anything turns it and how the real unit sits on the floor.
+// The unit itself is drawn `y` feet up its own axis so the pedestal variant can
 // raise it without a second copy of the geometry.
 function BlowerBody({ color, y = 0 }: { color: string; y?: number }) {
-  const motor = "#2a3140";
   return (
     <>
-      <Box x0={-1.6} x1={1.6} y0={y - 1.6} y1={y + 1.6} z0={-1.6} z1={1.6} color={color} />
       <Cylinder
-        c0={[0, y + 1.6, 0]}
-        c1={[0, y + 2.5, 0]}
-        r={0.72}
+        c0={[0, y - 1.6, 0]}
+        c1={[0, y + 0.3, 0]}
+        r={1.44}
         basisA={[1, 0, 0]}
         basisB={[0, 0, 1]}
-        color={motor}
-        capColor={shade(motor, 0.32)}
+        color={color}
+        capColor={shade(color, 0.2)}
       />
       <Cylinder
-        c0={[1.6, y, 0]}
-        c1={[2.35, y, 0]}
-        r={0.72}
-        basisA={[0, 1, 0]}
+        c0={[0, y + 0.3, 0]}
+        c1={[0, y + 1.25, 0]}
+        r={1.05}
+        basisA={[1, 0, 0]}
         basisB={[0, 0, 1]}
-        color={shade(color, 0.18)}
+        color={shade(color, 0.08)}
+        capColor={shade(color, 0.26)}
+      />
+      <Cylinder
+        c0={[0, y + 1.25, 0]}
+        c1={[0, y + 1.6, 0]}
+        r={1.0}
+        basisA={[1, 0, 0]}
+        basisB={[0, 0, 1]}
+        color={COLLAR}
         capColor="#05080c"
       />
-      <g transform={faceMatrix([0, 0, 1], [0, 1, 0], [2.4, y, 0])}>
+      <g transform={faceMatrix([1, 0, 0], [0, 0, 1], [0, y + 1.68, 0])}>
         <circle cx={0} cy={0} r={0.95} fill="none" stroke="#5eead4" strokeWidth={0.12} />
+      </g>
+      <g transform={faceMatrix([1, 0, 0], [0, 1, 0], [0, y + 0.05, 1.44])}>
+        <circle cx={0} cy={0} r={0.2} fill="#4ade80" />
       </g>
     </>
   );
@@ -243,15 +200,50 @@ function PedestalBlower({ color }: { color: string }) {
   );
 }
 
-// Two feet of cabinet with a band across the join, a port on top and a small
-// display panel with a green LED on the front face — mirrors buildTerminalMesh,
-// including its height: a terminal is 1 ft square and 2 ft tall (ADR-0021).
+// The Kel2020 terminal: a clear barrel ribbed along its length between two
+// brushed collars, the slatted door and its green wordmark across the front,
+// the send button on the lower collar and the port on top — mirrors
+// buildTerminalMesh, including its height: a terminal is 1 ft square and 2 ft
+// tall (ADR-0021).
 function Terminal({ color }: { color: string }) {
-  const hood = "#29303d";
+  const glass = "#d7e3f0";
+  const door = "#a9a390";
   return (
     <g transform="translate(0,-0.4)">
-      <Box x0={-1.5} x1={1.5} y0={-2.9} y1={2.9} z0={-1.5} z1={1.5} color={color} />
-      <Box x0={-1.55} x1={1.55} y0={-0.25} y1={0.25} z0={-1.55} z1={1.55} color={hood} />
+      <Cylinder
+        c0={[0, -2.9, 0]}
+        c1={[0, -2.26, 0]}
+        r={1.15}
+        basisA={[1, 0, 0]}
+        basisB={[0, 0, 1]}
+        color={color}
+        capColor={shade(color, 0.22)}
+      />
+      <g opacity={0.5}>
+        <Cylinder
+          c0={[0, -2.26, 0]}
+          c1={[0, 2.26, 0]}
+          r={1.09}
+          basisA={[1, 0, 0]}
+          basisB={[0, 0, 1]}
+          color={glass}
+          capColor={shade(glass, 0.15)}
+        />
+      </g>
+      {[-1.3, -0.1, 1.1].map((y) => (
+        <g key={y} transform={faceMatrix([1, 0, 0], [0, 0, 1], [0, y, 0])}>
+          <circle cx={0} cy={0} r={1.09} fill="none" stroke={COLLAR} strokeWidth={0.06} />
+        </g>
+      ))}
+      <Cylinder
+        c0={[0, 2.26, 0]}
+        c1={[0, 2.9, 0]}
+        r={1.15}
+        basisA={[1, 0, 0]}
+        basisB={[0, 0, 1]}
+        color={color}
+        capColor={shade(color, 0.22)}
+      />
       <Cylinder
         c0={[0, 2.9, 0]}
         c1={[0, 3.5, 0]}
@@ -261,18 +253,12 @@ function Terminal({ color }: { color: string }) {
         color={shade(color, 0.2)}
         capColor="#05080c"
       />
-      <g transform={faceMatrix([1, 0, 0], [0, 1, 0], [0, 1.4, 1.5])}>
-        <rect
-          x={-0.42}
-          y={-0.22}
-          width={0.84}
-          height={0.44}
-          rx={0.06}
-          fill="#0a0f18"
-          stroke={shade(color, -0.3)}
-          strokeWidth={0.04}
-        />
-        <rect x={0.12} y={-0.07} width={0.14} height={0.14} fill="#4ade80" />
+      <g transform={faceMatrix([1, 0, 0], [0, 1, 0], [0, 0, 1.13])}>
+        {[-1.85, -0.95, 0.85, 1.75].map((y) => (
+          <rect key={y} x={-0.8} y={y - 0.08} width={1.6} height={0.16} fill={door} />
+        ))}
+        <rect x={-0.75} y={-0.28} width={1.5} height={0.34} fill="#4ade80" />
+        <rect x={-0.16} y={-2.62} width={0.32} height={0.32} rx={0.16} fill="#4ade80" />
       </g>
     </g>
   );
