@@ -321,22 +321,23 @@ function bendFits(design: DesignState, cells: Vec3[]): boolean {
 export const MAX_RUN_HEIGHT_FEET = 12;
 
 /**
- * Where a horizontal run belongs: the band itself, the footprint it spans and
- * which of the client's cases produced it.
+ * Where a horizontal run belongs: the bands themselves, the footprint they are
+ * measured against and which of the client's cases produced them.
  *
  * A band is a volume, not a Y range — a cell outside the room at drop-ceiling
- * height is just open air, and the bias must not credit it. Every design has a
- * band: the plenum when there is one, and the ceiling or the ghost ceiling when
- * there is not. A system that never touches the building gets the outdoor band
- * instead — see {@link outsideRunBandVolume}.
+ * height is just open air, and the bias must not credit it. `side` says which
+ * side of `rect` a band applies on, which is what lets one route carry two
+ * heights: the building's band inside the footprint, and the outdoor band
+ * outside it (ADR-0028).
  *
- * `bands` stays a list because the shape outlived the two-band case by a day and
- * the outdoor band still uses it; today it holds exactly one entry.
+ * Every design has a band: the plenum when there is one, and the ceiling or the
+ * ghost ceiling when there is not. A system that never touches the building gets
+ * the outdoor band alone — see {@link outsideRunBandVolume}.
  *
  * `closed` names cells the route may not use at all, and only the outdoor band
  * sets it — see {@link outsideRunBandVolume}.
  */
-type RunBand = { floor: 1 | 2; base: number; top: number };
+type RunBand = { floor: 1 | 2; base: number; top: number; side: "inside" | "outside" };
 type RunBandVolume = {
   kind: RunBandKind;
   rect: RoomRect;
@@ -352,11 +353,32 @@ function runBandFloor(metadata: DesignMetadata): 1 | 2 {
   return metadata.multiFloor ? 2 : 1;
 }
 
+/**
+ * The height a run carries where it is outside the building's footprint, on a
+ * system the plenum rules govern: the lower of the 1st floor's own ceiling and
+ * {@link MAX_RUN_HEIGHT_FEET}, in the client's words "rise to 1st floor ceiling
+ * height at 12ft - whichever is shorter" (ADR-0028).
+ *
+ * Always floor 1's, never the band floor's: outdoors there is no upstairs to be
+ * in, and a terminal out there stands on the ground.
+ */
+function outdoorRunBand(metadata: DesignMetadata): RunBand {
+  const top = Math.min(metadata.room.height, MAX_RUN_HEIGHT_FEET);
+  return { floor: 1, base: top - 1, top, side: "outside" };
+}
+
 export function runBandVolume(metadata: DesignMetadata): RunBandVolume {
   const rect = roomRect(metadata);
   const floor = runBandFloor(metadata);
+  const outdoors = outdoorRunBand(metadata);
   const plenum = plenumBands(metadata).filter((band) => band.floor === floor);
-  if (plenum.length > 0) return { kind: "plenum", rect, bands: plenum };
+  if (plenum.length > 0) {
+    return {
+      kind: "plenum",
+      rect,
+      bands: [...plenum.map((band) => ({ ...band, side: "inside" as const })), outdoors]
+    };
+  }
 
   // No plenum: the foot of air directly under that floor's ceiling, or under
   // the ghost ceiling on a storey too tall for the real one. Either way it is
@@ -368,7 +390,7 @@ export function runBandVolume(metadata: DesignMetadata): RunBandVolume {
   return {
     kind: perFloor > MAX_RUN_HEIGHT_FEET ? "ghost-ceiling" : "ceiling",
     rect,
-    bands: [{ floor, base: top - 1, top }]
+    bands: [{ floor, base: top - 1, top, side: "inside" }, outdoors]
   };
 }
 
@@ -377,7 +399,9 @@ export function runBandVolume(metadata: DesignMetadata): RunBandVolume {
  * {@link MAX_RUN_HEIGHT_FEET}, spanning the whole build area rather than the
  * room's footprint. The client's rule — "If a system is 100% *outside* ...
  * default linear run heights to 12 ft" — with no ceiling anywhere to measure
- * against, so the room's own height gets no say.
+ * against, so the room's own height gets no say. Its `rect` is the build area
+ * rather than the room, so its one `inside` band credits the height everywhere —
+ * over the roof included, which is the point.
  *
  * Over a building the band passes above, it closes that building to the route.
  * The band is only a bias, and a bias loses: between two ports on the ground a
@@ -395,7 +419,7 @@ function outsideRunBandVolume(metadata: DesignMetadata): RunBandVolume {
   return {
     kind: "outside",
     rect: { xMin: b.xMin, xMax: b.xMax, zMin: b.zMin, zMax: b.zMax },
-    bands: [{ floor: 1, base, top: MAX_RUN_HEIGHT_FEET }],
+    bands: [{ floor: 1, base, top: MAX_RUN_HEIGHT_FEET, side: "inside" }],
     closed: roomHeightFeet(metadata) <= base ? (cell) => inRoomVolume(metadata, cell) : undefined
   };
 }
@@ -411,8 +435,10 @@ function touchesBuilding(metadata: DesignMetadata, parts: readonly Part[]): bool
 }
 
 function inRunBand(volume: RunBandVolume, cell: Vec3): boolean {
-  if (!inRoomFootprint(volume.rect, cell)) return false;
-  return volume.bands.some((band) => cell[1] >= band.base && cell[1] < band.top);
+  const side = inRoomFootprint(volume.rect, cell) ? "inside" : "outside";
+  return volume.bands.some(
+    (band) => band.side === side && cell[1] >= band.base && cell[1] < band.top
+  );
 }
 
 /**

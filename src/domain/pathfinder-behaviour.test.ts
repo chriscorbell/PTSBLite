@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { designFromScene } from "@/domain/design-state";
+import { inRoomFootprint } from "@/domain/floors";
 import { autoBuildOpenPortPair, runBandVolume } from "@/domain/pathfinder";
 import { placeTube } from "@/domain/tube-placement";
 import { totalPathLength } from "@/domain/parts";
@@ -43,6 +44,10 @@ import { routeWarnings } from "@/test/design-invariants";
  * Only the two-floor rows then moved again when the upper floor's band became
  * the only one (ADR-0025). Every one-floor row is untouched by that, which is
  * what says the change is about the building and not about the cost model.
+ *
+ * No existing row moved when the run band gained an outdoor side (ADR-0028):
+ * every layout here is built inside the room, and a band outside the footprint
+ * cannot reach them. The two rows that end past the wall are new.
  */
 
 const ROOM: DesignMetadata["room"] = { width: 60, depth: 60, height: 30 };
@@ -92,17 +97,32 @@ type Outcome = {
  * the client cares about most and the one hardest to see in a length. A room
  * with no plenum has a band too — the ceiling, or the 12 ft ghost ceiling — so
  * "outside" now means outside whichever of the three applies.
+ *
+ * A run band has two sides since ADR-0028, so a tube is matched against the band
+ * for the side of the footprint it is actually on: "outdoor band" is the low
+ * height carried outside the building, and distinct from "outside", which still
+ * means in no band at all.
  */
 function bandUsed(design: DesignState, parts: Part[]): string {
-  const { kind, bands } = runBandVolume(design.metadata);
-  const levels = parts.flatMap((part) =>
-    part.type === "tube" && part.from[1] === part.to[1] ? [part.from[1] - 0.5] : []
+  const { kind, rect, bands } = runBandVolume(design.metadata);
+  // Tube endpoints sit at cell centers, so the cell is the point less a half.
+  const runs = parts.flatMap((part) =>
+    part.type === "tube" && part.from[1] === part.to[1]
+      ? [
+          {
+            level: part.from[1] - 0.5,
+            cell: [part.from[0] - 0.5, part.from[1] - 0.5, part.from[2] - 0.5] as Vec3
+          }
+        ]
+      : []
   );
-  if (levels.length === 0) return "none";
+  if (runs.length === 0) return "none";
   const floors = new Set(
-    levels.map((level) => {
-      const band = bands.find((b) => level >= b.base && level < b.top);
-      return band ? `${kind} floor ${band.floor}` : "outside";
+    runs.map(({ level, cell }) => {
+      const side = inRoomFootprint(rect, cell) ? "inside" : "outside";
+      const band = bands.find((b) => b.side === side && level >= b.base && level < b.top);
+      if (!band) return "outside";
+      return side === "outside" ? "outdoor band" : `${kind} floor ${band.floor}`;
     })
   );
   return [...floors].sort().join(" + ");
@@ -229,6 +249,35 @@ describe("what Auto-Build does, layout by layout", () => {
       bends: 2,
       feet: 147.42,
       band: "plenum floor 2",
+      warnings: 0
+    });
+  });
+
+  it("drops to the outdoor band on the way out to a terminal past the wall", () => {
+    // Terminal 2 stands 15 ft outside the 60 ft room's east wall, so the run is
+    // in two parts and each has its own band (ADR-0028): the building's plenum
+    // while it is inside the footprint, and the foot below 12 ft once it is out
+    // in the open. Before, nothing outside the footprint was credited and the
+    // whole run held the indoor height until it was over the terminal.
+    expect(run(design(system([45, 0, 20]), ONE_FLOOR))).toEqual({
+      routed: true,
+      bends: 4,
+      feet: 105.85,
+      band: "outdoor band + plenum floor 1",
+      warnings: 0
+    });
+  });
+
+  it("takes the upstairs band inside and the outdoor band outside", () => {
+    // The client's case for a terminal outside a two-storey building: the
+    // outdoor leg at the lower of the 1st floor's ceiling and 12 ft, and the
+    // upstairs band from the footprint onward. The same layout as the row
+    // above, with the second storey that makes the two heights far apart.
+    expect(run(design(system([45, 0, 20]), TWO_FLOOR))).toEqual({
+      routed: true,
+      bends: 4,
+      feet: 167.85,
+      band: "outdoor band + plenum floor 2",
       warnings: 0
     });
   });
