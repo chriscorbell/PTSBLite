@@ -119,7 +119,8 @@ a taller one (`runBandVolume`, ADR-0023). One band per floor, spanning the room'
 room's height does not vote: a riser is priced as a tie-breaker, so no climb the build area can
 hold outweighs a foot of banded run. A system that neither stands in the building nor routes
 through it gets the outdoor band instead — the foot below 12 ft, over the whole build area
-(`outsideRunBandVolume`, ADR-0024).
+(`outsideRunBandVolume`, ADR-0024). That band closes any building it passes over: the route may not
+run through one it could fly over, so the outdoor answer always builds over the roof.
 
 **Ground plane** — `Y = 0`. Nothing may occupy a cell below it.
 
