@@ -45,14 +45,14 @@ export function computePartPorts(part: Part, registry: PartRegistry = partRegist
       break;
     }
     case "terminal": {
-      // Each port leaves from the end of the 2 ft body it sits on, so an
-      // upward-facing one starts a foot higher than the cell the terminal was
-      // placed in. See terminal.ts.
+      // Each port leaves from the end of the 2 ft body it sits on, so one of
+      // the two starts a foot along the body from the cell the terminal was
+      // placed in — above it standing up, beside it lying down. See terminal.ts.
       const cell = cellAt(part.cell);
       const axis = part.axis;
       const back = vNeg(axis);
-      const front = terminalPortAnchor(cell, axis);
-      const rear = terminalPortAnchor(cell, back);
+      const front = terminalPortAnchor(cell, axis, axis);
+      const rear = terminalPortAnchor(cell, back, axis);
       ports = [
         {
           partId: part.id,

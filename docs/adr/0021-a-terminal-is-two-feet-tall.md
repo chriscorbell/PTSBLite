@@ -28,7 +28,9 @@ Its consequences:
   cursor — which is free, and would be the wrong square to point at.
 - **The footprint on the floor is unchanged.** One square, however the unit is turned. A terminal
   grows upward, never outward, so nothing about the plan view, the landing cells or the floor
-  shadows changes.
+  shadows changes. *Superseded by [ADR-0027](0027-a-terminal-turns-with-its-ports.md): the client
+  asked for `R` to turn the whole unit, and one lying on its side covers two squares of floor. The
+  two cells are still claimed; which two now depends on the axis.*
 - **The catalog says two.** `terminal.cells` is 2, and free placement checks the geometry against
   it rather than trusting it, in the same spirit as the bend footprint check in
   `part-registry.ts`.
@@ -70,4 +72,5 @@ own second foot has taken over. Bend counts, plenum bands and warnings are uncha
 Redrawing the terminal to look like a real Kel2020 unit is separate work, agreed with the client on
 its own card. This ADR is the height and the geometry that follows from it; the existing shape
 simply became 2 ft tall, with its port fittings moved to the ends of the axis and its body left
-standing upright however those ports are turned.
+standing upright however those ports are turned — which
+[ADR-0027](0027-a-terminal-turns-with-its-ports.md) later changed, on the client's correction.

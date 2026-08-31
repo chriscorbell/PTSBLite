@@ -1,4 +1,4 @@
-import { vAdd } from "@/domain/vec3";
+import { vAdd, vEq, vNeg } from "@/domain/vec3";
 import type { TerminalPart, Vec3 } from "@/types";
 
 /**
@@ -12,16 +12,44 @@ import type { TerminalPart, Vec3 } from "@/types";
  * ADR-0021, which also says why the body claims the cell above it.
  *
  * The scale it is measured in is untouched: 1 cell is still 1 ft, so a 2 ft
- * body is two cells of one column.
+ * body is two cells end to end — stacked while the unit stands up, side by side
+ * once it is turned onto its side (ADR-0027).
  */
 export const TERMINAL_HEIGHT_CELLS = 2;
 
-/** Straight up. The body stands upright however its ports are turned. */
+/** Straight up: the way a terminal runs until its ports are turned off vertical. */
 const UP: Vec3 = [0, 1, 0];
 
 /**
- * The cells a terminal's body occupies: the cell it was placed in and the one
- * directly above it.
+ * Which way a terminal's body runs from the cell it was placed in.
+ *
+ * A 2 ft unit on a 1 ft grid always claims a second cell; this says which one.
+ * The body lies along its own port axis, so turning the ports turns the whole
+ * unit — the client's correction on 2026-08-31, recorded in ADR-0027. A
+ * terminal standing up runs into the cell above; one turned sideways lies down
+ * and runs into the cell beside it.
+ *
+ * The direction is normalized to the positive one, so a terminal and the same
+ * terminal turned end for end occupy the same two cells. They are the same box
+ * on the floor, and only differ in which end the run leaves from — which is
+ * `terminalPortAnchor`'s business, not the body's. That is also what keeps a
+ * downward-facing terminal standing in the cell above it, exactly as it did
+ * before this change.
+ *
+ * An axis that is not a single grid direction stands the unit up. Nothing the
+ * app places produces one, but a stored design's axis is only checked for three
+ * numbers, and a body with no direction to run in would claim its own cell
+ * twice.
+ */
+export function terminalBodyDir(axis: Vec3): Vec3 {
+  const along = axis.filter((component) => component !== 0);
+  if (along.length !== 1 || Math.abs(along[0]) !== 1) return UP;
+  return along[0] < 0 ? vNeg(axis) : axis;
+}
+
+/**
+ * The cells a terminal's body occupies: the cell it was placed in and the next
+ * one along {@link terminalBodyDir}.
  *
  * It claims both for the reason the pedestal's mast claims its column — the
  * body is solid, and a cell the app draws something in but leaves unclaimed is
@@ -29,33 +57,37 @@ const UP: Vec3 = [0, 1, 0];
  * parts-agree-with-grid split CONTEXT.md names as the invariant that matters
  * most, so the second foot of a terminal is registered like the first.
  *
- * The footprint on the floor is still one square: a terminal grows upward, not
- * outward, whichever way its ports face.
+ * A terminal standing up takes one square of floor and two of height. Lying
+ * down it takes two squares of floor and one of height: the same 1 x 1 x 2 unit,
+ * turned. It is the axis that decides, so every caller has to hand one over.
  */
-export function terminalCells(cell: Vec3): Vec3[] {
-  return [cell, vAdd(cell, UP)];
+export function terminalCells(cell: Vec3, axis: Vec3): Vec3[] {
+  return [cell, vAdd(cell, terminalBodyDir(axis))];
 }
 
 /**
- * The body cell a port facing `dir` leaves from: the top of the body for a port
- * pointing up, the bottom for anything else.
+ * The body cell a port facing `dir` leaves from: the far end of the body for
+ * the port that points that way, the placed cell for the one facing back.
  *
- * A terminal's two ports sit on opposite ends of its axis, and on a 2 ft body
- * the upward one now leaves a foot higher than it used to. Anchoring it to the
- * top cell is what keeps the port *outside* the terminal: measured from the
- * base, an upward port would land in the terminal's own second foot, so a tube
+ * A terminal's two ports sit on opposite ends of its axis, and the body is 2 ft
+ * long, so each port leaves from its own end. Anchoring the far one to the
+ * second cell is what keeps the port *outside* the terminal: measured from the
+ * placed cell, it would land in the terminal's own second foot, so a tube
  * connected to it would be drawn through the middle of the unit and could never
  * be placed at all.
- *
- * Horizontal ports stay on the base cell. Nothing about a taller body moves
- * them, and leaving them where they are is what lets a design built before this
- * change keep its connections.
  */
-export function terminalPortAnchor(cell: Vec3, dir: Vec3): Vec3 {
-  return dir[1] > 0 ? vAdd(cell, UP) : cell;
+export function terminalPortAnchor(cell: Vec3, dir: Vec3, axis: Vec3): Vec3 {
+  const body = terminalBodyDir(axis);
+  return vEq(dir, body) ? vAdd(cell, body) : cell;
 }
 
-/** Whether a terminal's ports run vertically, which is how it is drawn. */
+/**
+ * Whether a terminal stands upright rather than lying on its side, which is how
+ * its body is drawn and which pair of cells it claims.
+ *
+ * Read off the body direction rather than the axis, so the one axis the grid
+ * refuses to lie down — a malformed one — is the one the renderer stands up too.
+ */
 export function terminalAxisIsVertical(part: Pick<TerminalPart, "axis">): boolean {
-  return part.axis[1] !== 0;
+  return terminalBodyDir(part.axis)[1] !== 0;
 }

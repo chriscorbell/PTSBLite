@@ -31,12 +31,13 @@ convenience.*
 Diagonal or free-angle runs are not expressible.
 
 **A part's own size is geometry in code, not a catalog field.** A blower is one cell; a terminal is
-one cell square and two tall ([ADR-0021](adr/0021-a-terminal-is-two-feet-tall.md)). The catalog's
+one cell square and two long ([ADR-0021](adr/0021-a-terminal-is-two-feet-tall.md)), lying along
+whichever way it is turned ([ADR-0027](adr/0027-a-terminal-turns-with-its-ports.md)). The catalog's
 `cells` is a count the geometry is checked against, not a shape it is built from, and no field
 describes a footprint's dimensions — so a third endpoint of some other size means new geometry
-alongside `terminal.ts`, not a catalog edit. Nothing is stored on the part either: height comes
-from the type, which is what keeps `partCells` a pure function of the part and lets a design saved
-before a size change be re-read against the new one.
+alongside `terminal.ts`, not a catalog edit. Nothing is stored on the part either: the size comes
+from the type and the second cell from the part's own axis, which is what keeps `partCells` a pure
+function of the part and lets a design saved before a size change be re-read against the new one.
 
 **One bend geometry: 90°, 3 ft radius.** A second radius or a 45° bend needs new catalog entries and
 new footprint generation. See [ADR-0005](adr/0005-defer-the-bend-geometry-model.md).

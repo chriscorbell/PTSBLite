@@ -44,18 +44,23 @@ describe("Topology port computation", () => {
   });
 
   it("computes terminal ports on both sides of its oriented axis", () => {
+    // Whichever way it points, the ports clear a 2 ft body: the far one leaves
+    // the end of the unit, two cells along, rather than landing inside the
+    // terminal's own second foot. Horizontally that second foot is beside the
+    // placed cell, because the unit lies down with its ports (ADR-0027); the
+    // near port stays on the cell it always sat on.
     const cases: Array<[Vec3, Vec3[]]> = [
       [
         [1, 0, 0],
         [
-          [6, 0, 5],
+          [7, 0, 5],
           [4, 0, 5]
         ]
       ],
       [
         [0, 0, 1],
         [
-          [5, 0, 6],
+          [5, 0, 7],
           [5, 0, 4]
         ]
       ],
@@ -63,19 +68,18 @@ describe("Topology port computation", () => {
         [-1, 0, 0],
         [
           [4, 0, 5],
-          [6, 0, 5]
+          [7, 0, 5]
         ]
       ],
       [
         [0, 0, -1],
         [
           [5, 0, 4],
-          [5, 0, 6]
+          [5, 0, 7]
         ]
       ],
-      // Vertically, the ports clear a 2 ft body: the upward one leaves the top
-      // of it, two cells above the base, rather than landing inside the
-      // terminal's own second foot. See terminal.ts and ADR-0021.
+      // Vertically, the same rule was already in force before the unit could
+      // turn: the upward port leaves the top of the body. See ADR-0021.
       [
         [0, 1, 0],
         [

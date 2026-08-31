@@ -128,7 +128,7 @@ function partFootprint(part: Part, registry: PartRegistry): Vec3[] {
   }
   if (part.type === "blower") return [cellAt(part.cell)];
   // Both feet of a terminal are solid, so an obstacle through either is a fault.
-  if (part.type === "terminal") return terminalCells(cellAt(part.cell));
+  if (part.type === "terminal") return terminalCells(cellAt(part.cell), part.axis);
   if (part.type === "tube") return tubeCells(part.from, part.to);
   return bendFootprint(part, registry);
 }
