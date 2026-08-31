@@ -39,6 +39,10 @@ import { routeWarnings } from "@/test/design-invariants";
  * height could outvote (ADR-0023). They are longer, by the riser twice over,
  * and no row gained a bend. The four rows in the 12 ft room he actually builds
  * in did not move at all.
+ *
+ * Only the two-floor rows then moved again when the upper floor's band became
+ * the only one (ADR-0025). Every one-floor row is untouched by that, which is
+ * what says the change is about the building and not about the cost model.
  */
 
 const ROOM: DesignMetadata["room"] = { width: 60, depth: 60, height: 30 };
@@ -199,15 +203,32 @@ describe("what Auto-Build does, layout by layout", () => {
     });
   });
 
-  it("uses the plenum on the way to the upper storey", () => {
-    // Unchanged by the run band work, which is the point of keeping it: the
-    // climb was on the way regardless, so this row never depended on what a
-    // riser cost. Favouring the *2nd floor* plenum here is a separate card.
+  it("carries the run in the upstairs plenum on the way to the upper storey", () => {
+    // The row that moved when the upper floor's band became the only one
+    // (ADR-0025). It used to cross in the floor 1 plenum at 27 ft and climb to
+    // the terminal afterwards; now it rises past the slab first and crosses at
+    // 58 ft, which is the "straight up, across upstairs, then down" the client
+    // described. Same two bends, and 53 ft more tube — the extra riser, twice.
     expect(run(design(system([20, 31, 20]), TWO_FLOOR))).toEqual({
       routed: true,
       bends: 2,
-      feet: 63.42,
-      band: "plenum floor 1",
+      feet: 116.42,
+      band: "plenum floor 2",
+      warnings: 0
+    });
+  });
+
+  it("climbs to the upstairs plenum even when both ends are downstairs", () => {
+    // The half of the client's rule that is easy to miss: the run band follows
+    // the building, not the parts. Both terminals stand on floor 1 here and the
+    // route still rises past the slab to cross at 58 ft, because "ignore the
+    // 1st floor plenum and ceiling" is unconditional in a two-floor building.
+    // The same layout on one floor is the 85.42 ft row below.
+    expect(run(design(system([20, 0, 20]), TWO_FLOOR))).toEqual({
+      routed: true,
+      bends: 2,
+      feet: 147.42,
+      band: "plenum floor 2",
       warnings: 0
     });
   });

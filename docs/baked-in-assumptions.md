@@ -169,7 +169,9 @@ rendered from, so changing the list changes every document.
 **Where a horizontal run belongs is a fixed rule, not a setting.** Auto-Build charges horizontal
 feet and bends outside the run band extra during the search (`pathfinder.ts`), and every design has
 a band: the plenum, the ceiling of a room 12 ft or lower, or a 12 ft ghost ceiling in a taller one
-(ADR-0023) — or, for a system that never touches the building, 12 ft out in the open (ADR-0024).
+(ADR-0023) — or, for a system that never touches the building, 12 ft out in the open (ADR-0024). A
+two-floor building has one band, upstairs, wherever its parts stand (ADR-0025), so there is no way
+to keep a run downstairs and no way to give a route two heights along its length.
 The weights and the 12 ft are constants; nothing on screen exposes or tunes them, and a
 banded route genuinely is longer — the climb's feet count against the 300 ft cap like any others.
 The visitor cannot ask for a run at some other height, or for a flat one; more rise than the band

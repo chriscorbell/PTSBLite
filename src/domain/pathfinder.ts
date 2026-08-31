@@ -296,35 +296,46 @@ function bendFits(design: DesignState, cells: Vec3[]): boolean {
 export const MAX_RUN_HEIGHT_FEET = 12;
 
 /**
- * Where a horizontal run belongs: one band per floor, plus the footprint they
- * span and which of the client's cases produced them.
+ * Where a horizontal run belongs: the band itself, the footprint it spans and
+ * which of the client's cases produced it.
  *
  * A band is a volume, not a Y range — a cell outside the room at drop-ceiling
  * height is just open air, and the bias must not credit it. Every design has a
  * band: the plenum when there is one, and the ceiling or the ghost ceiling when
  * there is not. A system that never touches the building gets the outdoor band
  * instead — see {@link outsideRunBandVolume}.
+ *
+ * `bands` stays a list because the shape outlived the two-band case by a day and
+ * the outdoor band still uses it; today it holds exactly one entry.
  */
 type RunBand = { floor: 1 | 2; base: number; top: number };
 type RunBandVolume = { kind: RunBandKind; rect: RoomRect; bands: RunBand[] };
 
+/**
+ * Which floor's band carries the horizontal run: the upper one whenever the
+ * building has two, whichever floor the terminals stand on (ADR-0025).
+ */
+function runBandFloor(metadata: DesignMetadata): 1 | 2 {
+  return metadata.multiFloor ? 2 : 1;
+}
+
 export function runBandVolume(metadata: DesignMetadata): RunBandVolume {
   const rect = roomRect(metadata);
-  const plenum = plenumBands(metadata);
+  const floor = runBandFloor(metadata);
+  const plenum = plenumBands(metadata).filter((band) => band.floor === floor);
   if (plenum.length > 0) return { kind: "plenum", rect, bands: plenum };
 
-  // No plenum: the foot of air directly under the ceiling, or under the ghost
-  // ceiling in a room too tall for the real one.
+  // No plenum: the foot of air directly under that floor's ceiling, or under
+  // the ghost ceiling on a storey too tall for the real one. Either way it is
+  // measured from the floor's own level, so the cap is 12 ft above the storey
+  // rather than 12 ft above the ground.
   const perFloor = metadata.room.height;
   const runHeight = Math.min(perFloor, MAX_RUN_HEIGHT_FEET);
-  const floors: Array<1 | 2> = metadata.multiFloor ? [1, 2] : [1];
+  const top = floorBaseElevation(metadata, floor) + runHeight;
   return {
     kind: perFloor > MAX_RUN_HEIGHT_FEET ? "ghost-ceiling" : "ceiling",
     rect,
-    bands: floors.map((floor) => {
-      const top = floorBaseElevation(metadata, floor) + runHeight;
-      return { floor, base: top - 1, top };
-    })
+    bands: [{ floor, base: top - 1, top }]
   };
 }
 

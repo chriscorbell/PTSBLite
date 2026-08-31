@@ -350,18 +350,17 @@ describe("where a horizontal run belongs", () => {
     expect(band.bands).toEqual([{ floor: 1, base: 11, top: 12 }]);
   });
 
-  it("gives each floor of a two-floor room its own band", () => {
+  it("puts a two-floor room's band upstairs, and only upstairs", () => {
     const band = runBandVolume({
       room: { width: 60, depth: 60, height: 30 },
       multiFloor: true,
       plenumHeightFeet: null
     });
 
-    // 12 ft above each floor's own floor, the second measured from the slab.
-    expect(band.bands).toEqual([
-      { floor: 1, base: 11, top: 12 },
-      { floor: 2, base: 42, top: 43 }
-    ]);
+    // The client's rule: with two floors the linear run ignores the 1st floor's
+    // ceiling entirely. One band, 12 ft above the *2nd* floor's own level —
+    // measured from the slab at 31, not from the ground (ADR-0025).
+    expect(band.bands).toEqual([{ floor: 2, base: 42, top: 43 }]);
   });
 });
 
@@ -666,11 +665,12 @@ describe("routing across a room with a plenum", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.unroutedPairs).toEqual([]);
-    // The two ports are 48 ft apart on the floor plan, and the band they now
-    // ride sits 27 ft up, so a sane route is that distance plus the riser twice
-    // over — about 102 ft before the bend arcs. Anything well beyond it is a
-    // detour rather than the climb.
-    expect(totalPathLength(result.parts)).toBeLessThan(120);
+    // The two ports are 48 ft apart on the floor plan. Both stand on floor 1,
+    // but the room has two, so the band they ride is the upstairs plenum at
+    // 58 ft (ADR-0025) rather than the 27 ft one over their heads: a sane route
+    // is that distance plus the riser twice over, about 164 ft before the bend
+    // arcs. Anything well beyond it is a detour rather than the climb.
+    expect(totalPathLength(result.parts)).toBeLessThan(190);
     expect(routeWarnings(result.design)).toEqual([]);
   });
 });
