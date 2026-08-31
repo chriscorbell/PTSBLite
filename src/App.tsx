@@ -50,7 +50,7 @@ import {
   floorShadows,
   ghostElevation,
   heightMarkers,
-  heightMarkersFollowTool,
+  heightMarkersAutomatic,
   heightMarkersVisible,
   openPortMarkers,
   placedPartShadows
@@ -192,10 +192,18 @@ export default function App({ platform }: AppProps) {
       // arming or disarming a placement tool is that toggle. A swap between two
       // tools that both wanted markers is not one, so an override survives it:
       // nothing on screen changed to disagree with what the visitor asked for.
-      if (heightMarkersFollowTool(next) !== heightMarkersFollowTool(tool)) setMarkersOverride(null);
+      // Neither is any swap while an Auto-Build run stands, which asks for the
+      // markers whatever is armed.
+      const autoBuilt = autoBuildJustRan;
+      if (
+        heightMarkersAutomatic({ tool: next, autoBuilt }) !==
+        heightMarkersAutomatic({ tool, autoBuilt })
+      ) {
+        setMarkersOverride(null);
+      }
       dispatchPlacement({ type: "select-tool", tool: next });
     },
-    [tool]
+    [tool, autoBuildJustRan]
   );
 
   const setErrorFlash = useCallback((msg: string | null) => {
@@ -513,10 +521,14 @@ export default function App({ platform }: AppProps) {
       runBand: result.runBand
     });
     setAutoBuildJustRan(true);
-    selectTool("cursor");
+    // Disarmed directly rather than through selectTool: finishing a route is
+    // not the automatic toggle that takes the View menu's answer back. The run
+    // it just placed keeps elevation the question on screen, so whatever the
+    // visitor last said about height markers still stands.
+    dispatchPlacement({ type: "select-tool", tool: "cursor" });
     commitDesign(result.design);
     setErrorFlash(unroutedMessage(result.unroutedPairs));
-  }, [commitDesign, design, selectTool, setErrorFlash]);
+  }, [commitDesign, design, setErrorFlash]);
 
   const resetActiveInteraction = useCallback(() => {
     selectTool("cursor");
@@ -622,10 +634,11 @@ export default function App({ platform }: AppProps) {
         : activeElevation;
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
-  // Heights are labelled only while a placement tool is armed: they answer the
-  // question elevation raises, and would be clutter the rest of the time. The
-  // View menu can override that, until the next automatic toggle.
-  const markersOn = heightMarkersVisible(tool, markersOverride);
+  // Heights are labelled while a placement tool is armed, and while an
+  // Auto-Build run stands: they answer the question elevation raises, and would
+  // be clutter the rest of the time. The View menu can override that, until the
+  // next automatic toggle.
+  const markersOn = heightMarkersVisible({ tool, autoBuilt: autoBuildJustRan }, markersOverride);
   const markers = useMemo(() => (markersOn ? heightMarkers(design) : []), [markersOn, design]);
   // Memoized for identity: the viewport rebuilds its ground group when this
   // prop changes, and the bands only actually change with the metadata.

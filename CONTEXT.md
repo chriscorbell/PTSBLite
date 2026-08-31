@@ -155,8 +155,9 @@ placed in the design.
 
 **Height marker** — a label reading a height in feet, drawn beside the thing it belongs to:
 every placed part, each plenum's drop ceiling, and a two-floor room's slab, plus the height the
-armed tool would place at (in the accent colour). Shown only while a placement tool is armed —
-`heightMarkersVisible` — since that is when elevation is the question on screen. Sized in world
+armed tool would place at (in the accent colour). Shown while a placement tool is armed, and while
+an Auto-Build run stands — `heightMarkersVisible` — since that is when elevation is the question on
+screen. Sized in world
 units so a marker shrinks with the part it labels, bounded at both ends by `heightMarkerScale`:
 hidden once it would be too small to read, capped before it could cover the part. Replaced a
 translucent plane that showed *where* the placement height was without saying what it was.

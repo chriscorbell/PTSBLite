@@ -60,13 +60,25 @@ const ELEVATION_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>([
   "obstacle"
 ]);
 
+/** Everything on screen that can make elevation the question. */
+type ElevationMoment = {
+  /** The armed tool. */
+  tool: ToolId;
+  /** Whether an Auto-Build run is standing in the design. */
+  autoBuilt?: boolean;
+};
+
 /**
- * What the app decides on its own: markers while a placement tool is armed.
+ * What the app decides on its own: markers while a placement tool is armed, and
+ * while an Auto-Build run is on screen. Auto-Build disarms the tool as it
+ * finishes, so without the second half the markers would go out at exactly the
+ * moment a screenful of parts arrives at heights nobody typed.
+ *
  * Exported because the caller holding the override has to watch this value —
  * when it changes, the automatic behaviour has spoken and the override is over.
  */
-export function heightMarkersFollowTool(tool: ToolId): boolean {
-  return ELEVATION_TOOLS.has(tool);
+export function heightMarkersAutomatic({ tool, autoBuilt = false }: ElevationMoment): boolean {
+  return autoBuilt || ELEVATION_TOOLS.has(tool);
 }
 
 /**
@@ -76,8 +88,11 @@ export function heightMarkersFollowTool(tool: ToolId): boolean {
  * Null while nobody has overridden anything, which is until the menu is used
  * and again after the next automatic toggle takes control back.
  */
-export function heightMarkersVisible(tool: ToolId, override: boolean | null = null): boolean {
-  return override ?? heightMarkersFollowTool(tool);
+export function heightMarkersVisible(
+  moment: ElevationMoment,
+  override: boolean | null = null
+): boolean {
+  return override ?? heightMarkersAutomatic(moment);
 }
 
 /**

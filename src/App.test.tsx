@@ -572,6 +572,34 @@ describe("Auto-Build", () => {
     ).toBeTruthy();
   });
 
+  it("leaves the height markers up over the run it built", async () => {
+    // The client: "When auto-build is used, height markers disappear. Make them
+    // stay." Auto-Build finishes by disarming the tool, and the markers used to
+    // follow the tool alone, so they went out over a screenful of new parts.
+    await renderApp();
+    fireEvent.click(screen.getByRole("button", { name: "Build" }));
+    fireEvent.click(screen.getByRole("button", { name: "Blower Unit" }));
+    clickCell([0, 0, 0]);
+    fireEvent.click(screen.getByRole("button", { name: "Terminal Station" }));
+    clickCell([0, 1, 0]);
+    clickCell([12, 0, 0]);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+    await waitFor(() => {
+      expect(screen.getByText(/Auto-Build complete/)).toBeTruthy();
+    });
+
+    expect(viewport.props?.heightMarkers?.length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /^View$/ }));
+    const markersItem = screen.getByRole("menuitemcheckbox", { name: /Height markers/ });
+    expect(markersItem.getAttribute("aria-checked")).toBe("true");
+
+    // Still the visitor's to put out: Auto-Build holds the markers up, it does
+    // not take the tick away from him.
+    fireEvent.click(markersItem);
+    expect(viewport.props?.heightMarkers).toEqual([]);
+  });
+
   it("clears exactly the parts a run added, and only offers to when there are some", async () => {
     await renderApp();
     const partCount = () =>
