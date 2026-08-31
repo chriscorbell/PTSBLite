@@ -65,6 +65,15 @@ export function inRoomFootprint(rect: RoomRect, cell: Vec3): boolean {
 }
 
 /**
+ * Whether a cell is inside the room itself — within its footprint and below its
+ * roof — rather than merely over or beside it. This is what "under a ceiling"
+ * means: air above the roof is outdoors, however far the footprint extends.
+ */
+export function inRoomVolume(metadata: DesignMetadata, cell: Vec3): boolean {
+  return inRoomFootprint(roomRect(metadata), cell) && cell[1] < roomHeightFeet(metadata);
+}
+
+/**
  * Whether a box — inclusive cell bounds, as obstacles carry them — covers any
  * part of the room's footprint. A volume half in and half out counts as in.
  */

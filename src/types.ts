@@ -114,7 +114,7 @@ export type DesignState = {
  * room's own ceiling, or the ghost ceiling a room too tall for either is routed
  * beneath.
  */
-export type RunBandKind = "plenum" | "ceiling" | "ghost-ceiling";
+export type RunBandKind = "plenum" | "ceiling" | "ghost-ceiling" | "outside";
 
 export type AutoBuildSummary = {
   /** Centerline feet of the parts Auto-Build placed. */

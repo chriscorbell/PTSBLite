@@ -400,22 +400,91 @@ describe("Pathfinder run band preference", () => {
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
-  it("gives no plenum credit outside the room", () => {
-    // The same long run, at plenum height for a room it is nowhere near:
-    // drop-ceiling space exists only over the room's footprint, so out there
-    // the bias has nothing to prefer and the route stays flat on the ground.
-    const meta = { room: { width: 20, depth: 20, height: 8 }, plenumHeightFeet: 4 };
+  // A 20 ft room at the origin, with a plenum, and room enough around it to
+  // build a whole system that never touches it.
+  const SMALL_ROOM = { room: { width: 20, depth: 20, height: 8 }, plenumHeightFeet: 4 };
+
+  it("runs a system that never touches the building at 12 ft", () => {
+    // The client's rule for a system entirely outdoors: no ceiling to run
+    // under, so the horizontals default to MAX_RUN_HEIGHT_FEET. The plenum is
+    // nowhere near this run and gets no say.
     const outside: Part[] = [
       { id: "b1", type: "blower", cell: [40, 0, 40], dir: [1, 0, 0] },
       { id: "t1", type: "terminal", cell: [41, 0, 40], axis: [1, 0, 0] },
       { id: "t2", type: "terminal", cell: [105, 0, 40], axis: [1, 0, 0] }
     ];
-    const result = autoBuildOpenPortPair(designFromScene({ parts: outside, obstacles: [] }, meta));
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: outside, obstacles: [] }, SMALL_ROOM)
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.parts.every((part) => part.type === "tube")).toBe(true);
-    expect(horizontalTubeLevels(result.parts).every((y) => y === 0)).toBe(true);
+    expect(result.runBand).toBe("outside");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === MAX_RUN_HEIGHT_FEET - 1)).toBe(
+      true
+    );
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("obeys the plenum when one part of the system stands inside the building", () => {
+    // "If a system is built with any part under a ceiling ... always obey
+    // routing through the plenum." One terminal indoors is enough; the rest of
+    // the system does not get the outdoor height because it is outdoors.
+    const straddling: Part[] = [
+      { id: "b1", type: "blower", cell: [40, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [41, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: straddling, obstacles: [] }, SMALL_ROOM)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("plenum");
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("stays outdoors when the run clears the roof rather than passing through it", () => {
+    // The same two-terminals-either-side layout over a building shorter than
+    // MAX_RUN_HEIGHT_FEET. At the outdoor height the run passes above the roof,
+    // so nothing routes *through* the building and the outdoor rule stands.
+    const eitherSide: Part[] = [
+      { id: "b1", type: "blower", cell: [-40, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [-39, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [40, 0, 0], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: eitherSide, obstacles: [] }, SMALL_ROOM)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("outside");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === MAX_RUN_HEIGHT_FEET - 1)).toBe(
+      true
+    );
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("obeys the plenum when the only route between two outdoor parts goes through the building", () => {
+    // The client's second case: "an auto-build path routes through a building
+    // (ex: two terminals on either side of a 'room/building')". Both parts
+    // stand outdoors, so only the route settles it — and a room taller than
+    // MAX_RUN_HEIGHT_FEET cannot be flown over at the outdoor height.
+    const tallRoom = { room: { width: 20, depth: 20, height: 30 }, plenumHeightFeet: 4 };
+    const eitherSide: Part[] = [
+      { id: "b1", type: "blower", cell: [-40, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [-39, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [40, 0, 0], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: eitherSide, obstacles: [] }, tallRoom)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("plenum");
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
