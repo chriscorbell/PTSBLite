@@ -204,6 +204,29 @@ describe("deserializeDesign", () => {
     expect(result.design.metadata.plenumHeightFeet).toBeNull();
   });
 
+  it("declines a design saved when a terminal was one foot tall", () => {
+    // The consequence of ADR-0021 for anything already stored. A design saved
+    // before the change may hold a tube starting directly above an upward
+    // facing terminal — the cell the terminal's second foot now stands in — and
+    // the app can no longer represent that. Reporting beats repairing, as
+    // everywhere else in this module: the visitor is told the design could not
+    // be reopened rather than being handed a silently shortened one.
+    const stored = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      appVersion: "0.1.0",
+      metadata: {},
+      parts: [
+        { id: "t1", type: "terminal", cell: [0, 0, 0], axis: [0, 1, 0] },
+        { id: "st1", type: "tube", from: [0, 1, 0], to: [0, 7, 0] }
+      ],
+      obstacles: []
+    };
+    const result = deserializeDesign(JSON.stringify(stored));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toContain("overlaps");
+  });
+
   it("rejects unparseable JSON", () => {
     const result = deserializeDesign("{not json");
     expect(result.ok).toBe(false);

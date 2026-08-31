@@ -62,8 +62,10 @@ export function buildGround(area: BuildArea, dimmed = false): THREE.Group {
   g.add(ground);
 
   // Build the grid lines by hand (THREE.GridHelper only draws square grids):
-  // a faint 1 ft minor line at every cell boundary, with a stronger line every
-  // 5 ft (and at the origin axes).
+  // a 1 ft minor line at every cell boundary, with a stronger line every 5 ft
+  // (and at the origin axes). Both are pitched to survive being seen through
+  // the room's walls, which is where the grid matters most and where it used
+  // to wash out — see VP.grid.
   const minor: number[] = [];
   const major: number[] = [];
   for (let x = b.xMin; x <= b.xMax; x++) {
@@ -72,8 +74,8 @@ export function buildGround(area: BuildArea, dimmed = false): THREE.Group {
   for (let z = b.zMin; z <= b.zMax; z++) {
     (z % 5 === 0 ? major : minor).push(b.xMin, 0, z, b.xMax, 0, z);
   }
-  g.add(buildGroundLines(minor, VP.grid, 0.45 * fade, 0));
-  g.add(buildGroundLines(major, VP.gridStrong, 0.7 * fade, 0.001));
+  g.add(buildGroundLines(minor, VP.grid, 0.5 * fade, 0));
+  g.add(buildGroundLines(major, VP.gridMajor, 0.7 * fade, 0.001));
   return g;
 }
 
@@ -111,11 +113,12 @@ export function buildRoomFloor(rect: RoomRect, dimmed = false): THREE.Group {
  * The room's walls: faintly translucent slabs in the separator's material, so
  * walls and ceiling read as one structure. No hatch — that stays the mark of
  * an obstacle a visitor placed. Fill sits well below the slab's opacity: a
- * viewer looks through two walls at once from outside, so their tint compounds,
- * and the walls exist to say where the room is rather than to be looked at. No
- * depth writes either, so the interior stays legible from any angle. Like penetrable obstacles the walls
- * claim no grid cells; unlike them they are scenery — no part of the design,
- * not erasable, absent from the BOM.
+ * viewer looks through two walls at once from outside, so their tint compounds
+ * over the floor grid — which is where the grid matters most, and where it used
+ * to disappear — and the walls exist to say where the room is rather than to be
+ * looked at. No depth writes either, so the interior stays legible from any
+ * angle. Like penetrable obstacles the walls claim no grid cells; unlike them
+ * they are scenery — no part of the design, not erasable, absent from the BOM.
  */
 export function buildRoomWalls(walls: Array<{ min: Vec3; max: Vec3 }>): THREE.Group {
   const g = new THREE.Group();
@@ -127,9 +130,9 @@ export function buildRoomWalls(walls: Array<{ min: Vec3; max: Vec3 }>): THREE.Gr
     const slab = new THREE.Mesh(
       geom,
       new THREE.MeshBasicMaterial({
-        color: VP.gridStrong,
+        color: VP.structure,
         transparent: true,
-        opacity: 0.07,
+        opacity: 0.05,
         depthWrite: false
       })
     );
@@ -144,7 +147,7 @@ export function buildRoomWalls(walls: Array<{ min: Vec3; max: Vec3 }>): THREE.Gr
       new THREE.EdgesGeometry(geom),
       // The edges carry the room's shape now that the faces barely tint, so
       // they stay stronger than the fill rather than fading with it.
-      new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.55 })
+      new THREE.LineBasicMaterial({ color: VP.structure, transparent: true, opacity: 0.55 })
     );
     edges.position.copy(slab.position);
     g.add(edges);
@@ -177,7 +180,7 @@ export function buildFloorSeparator(
   const slab = new THREE.Mesh(
     new THREE.BoxGeometry(b.xMax - b.xMin, 1, b.zMax - b.zMin),
     new THREE.MeshBasicMaterial({
-      color: VP.gridStrong,
+      color: VP.structure,
       transparent: true,
       opacity: 0.5 * fade,
       depthWrite: false
@@ -188,7 +191,7 @@ export function buildFloorSeparator(
 
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(slab.geometry),
-    new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.9 * fade })
+    new THREE.LineBasicMaterial({ color: VP.structure, transparent: true, opacity: 0.9 * fade })
   );
   edges.position.copy(slab.position);
   g.add(edges);
@@ -201,8 +204,8 @@ export function buildFloorSeparator(
   for (let z = b.zMin; z <= b.zMax; z++) {
     (z % 5 === 0 ? major : minor).push(b.xMin, 0, z, b.xMax, 0, z);
   }
-  g.add(buildGroundLines(minor, VP.grid, 0.3 * fade, separatorY + 1.001));
-  g.add(buildGroundLines(major, VP.gridStrong, 0.5 * fade, separatorY + 1.002));
+  g.add(buildGroundLines(minor, VP.grid, 0.4 * fade, separatorY + 1.001));
+  g.add(buildGroundLines(major, VP.gridMajor, 0.6 * fade, separatorY + 1.002));
   return g;
 }
 
@@ -229,7 +232,7 @@ export function buildRoomCeiling(rect: RoomRect, top: number): THREE.Group {
   const slab = new THREE.Mesh(
     geom,
     new THREE.MeshBasicMaterial({
-      color: VP.gridStrong,
+      color: VP.structure,
       transparent: true,
       opacity: 0.07,
       depthWrite: false
@@ -240,7 +243,7 @@ export function buildRoomCeiling(rect: RoomRect, top: number): THREE.Group {
 
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(geom),
-    new THREE.LineBasicMaterial({ color: VP.gridStrong, transparent: true, opacity: 0.55 })
+    new THREE.LineBasicMaterial({ color: VP.structure, transparent: true, opacity: 0.55 })
   );
   edges.position.copy(slab.position);
   g.add(edges);
@@ -638,14 +641,22 @@ const MARKER_FONT = "'Geist Variable', system-ui, -apple-system, sans-serif";
 
 /**
  * How tall a height marker stands in the world, in feet, before the viewport
- * clamps it at either end of the zoom range. About a cell tall, so it reads as
- * attached to the part rather than floating over the scene. Trimmed from 1.8,
- * which the client found too big — but only so far: below about 1.3 a marker
- * drops under the legibility floor at the distance the default room opens at,
- * and vanishes. What actually stopped them covering the parts is the offset in
- * `partMarkerAnchor` and the tighter on-screen cap in the viewport.
+ * clamps it at either end of the zoom range. Shorter than the 1 ft cell it
+ * labels, so a marker can no longer be the biggest thing on the grid.
+ *
+ * 1.8 came down to 1.5 and the client still found them too big — "markers are
+ * actually bigger than some parts" — and told us what to trade away to fix it:
+ * "let's ignore legibility at the default zoom distance, that's what zoom is
+ * for". So this is no longer held up by a legibility floor at the opening
+ * view; `MARKER_MIN_PIXELS` in the viewport came down with it, and only stops
+ * a marker being drawn once it carries no information at all.
+ *
+ * 0.9 was that step, and the client asked for one more: "let's make the height
+ * markers a bit smaller still, but we are headed in the right direction". A
+ * marker now stands seven tenths of the cell it labels. Size alone — he called
+ * the direction right, so `MARKER_ASIDE` keeps the offset it has.
  */
-export const HEIGHT_MARKER_FEET = 1.5;
+export const HEIGHT_MARKER_FEET = 0.7;
 
 function roundedRect(
   ctx: CanvasRenderingContext2D,

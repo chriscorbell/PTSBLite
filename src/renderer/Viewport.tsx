@@ -5,6 +5,7 @@ import {
   buildBlowerMesh,
   buildPedestalMesh,
   buildObstacleMesh,
+  buildSplitSleeveMesh,
   buildTerminalMesh,
   buildTubeMesh
 } from "@/renderer/design-meshes";
@@ -43,6 +44,7 @@ import { type PlenumBand, type RoomRect } from "@/domain/floors";
 import { STANDARD_VIEWS, type CameraView } from "@/renderer/camera-views";
 import type { FloorShadow, HeightMarker } from "@/domain/renderer-affordances";
 import { type PortMarker } from "@/domain/renderer-affordances";
+import { splitSleeves } from "@/domain/split-sleeve";
 import { BUILD_AREA } from "@/domain/sparse-grid";
 import type { BuildArea, Ghost, Scene, ToolId, Vec3 } from "@/types";
 import "@/renderer/Viewport.css";
@@ -83,12 +85,24 @@ const CAMERA_FOV_DEG = 38;
 /**
  * The on-screen bounds a height marker is kept inside.
  *
- * Below the minimum a label is fuzz rather than text, and drawing it only adds
- * noise to a view that has zoomed past the detail it belongs to. Above the
- * maximum it starts covering the part it is describing — the failure that
+ * Below the minimum there is nothing left to read at all, and drawing it only
+ * adds noise to a view that has zoomed past the detail it belongs to. Above
+ * the maximum it starts covering the part it is describing — the failure that
  * screen-space sizing had at every zoom level.
+ *
+ * The minimum used to be a legibility floor: 11 px, enough to read at the
+ * distance the default room opens at, which in turn set how large a marker had
+ * to be in the world. The client gave that up to get smaller markers — "if
+ * users can't read it, they will zoom in" — so it now only decides when a
+ * marker has shrunk to a smudge worth dropping, well past the opening view.
+ *
+ * It tracks {@link HEIGHT_MARKER_FEET} down, because a pixel floor held still
+ * while the marker shrinks does not mean "drop it when it is a smudge" — it
+ * means "drop it nearer the camera than before". 6 px against 0.9 ft put the
+ * cut-off just under 1.5 opening distances back; 4.5 against 0.7 ft holds it
+ * there, so making markers smaller does not quietly take them away sooner.
  */
-const MARKER_MIN_PIXELS = 11;
+const MARKER_MIN_PIXELS = 4.5;
 const MARKER_MAX_PIXELS = 42;
 
 /**
@@ -142,8 +156,10 @@ function feetPerPixel(distance: number, viewportHeight: number): number {
  * World-scaled through the range that matters, so a marker shrinks with the
  * part it labels rather than growing to cover it. Clamped at the near end so
  * it cannot fill the screen when the camera is right on top of a part, and
- * dropped at the far end once it would be too small to read — at which point
- * the elevation is still on screen beside the armed tool, so nothing is lost.
+ * dropped at the far end once there is nothing left of it to read — at which
+ * point the elevation is still on screen beside the armed tool, so nothing is
+ * lost. Between those ends a marker may well be too small to read from where
+ * the camera happens to sit; the answer to that is the scroll wheel.
  */
 export function heightMarkerScale(
   distance: number,
@@ -191,6 +207,10 @@ type ViewportState = {
   cam?: { yaw: number; pitch: number; distance: number; target: THREE.Vector3 };
   applyCamera?: () => void;
   partsGroup?: THREE.Group;
+  /** Split sleeves, derived from the parts rather than placed (ADR-0022). Its
+   * own group so the erase tool's raycast, which only searches `partsGroup`,
+   * passes through a sleeve to the tube underneath it. */
+  sleevesGroup?: THREE.Group;
   obstaclesGroup?: THREE.Group;
   ghostGroup?: THREE.Group;
   overlayGroup?: THREE.Group;
@@ -434,6 +454,8 @@ export function Viewport({
 
     const partsGroup = new THREE.Group();
     scene3.add(partsGroup);
+    const sleevesGroup = new THREE.Group();
+    scene3.add(sleevesGroup);
     const obstaclesGroup = new THREE.Group();
     scene3.add(obstaclesGroup);
     const ghostGroup = new THREE.Group();
@@ -538,6 +560,7 @@ export function Viewport({
       cam,
       applyCamera,
       partsGroup,
+      sleevesGroup,
       obstaclesGroup,
       ghostGroup,
       overlayGroup,
@@ -701,8 +724,9 @@ export function Viewport({
 
   useEffect(() => {
     const s = stateRef.current;
-    if (!s.partsGroup || !s.obstaclesGroup) return;
+    if (!s.partsGroup || !s.sleevesGroup || !s.obstaclesGroup) return;
     clearGroup(s.partsGroup);
+    clearGroup(s.sleevesGroup);
     clearGroup(s.obstaclesGroup);
     for (const o of scene.obstacles ?? []) {
       s.obstaclesGroup.add(buildObstacleMesh(o.min, o.max, { penetrable: o.penetrable }));
@@ -723,10 +747,11 @@ export function Viewport({
           s.partsGroup.add(pedestal);
         }
       } else if (p.type === "terminal") {
-        mesh = buildTerminalMesh();
+        // The mesh turns itself: a terminal stands upright whichever way its
+        // ports face, so only its fittings follow the axis.
+        mesh = buildTerminalMesh({ axis: p.axis });
         const c = cellCenter(p.cell);
         mesh.position.set(c[0], c[1], c[2]);
-        mesh.quaternion.copy(dirToQuat(p.axis));
       } else if (p.type === "tube") {
         mesh = buildTubeMesh(p.from, p.to);
       } else if (p.type === "bend") {
@@ -738,6 +763,11 @@ export function Viewport({
         mesh.userData.partId = p.id;
         s.partsGroup.add(mesh);
       }
+    }
+    // Where two pieces meet, and every 6 ft along anything longer than one
+    // stock length. Rebuilt with the parts because that is all they depend on.
+    for (const sleeve of splitSleeves(scene.parts ?? [])) {
+      s.sleevesGroup.add(buildSplitSleeveMesh(sleeve.at, sleeve.along));
     }
     if (s.renderer) {
       const size = s.renderer.getSize(new THREE.Vector2());
@@ -847,10 +877,9 @@ export function Viewport({
           s.ghostGroup.add(pedestal);
         }
       } else if (ghost.type === "terminal") {
-        mesh = buildTerminalMesh({ ghost: true });
+        mesh = buildTerminalMesh({ axis: ghost.axis, ghost: true });
         const c = cellCenter(ghost.cell);
         mesh.position.set(c[0], c[1], c[2]);
-        mesh.quaternion.copy(dirToQuat(ghost.axis));
       } else if (ghost.type === "tube") {
         mesh = buildTubeMesh(ghost.from, ghost.to, {
           ghost: true,

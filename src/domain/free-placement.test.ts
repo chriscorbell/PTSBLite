@@ -7,7 +7,8 @@ import {
   placeFreePart,
   rememberFreePlacementOrientation,
   resolveFreePlacementOrientation,
-  rotateOrientation
+  rotateOrientation,
+  UP
 } from "@/domain/free-placement";
 import { computeTopology } from "@/domain/topology";
 import type { DesignState, Vec3 } from "@/types";
@@ -164,7 +165,11 @@ describe("free placement commits", () => {
   it("uses the registry-backed endpoint footprint for occupancy", () => {
     const { metadata } = emptyDesign();
     expect(freePlacementFootprint("blower", [3, 0, 4], metadata)).toEqual([[3, 0, 4]]);
-    expect(freePlacementFootprint("terminal", [4, 0, 4], metadata)).toEqual([[4, 0, 4]]);
+    // A terminal is 2 ft tall, and the catalog says so: both feet are claimed.
+    expect(freePlacementFootprint("terminal", [4, 0, 4], metadata)).toEqual([
+      [4, 0, 4],
+      [4, 1, 4]
+    ]);
   });
 
   it("commits a blower through the grid and leaves its topology port open", () => {
@@ -242,5 +247,41 @@ describe("free placement commits", () => {
         orientation: [1, 0, 0]
       })
     ).toMatchObject({ ok: false, message: "Place on an open grid cell, not an obstacle." });
+  });
+
+  it("refuses a terminal with no headroom, and says so rather than blaming the cell", () => {
+    // A terminal is 2 ft tall, so the cell above the cursor has to be free.
+    // "That cell is already occupied" would point at the wrong square: the one
+    // under the cursor is empty, and the blocked one is above it.
+    const lowCeiling = designFromScene({
+      parts: [{ id: "b1", type: "blower", cell: [4, 1, 4], dir: [1, 0, 0] }],
+      obstacles: []
+    });
+    const attempt = {
+      id: "t1",
+      type: "terminal",
+      cell: [4, 0, 4],
+      orientation: [0, 1, 0]
+    } as const;
+
+    expect(placeFreePart(lowCeiling, attempt)).toMatchObject({
+      ok: false,
+      message: "A terminal stands 2ft tall — there is no room above that cell."
+    });
+    // Nothing previews either, so the refusal is visible before the click.
+    expect(
+      freePlacementGhost({
+        type: "terminal",
+        design: lowCeiling,
+        cell: [4, 0, 4],
+        memory: DEFAULT_FREE_PLACEMENT_MEMORY,
+        rotationSteps: 0
+      })
+    ).toBeNull();
+
+    // A blower is 1 ft tall and is not troubled by any of this.
+    expect(
+      placeFreePart(lowCeiling, { id: "b2", type: "blower", cell: [4, 0, 4], orientation: UP })
+    ).toMatchObject({ ok: true });
   });
 });

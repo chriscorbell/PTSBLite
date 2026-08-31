@@ -509,7 +509,8 @@ export default function App({ platform }: AppProps) {
       lengthFeet: totalPathLength(result.parts),
       bends: result.parts.filter((part) => part.type === "bend").length,
       obstacles: design.obstacles.filter((obstacle) => !obstacle.penetrable).length,
-      unrouted: result.unroutedPairs.length
+      unrouted: result.unroutedPairs.length,
+      runBand: result.runBand
     });
     setAutoBuildJustRan(true);
     selectTool("cursor");
@@ -606,14 +607,19 @@ export default function App({ platform }: AppProps) {
   // What the armed part would be placed at. Read off the ghost itself, not the
   // placement plane: a part resting on an obstacle sits above the plane, and an
   // obstacle draft carries a base and height of its own that the plane knows
-  // nothing about. Before an obstacle draft exists there is no ghost to read,
-  // and the plane is the wrong answer too — the volume will stand on the floor
-  // of the storey, whatever height the plane was nudged to.
-  const armedElevation = ghostState
-    ? ghostElevation(ghostState)
-    : tool === "obstacle"
+  // nothing about.
+  //
+  // The obstacle tool is the exception until a draft exists. Its hover preview
+  // reads as a one-foot volume, and a ghost obstacle reports its top surface —
+  // so following the ghost would announce 1 ft for something standing on the
+  // floor. What the readout answers is where the volume will stand, which is
+  // the floor of the storey, whatever height the plane was nudged to.
+  const armedElevation =
+    tool === "obstacle" && !obstacleDraft
       ? obstacleBaseElevation(design.metadata, activeElevation)
-      : activeElevation;
+      : ghostState
+        ? ghostElevation(ghostState)
+        : activeElevation;
 
   const portMarkers = useMemo(() => openPortMarkers(design, tool), [design, tool]);
   // Heights are labelled only while a placement tool is armed: they answer the
@@ -704,7 +710,7 @@ export default function App({ platform }: AppProps) {
             onObstacleCancel={cancelObstacleDraft}
           />
           <QuickStartGuide />
-          <ControlsLegend />
+          <ControlsLegend tool={tool} />
           <ActiveToolBar tool={tool} elevation={armedElevation} floor={activeFloor} />
         </div>
       </div>

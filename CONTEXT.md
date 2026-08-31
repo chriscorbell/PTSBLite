@@ -49,7 +49,10 @@ that nothing may route through. See ADR-0020.
 **Remoting the blower** — running tubing and bends between a blower and its terminal rather than
 seating them together. The client's term. A legal layout, not a fault.
 
-**Terminal** — a send/receive station. Has exactly two ports, on the `axis` and its negation.
+**Terminal** — a send/receive station. **1 ft square and 2 ft tall**, so it claims the cell it
+stands in and the one above it, and stands upright however it is turned (ADR-0021). Has exactly two
+ports, on the `axis` and its negation; each leaves from the end of the body it sits on, so an
+upward port opens two cells above the base rather than one.
 - **Terminal 1** — the terminal on the blower-1 side of the run. Usually seated against the blower
   outlet, but tubing and bends may sit between them (see *remoting the blower*).
 - **Terminal 2** — the terminal at the far end of the run, before any tubing to blower 2.
@@ -59,6 +62,16 @@ seating them together. The client's term. A legal layout, not a fault.
 **Bend** — a 90°, 3 ft radius turn. Occupies a 7-cell staircase footprint within a 4×4 bounding box
 Contributes 4.71 ft of centerline. `loadPartRegistry` checks the catalog's declared
 `cells` against the footprint the geometry actually produces, so the two cannot drift.
+
+**Split sleeve** — the bolted collar that joins one piece to the next. The client's term, and what
+the app and the BOM call it; Kelly Tube Systems' own site sells them as "Bolted Couplings with
+Hardware". Nobody places one: they are **derived** from the parts — one on the face between every
+mated pair of ports, plus one every 6 ft inside a tube longer than stock — so they are counted in
+the BOM and drawn in the viewport but never stored, never selectable, and never in the Build
+drawer. A sleeve wraps a joint, so it adds nothing to the centerline. See `split-sleeve.ts` and
+ADR-0022.
+*Avoid:* "coupling" in code and UI copy — it is the word the client started with and the word he
+replaced.
 
 **Obstacle** — a rectangular volume, in one of two kinds chosen when it is drawn. An
 **impenetrable** obstacle is what routing must avoid: it occupies grid cells so nothing can be
@@ -97,8 +110,17 @@ like an obstacle.
 occupying the top of each of the room's floors (directly under the separator slab on floor 1) and
 spanning the room's footprint — outside the room there is no drop ceiling to be above. The declared
 per-floor height includes it. Drawn as a tinted band via `plenumBands`, and fully buildable — it
-restricts nothing. Auto-Build prefers carrying horizontal runs and bends inside it, and gives no
-such credit outside the room.
+restricts nothing. Auto-Build carries horizontal runs and bends inside it whenever there is one,
+and gives no such credit outside the room.
+
+**Run band** — where Auto-Build carries a horizontal run: the plenum when the design has one, and
+otherwise the foot below the ceiling of a room 12 ft or lower, or below a 12 ft "ghost" ceiling in
+a taller one (`runBandVolume`, ADR-0023). One band per floor, spanning the room's footprint. The
+room's height does not vote: a riser is priced as a tie-breaker, so no climb the build area can
+hold outweighs a foot of banded run. A system that neither stands in the building nor routes
+through it gets the outdoor band instead — the foot below 12 ft, over the whole build area
+(`outsideRunBandVolume`, ADR-0024). That band closes any building it passes over: the route may not
+run through one it could fly over, so the outdoor answer always builds over the roof.
 
 **Ground plane** — `Y = 0`. Nothing may occupy a cell below it.
 
@@ -124,8 +146,8 @@ perspective alone cannot. Quieter than a landing cell and outlined rather than f
 landing cell is somewhere you may click and this only reports where something already is.
 
 **Auto-Build** — the routing pass that connects open port pairs automatically. One behavior, no
-modes: shortest path with a per-bend penalty, plus a soft preference for carrying horizontal runs
-and bends in the plenum when the design has one.
+modes: shortest path with a per-bend penalty, plus carrying horizontal runs and bends in the run
+band.
 
 **BOM** — bill of materials: catalog rows with quantities derived from the design. **Stock tube** is
 the count of 6 ft sections to purchase (`ceil(total tube feet / 6)`), distinct from the tube *parts*

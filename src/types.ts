@@ -109,6 +109,13 @@ export type DesignState = {
   readonly grid: ReadonlySparseGrid;
 };
 
+/**
+ * What Auto-Build carried its horizontal runs under: the design's plenum, the
+ * room's own ceiling, or the ghost ceiling a room too tall for either is routed
+ * beneath.
+ */
+export type RunBandKind = "plenum" | "ceiling" | "ghost-ceiling" | "outside";
+
 export type AutoBuildSummary = {
   /** Centerline feet of the parts Auto-Build placed. */
   lengthFeet: number;
@@ -118,6 +125,8 @@ export type AutoBuildSummary = {
   obstacles: number;
   /** Port pairs Auto-Build could not route. */
   unrouted: number;
+  /** Where the runs were carried, which the box explains to the visitor. */
+  runBand: RunBandKind;
 };
 
 /**

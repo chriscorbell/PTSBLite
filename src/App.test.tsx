@@ -5,6 +5,7 @@ import type { Vec3 } from "@/types";
 import type { ViewportProps } from "@/renderer/Viewport";
 import type { Platform } from "@/platform/types";
 import { DEFAULT_ROOM } from "@/domain/sparse-grid";
+import { MAX_RUN_HEIGHT_FEET } from "@/domain/pathfinder";
 
 // The real Viewport builds a WebGLRenderer, which happy-dom cannot provide. It
 // is also the only part of the tree that needs a GPU, so mocking just this
@@ -431,6 +432,48 @@ describe("a two-floor design", () => {
     expect(screen.getByText(/EL 2 ft/)).toBeTruthy();
   });
 
+  it("offers the elevation keys only where they still do something", async () => {
+    // The client's complaint: the obstacle tool advertised [ and ] in both the
+    // controls legend and the tool pill, after its volume stopped following the
+    // placement plane.
+    await renderApp();
+    const legend = () => within(document.getElementById("controls-legend-list") as HTMLElement);
+
+    armBlower();
+    expect(legend().queryByText("Elevation")).toBeTruthy();
+    expect(screen.queryByText("elevation")).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "o" });
+    expect(legend().queryByText("Elevation")).toBeNull();
+    expect(screen.queryByText("elevation")).toBeNull();
+    // Where the volume will stand is still reported; only the dead keys go.
+    expect(screen.getByText(/EL 0 ft/)).toBeTruthy();
+
+    // Back to a tool the keys move, and they are offered again.
+    armBlower();
+    expect(legend().queryByText("Elevation")).toBeTruthy();
+  });
+
+  it("offers the rotate keys only where they still turn something", async () => {
+    // The client's second pass over the same complaint: having lost [ and ],
+    // the obstacle tool went on advertising R / ⇧R, which turns nothing on a
+    // volume drawn corner to corner.
+    await renderApp();
+    const legend = () => within(document.getElementById("controls-legend-list") as HTMLElement);
+
+    armBlower();
+    expect(legend().queryByText("Rotate")).toBeTruthy();
+    expect(screen.queryByText("rotate")).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "o" });
+    expect(legend().queryByText("Rotate")).toBeNull();
+    expect(screen.queryByText("rotate")).toBeNull();
+
+    // Back to a tool the keys turn, and they are offered again.
+    armBlower();
+    expect(legend().queryByText("Rotate")).toBeTruthy();
+  });
+
   it("reads the floor, not the plane, while the obstacle tool is armed", async () => {
     // An obstacle stands on the floor of the storey being worked on, so the
     // pill would be lying if it echoed a plane the volume ignores.
@@ -463,6 +506,70 @@ describe("Auto-Build", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /^Auto-Build$/ })).toBeTruthy();
     });
+  });
+
+  it("says where it carried the run, in the client's words", async () => {
+    // Two lines he wrote himself. The plenum one whenever the design has a
+    // plenum, and the 12 ft one only when the ghost ceiling is what capped the
+    // route, so the visitor knows a taller rise is theirs to build by hand. A
+    // third, ours, for a system built where there is no ceiling at all.
+    const routeAThreePartSystem = async (originX = 0, originZ = 0) => {
+      fireEvent.click(screen.getByRole("button", { name: "Build" }));
+      fireEvent.click(screen.getByRole("button", { name: "Blower Unit" }));
+      clickCell([originX, 0, originZ]);
+      fireEvent.click(screen.getByRole("button", { name: "Terminal Station" }));
+      clickCell([originX, 1, originZ]);
+      clickCell([originX + 12, 0, originZ]);
+      fireEvent.click(screen.getByRole("button", { name: /^Auto-Build$/ }));
+      await waitFor(() => {
+        expect(screen.getByText(/Auto-Build complete/)).toBeTruthy();
+      });
+    };
+
+    // The form's own defaults: a 12 ft room with no plenum, which runs under
+    // its own ceiling and needs no explaining.
+    await renderApp();
+    await routeAThreePartSystem();
+    expect(screen.queryByText(/favors plenum/)).not.toBeTruthy();
+    expect(screen.queryByText(/stops at/)).not.toBeTruthy();
+
+    // The same system in a room with a plenum.
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Start new design" }));
+    fireEvent.click(screen.getByLabelText("Plenum (drop ceiling)"));
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+    await routeAThreePartSystem();
+
+    expect(screen.getByText("Auto-build favors plenum when available")).toBeTruthy();
+    expect(screen.queryByText(/stops at/)).not.toBeTruthy();
+
+    // And in a 30 ft room with no plenum, where 12 ft is as high as it goes.
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Start new design" }));
+    fireEvent.change(screen.getByLabelText("Height"), { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+    await routeAThreePartSystem();
+
+    expect(screen.queryByText(/favors plenum/)).not.toBeTruthy();
+    expect(
+      screen.getByText(
+        `Autobuild stops at ${MAX_RUN_HEIGHT_FEET}ft - please try building manually if you need more rise.`
+      )
+    ).toBeTruthy();
+
+    // And the same system built well clear of a 40 x 60 room that has a plenum.
+    // Nothing stands under a ceiling and nothing routes through one, so the
+    // plenum does not apply however good it would have been (ADR-0024).
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Start new design" }));
+    fireEvent.click(screen.getByLabelText("Plenum (drop ceiling)"));
+    fireEvent.click(screen.getByRole("button", { name: /Create design/ }));
+    await routeAThreePartSystem(60, 60);
+
+    expect(screen.queryByText(/favors plenum/)).not.toBeTruthy();
+    expect(
+      screen.getByText(`Nothing under a ceiling - auto-build runs at ${MAX_RUN_HEIGHT_FEET}ft.`)
+    ).toBeTruthy();
   });
 
   it("clears exactly the parts a run added, and only offers to when there are some", async () => {

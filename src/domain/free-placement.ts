@@ -1,6 +1,7 @@
 import { partRegistry, type PartRegistry } from "@/domain/part-registry";
 import { addPart } from "@/domain/design-state";
 import { pedestalCells, pedestalHeightAt } from "@/domain/pedestal";
+import { TERMINAL_HEIGHT_CELLS, terminalCells } from "@/domain/terminal";
 import { computeTopology } from "@/domain/topology";
 import type {
   BlowerPart,
@@ -82,7 +83,11 @@ export const FREE_PLACEMENT_MESSAGES = {
   // something in the column beneath it as well as in its own cell. Said
   // separately because "that cell is already occupied" points at the wrong
   // cell — the one under the cursor is free, and the blocked one is below it.
-  pedestalBlocked: "The pedestal cannot reach the floor — something is in the way."
+  pedestalBlocked: "The pedestal cannot reach the floor — something is in the way.",
+  // Same reasoning one cell in the other direction: a terminal stands 2 ft
+  // tall, so the cell above the cursor has to be free — and out at the top of
+  // the build area there is no cell above it at all.
+  terminalHeadroom: `A terminal stands ${TERMINAL_HEIGHT_CELLS}ft tall — there is no room above that cell.`
 } as const;
 
 export type PlaceFreePartResult =
@@ -165,29 +170,54 @@ export function freePlacementFootprint(
   metadata: DesignMetadata,
   registry: PartRegistry = partRegistry
 ): Vec3[] {
-  const cells = registry.get(type).cells ?? 1;
-  if (cells !== 1) {
-    throw new Error(
-      `Free placement supports only 1-cell endpoint footprints; ${type} has ${cells}`
-    );
-  }
-  if (type !== "blowerPedestal") return [cell];
-  return [cell, ...pedestalCells(cell, pedestalHeightAt(metadata, cell))];
+  const body = freePlacementBody(type, cell, registry);
+  if (type !== "blowerPedestal") return body;
+  return [...body, ...pedestalCells(cell, pedestalHeightAt(metadata, cell))];
 }
 
 /**
- * Whether the whole footprint is free, naming the mast separately when it is
- * the mast that is blocked: the cell under the cursor is fine in that case, and
- * reporting it as occupied would point at the wrong square.
+ * The unit itself, before anything it grows: one cell for a blower, two stacked
+ * for a terminal (terminal.ts).
+ *
+ * The catalog's declared `cells` is checked against that rather than assumed,
+ * for the reason `assertDeclaredCellCount` gives for bends: the field is load
+ * bearing, and a catalog edit that disagreed with the geometry used to pass
+ * unnoticed. The mast under a pedestal blower is deliberately outside the
+ * check — it is how the unit is mounted, not part of the unit, and its length
+ * depends on where it stands.
+ */
+function freePlacementBody(type: FreePlacementType, cell: Vec3, registry: PartRegistry): Vec3[] {
+  const cells = type === "terminal" ? terminalCells(cell) : [cell];
+  const declared = registry.get(type).cells ?? 1;
+  if (cells.length !== declared) {
+    throw new Error(
+      `Free placement: ${type} occupies ${cells.length} cells but the catalog declares ${declared}`
+    );
+  }
+  return cells;
+}
+
+/**
+ * Whether the whole footprint is free, naming the part of it that is blocked
+ * when the blocked cell is not the one under the cursor: reporting "that cell
+ * is already occupied" would point at the wrong square, since the cell being
+ * pointed at is the one that is free.
  */
 function validateFreePlacementFootprint(
   design: DesignState,
   type: FreePlacementType,
   cell: Vec3
 ): { ok: true } | { ok: false; message: string } {
-  const [own, ...mast] = freePlacementFootprint(type, cell, design.metadata);
-  const ownCell = validateFreePlacementCell(design, own);
+  const ownCell = validateFreePlacementCell(design, cell);
   if (!ownCell.ok) return ownCell;
+  if (type === "terminal") {
+    const [, above] = terminalCells(cell);
+    if (!validateFreePlacementCell(design, above).ok) {
+      return { ok: false, message: FREE_PLACEMENT_MESSAGES.terminalHeadroom };
+    }
+    return { ok: true };
+  }
+  const [, ...mast] = freePlacementFootprint(type, cell, design.metadata);
   for (const mastCell of mast) {
     if (!validateFreePlacementCell(design, mastCell).ok) {
       return { ok: false, message: FREE_PLACEMENT_MESSAGES.pedestalBlocked };

@@ -6,6 +6,7 @@ import {
   bendConnectorSpans,
   bendRenderCurve,
   bendRenderPath,
+  buildSplitSleeveMesh,
   tubeRenderSpan,
   tubeSectionJointPoints
 } from "@/renderer/design-meshes";
@@ -13,7 +14,8 @@ import {
   cellFromWorldPoint,
   clickCellForTool,
   createViewportDragState,
-  moveViewportDrag
+  moveViewportDrag,
+  partIdForObject
 } from "@/renderer/interaction";
 import { clearGroup } from "@/renderer/three-utils";
 import {
@@ -222,6 +224,54 @@ describe("Viewport tube and bend render alignment", () => {
   });
 });
 
+describe("split sleeve mesh", () => {
+  // Where a sleeve belongs is split-sleeve.ts's problem and is tested there.
+  // What matters here is that the collar ends up wrapped around the run rather
+  // than lying across it: the mesh is built along +Y like every cylinder in
+  // this module, so the turn onto the run's axis is the part that can be wrong.
+  const axisOf = (mesh: THREE.Group): THREE.Vector3 =>
+    new THREE.Vector3(0, 1, 0).applyQuaternion(mesh.quaternion);
+
+  it("stands the collar on the axis of the run it wraps", () => {
+    for (const along of [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1]
+    ] as const) {
+      const axis = axisOf(buildSplitSleeveMesh([2, 0.5, 0.5], along));
+      expect(axis.x).toBeCloseTo(along[0], 6);
+      expect(axis.y).toBeCloseTo(along[1], 6);
+      expect(axis.z).toBeCloseTo(along[2], 6);
+    }
+  });
+
+  it("aims the bolted flange where it can be seen", () => {
+    // Turning by the run's axis alone leaves the flange pointing at the floor on
+    // an east-west run, which hides the one detail that reads as a split.
+    const flangeOf = (along: readonly [number, number, number]): THREE.Vector3 =>
+      new THREE.Vector3(1, 0, 0).applyQuaternion(buildSplitSleeveMesh([0, 0, 0], along).quaternion);
+    expect(flangeOf([1, 0, 0]).y).toBeCloseTo(1, 6);
+    expect(flangeOf([0, 0, 1]).y).toBeCloseTo(1, 6);
+    // Nothing is "up" on a vertical run, so it goes out to the side instead.
+    expect(flangeOf([0, 1, 0]).x).toBeCloseTo(1, 6);
+  });
+
+  it("sits where it is told, and is no wider than a foot of grid", () => {
+    const mesh = buildSplitSleeveMesh([2, 0.5, 0.5], [1, 0, 0]);
+    expect(mesh.position.toArray()).toEqual([2, 0.5, 0.5]);
+    // A sleeve straddles a cell face, so anything approaching a whole cell
+    // would read as a part rather than as the joint between two.
+    const size = new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3());
+    expect(Math.max(size.x, size.y, size.z)).toBeLessThan(1);
+  });
+
+  it("carries no part id, so erase reaches the tube underneath", () => {
+    const mesh = buildSplitSleeveMesh([2, 0.5, 0.5], [1, 0, 0]);
+    expect(partIdForObject(mesh)).toBeUndefined();
+    for (const child of mesh.children) expect(partIdForObject(child)).toBeUndefined();
+  });
+});
+
 describe("clearGroup", () => {
   it("disposes nested geometries, materials, and material textures", () => {
     const group = new THREE.Group();
@@ -379,13 +429,44 @@ describe("how big a height marker draws", () => {
     expect(pixels(120)).toBeCloseTo(pixels(60) / 2, 4);
   });
 
-  it("frames the default room's opening view with a readable marker", () => {
+  it("still draws a marker at the default opening, small as it is", () => {
+    // The client traded legibility here away for smaller markers — "that's
+    // what zoom is for" — so this no longer asks for a readable 11 px. What it
+    // does hold is that shrinking them did not make them vanish from the view
+    // every design opens on.
     const opening = openingCameraDistance(DEFAULT_ROOM);
     expect(heightMarkerScale(opening, VIEWPORT).visible).toBe(true);
-    expect(pixels(opening)).toBeGreaterThan(11);
+    expect(pixels(opening)).toBeLessThan(11);
   });
 
-  it("stops drawing once a marker would be too small to read", () => {
+  it("keeps a marker smaller than the cell it labels", () => {
+    // The complaint that started this: markers were bigger than some parts. A
+    // part is one 1 ft cell, so beyond the near clamp a marker must be under a
+    // cell tall at every distance it is drawn at.
+    for (const distance of [40, 80, openingCameraDistance(DEFAULT_ROOM), 140]) {
+      expect(heightMarkerScale(distance, VIEWPORT).feet).toBeLessThan(1);
+    }
+  });
+
+  it("keeps markers through a good pull-back past the opening view", () => {
+    // Dropping the legibility floor with the size would have swapped one
+    // complaint for another: markers disappearing the moment you zoom out.
+    expect(heightMarkerScale(openingCameraDistance(DEFAULT_ROOM) * 1.4, VIEWPORT).visible).toBe(
+      true
+    );
+  });
+
+  it("keeps the far cut-off where it was when markers stood taller", () => {
+    // The trap in shrinking a marker: the minimum is a pixel count, so leaving
+    // it alone moves the point markers vanish at *towards* the camera — the
+    // client asked for smaller, not for gone sooner. What holds is a distance,
+    // and it belongs either side of the pull-back the row above checks.
+    const opening = openingCameraDistance(DEFAULT_ROOM);
+    expect(heightMarkerScale(opening * 1.45, VIEWPORT).visible).toBe(true);
+    expect(heightMarkerScale(opening * 1.7, VIEWPORT).visible).toBe(false);
+  });
+
+  it("stops drawing once there is nothing left of a marker to read", () => {
     // Pulled right back over the build area a label is fuzz; the elevation is
     // still shown beside the armed tool, so nothing is actually lost.
     expect(heightMarkerScale(maxCameraDistance(BUILD_AREA), VIEWPORT).visible).toBe(false);

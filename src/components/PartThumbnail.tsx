@@ -243,24 +243,25 @@ function PedestalBlower({ color }: { color: string }) {
   );
 }
 
-// Box + flat hood lid + a side port + a small display panel with a green LED on
-// the front face — mirrors buildTerminalMesh.
+// Two feet of cabinet with a band across the join, a port on top and a small
+// display panel with a green LED on the front face — mirrors buildTerminalMesh,
+// including its height: a terminal is 1 ft square and 2 ft tall (ADR-0021).
 function Terminal({ color }: { color: string }) {
   const hood = "#29303d";
   return (
-    <g transform="translate(0,-1.4)">
-      <Box x0={-1.5} x1={1.5} y0={-1.4} y1={1.3} z0={-1.5} z1={1.5} color={color} />
-      <Box x0={-1.35} x1={1.35} y0={1.3} y1={1.75} z0={-1.35} z1={1.35} color={hood} />
+    <g transform="translate(0,-0.4)">
+      <Box x0={-1.5} x1={1.5} y0={-2.9} y1={2.9} z0={-1.5} z1={1.5} color={color} />
+      <Box x0={-1.55} x1={1.55} y0={-0.25} y1={0.25} z0={-1.55} z1={1.55} color={hood} />
       <Cylinder
-        c0={[1.5, -0.15, 0]}
-        c1={[2.25, -0.15, 0]}
+        c0={[0, 2.9, 0]}
+        c1={[0, 3.5, 0]}
         r={0.62}
-        basisA={[0, 1, 0]}
+        basisA={[1, 0, 0]}
         basisB={[0, 0, 1]}
         color={shade(color, 0.2)}
         capColor="#05080c"
       />
-      <g transform={faceMatrix([1, 0, 0], [0, 1, 0], [0, -0.1, 1.5])}>
+      <g transform={faceMatrix([1, 0, 0], [0, 1, 0], [0, 1.4, 1.5])}>
         <rect
           x={-0.42}
           y={-0.22}

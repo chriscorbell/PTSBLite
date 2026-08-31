@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { designFromScene } from "@/domain/design-state";
-import { plenumBands } from "@/domain/floors";
-import { autoBuildOpenPortPair } from "@/domain/pathfinder";
+import { autoBuildOpenPortPair, runBandVolume } from "@/domain/pathfinder";
 import { placeTube } from "@/domain/tube-placement";
 import { totalPathLength } from "@/domain/parts";
 import { DEFAULT_ROOM } from "@/domain/sparse-grid";
@@ -27,6 +26,23 @@ import { routeWarnings } from "@/test/design-invariants";
  * specification. When one of them changes, decide whether the new value is
  * better before updating it — a moved number here is the question, not the
  * answer.
+ *
+ * Five rows lost exactly 2 ft when a terminal became 2 ft tall (ADR-0021).
+ * Every route that climbs out of both terminals now leaves a foot higher at
+ * each end, so it buys a foot less riser twice over — tube the terminal's own
+ * second foot has taken over. No row changed its bend count, its band or its
+ * warnings, which is what says the taller part moved the endpoints and not the
+ * routing.
+ *
+ * Every 30 ft room row then climbed into its band when the client's "always
+ * prefer the plenum when there is one" stopped being a preference the room
+ * height could outvote (ADR-0023). They are longer, by the riser twice over,
+ * and no row gained a bend. The four rows in the 12 ft room he actually builds
+ * in did not move at all.
+ *
+ * Only the two-floor rows then moved again when the upper floor's band became
+ * the only one (ADR-0025). Every one-floor row is untouched by that, which is
+ * what says the change is about the building and not about the cost model.
  */
 
 const ROOM: DesignMetadata["room"] = { width: 60, depth: 60, height: 30 };
@@ -64,19 +80,21 @@ type Outcome = {
   routed: boolean;
   bends: number;
   feet: number;
-  /** Which plenum band the horizontal run sat in, or "none". */
+  /** Which run band the horizontal run sat in, or "none". */
   band: string;
   /** Warnings the finished design reports, so a route cannot pass by cheating. */
   warnings: number;
 };
 
 /**
- * Which plenum band a route's horizontal tubes ran in. Reported rather than
+ * Which run band a route's horizontal tubes ran in. Reported rather than
  * asserted directly: "did it use the plenum, and which floor's" is the question
- * the client cares about most and the one hardest to see in a length.
+ * the client cares about most and the one hardest to see in a length. A room
+ * with no plenum has a band too — the ceiling, or the 12 ft ghost ceiling — so
+ * "outside" now means outside whichever of the three applies.
  */
 function bandUsed(design: DesignState, parts: Part[]): string {
-  const bands = plenumBands(design.metadata);
+  const { kind, bands } = runBandVolume(design.metadata);
   const levels = parts.flatMap((part) =>
     part.type === "tube" && part.from[1] === part.to[1] ? [part.from[1] - 0.5] : []
   );
@@ -84,7 +102,7 @@ function bandUsed(design: DesignState, parts: Part[]): string {
   const floors = new Set(
     levels.map((level) => {
       const band = bands.find((b) => level >= b.base && level < b.top);
-      return band ? `floor ${band.floor}` : "outside";
+      return band ? `${kind} floor ${band.floor}` : "outside";
     })
   );
   return [...floors].sort().join(" + ");
@@ -120,77 +138,111 @@ function withStub(base: DesignState, sourcePartId: string, cell: Vec3): DesignSt
 }
 
 describe("what Auto-Build does, layout by layout", () => {
-  it("takes four bends to cross a 6 ft gap between two upward ports", () => {
+  it("climbs 27 ft into the plenum to cross a 6 ft gap between two upward ports", () => {
     // Both terminals default to facing up, so the run has to leave one going
     // up and arrive at the other coming down: up, over, and back down again.
-    // Four bends and 31 ft to span 6 ft is the honest cost of that, but it is
-    // also the layout a visitor gets by accepting every default, so it is
-    // worth watching.
+    // It used to do that four bends and 31 ft above the floor. Now it does it
+    // in the band, 27 ft up, for 73 ft — because the client was asked whether
+    // a short run should stay direct and said no: "always prefer the plenum
+    // when there is one", with no length below which it stops applying. He was
+    // asked the same question about the 6 ft gap two rows down, in the room he
+    // actually builds in, and answered "in real life, there would never be a
+    // 6 ft run ... just let auto build do a 31 ft daft looking build".
+    //
+    // So this row is daft on purpose, and it is the row to bring him if the
+    // daftness ever matters: it is the price of "always".
     expect(run(design(system([-14, 0, 20]), ONE_FLOOR))).toEqual({
       routed: true,
-      bends: 4,
-      feet: 30.85,
-      band: "outside",
+      bends: 5,
+      feet: 72.56,
+      band: "plenum floor 1",
       warnings: 0
     });
   });
 
-  it("does NOT carry a long run in the plenum of a 30 ft room", () => {
-    // Worth staring at. The bias works in an 8 ft room, where reaching the band
-    // costs a 4 ft climb — that is what `pathfinder.test.ts` exercises. Here the
-    // band sits 27 ft up and the climb is never repaid, so a 40 ft run stays on
-    // the floor. The client praised Auto-Build for obeying the plenum, so
-    // either he was working in a shallow room or he has not hit this yet.
+  it("carries a long run in the plenum of a 30 ft room", () => {
+    // The row this file was written to catch. The band sits 27 ft up, and a
+    // riser charged by the foot made reaching it cost more than the 40 ft run
+    // saved, so the route stayed on the floor — the identical route to
+    // switching the plenum off. The riser is now a tie-breaker rather than a
+    // cost, so the height of the room no longer votes.
     expect(run(design(system([20, 0, 20]), ONE_FLOOR))).toEqual({
       routed: true,
       bends: 2,
-      feet: 43.42,
-      band: "outside",
+      feet: 85.42,
+      band: "plenum floor 1",
       warnings: 0
     });
   });
 
   it("crosses a room diagonal in an L rather than a staircase", () => {
+    // 42 ft longer than it was on the floor, and still three bends: the band
+    // preference buys length, never turns.
     expect(run(design(system([20, 0, -20]), ONE_FLOOR))).toEqual({
       routed: true,
       bends: 3,
-      feet: 81.14,
-      band: "outside",
+      feet: 123.14,
+      band: "plenum floor 1",
       warnings: 0
     });
   });
 
-  it("routes the same run identically when there is no plenum to prefer", () => {
-    // Identical to the row above it, which is the evidence that the bias is
-    // doing nothing at this room height rather than doing something small.
+  it("runs under a 12 ft ghost ceiling when the tall room has no plenum", () => {
+    // The same 30 ft room with the plenum switched off. There is no band to
+    // prefer, so the client's fallback applies: "If a system is 100% outside
+    // ... default linear run heights to 12 ft" is the neighbouring case; this
+    // one is a room too tall for its own ceiling to be worth reaching, and 12
+    // ft is where he asked the run to stop. Ten feet more than the floor route
+    // it used to build, rather than the 54 ft the real ceiling would cost.
     expect(run(design(system([20, 0, 20]), NO_PLENUM))).toEqual({
       routed: true,
       bends: 2,
-      feet: 43.42,
-      band: "outside",
+      feet: 53.42,
+      band: "ghost-ceiling floor 1",
       warnings: 0
     });
   });
 
-  it("uses the plenum on the way to the upper storey", () => {
-    // Here the climb is on the way regardless, so riding the band costs
-    // nothing extra and the bias finally shows.
+  it("carries the run in the upstairs plenum on the way to the upper storey", () => {
+    // The row that moved when the upper floor's band became the only one
+    // (ADR-0025). It used to cross in the floor 1 plenum at 27 ft and climb to
+    // the terminal afterwards; now it rises past the slab first and crosses at
+    // 58 ft, which is the "straight up, across upstairs, then down" the client
+    // described. Same two bends, and 53 ft more tube — the extra riser, twice.
     expect(run(design(system([20, 31, 20]), TWO_FLOOR))).toEqual({
       routed: true,
       bends: 2,
-      feet: 64.42,
-      band: "floor 1",
+      feet: 116.42,
+      band: "plenum floor 2",
       warnings: 0
     });
   });
 
-  it("routes around an impenetrable obstacle in the way", () => {
+  it("climbs to the upstairs plenum even when both ends are downstairs", () => {
+    // The half of the client's rule that is easy to miss: the run band follows
+    // the building, not the parts. Both terminals stand on floor 1 here and the
+    // route still rises past the slab to cross at 58 ft, because "ignore the
+    // 1st floor plenum and ceiling" is unconditional in a two-floor building.
+    // The same layout on one floor is the 85.42 ft row below.
+    expect(run(design(system([20, 0, 20]), TWO_FLOOR))).toEqual({
+      routed: true,
+      bends: 2,
+      feet: 147.42,
+      band: "plenum floor 2",
+      warnings: 0
+    });
+  });
+
+  it("routes over an impenetrable obstacle rather than around it", () => {
+    // The wall is 12 ft tall and the band is 27 ft up, so the detour that used
+    // to cost 14 ft of horizontal dogleg now costs nothing: this row and the
+    // unobstructed one above it are the same route, to the foot.
     const wall: Obstacle = { id: "o1", min: [0, 0, 14], max: [0, 12, 26] };
     expect(run(design(system([20, 0, 20]), ONE_FLOOR, [wall]))).toEqual({
       routed: true,
       bends: 2,
-      feet: 59.42,
-      band: "outside",
+      feet: 85.42,
+      band: "plenum floor 1",
       warnings: 0
     });
   });
@@ -200,8 +252,8 @@ describe("what Auto-Build does, layout by layout", () => {
     expect(run(withStub(base, "t1", [-20, 2, 20]))).toEqual({
       routed: true,
       bends: 2,
-      feet: 49.42,
-      band: "outside",
+      feet: 79.42,
+      band: "plenum floor 1",
       warnings: 0
     });
   });
@@ -220,21 +272,22 @@ describe("what Auto-Build does, layout by layout", () => {
     expect(run(design(lowRoomSystem([15, 0, -25]), LOW_ROOM_PLENUM))).toEqual({
       routed: true,
       bends: 3,
-      feet: 91.14,
-      band: "floor 1",
+      feet: 89.14,
+      band: "plenum floor 1",
       warnings: 0
     });
   });
 
   it("carries a long run in the plenum of a 12 ft room", () => {
-    // The counterpart to the 30 ft room row: at a realistic ceiling the bias
-    // does fire, and this is the row that proves the fix above did not simply
-    // switch the plenum off to avoid the staircase.
+    // The room the client tests in, and the reason to read this file as a
+    // whole: every figure in it moved when the run band became a rule rather
+    // than a preference, and this one did not move at all. What he has already
+    // approved at 12 ft is what he will still see.
     expect(run(design(lowRoomSystem([15, 0, 25]), LOW_ROOM_PLENUM))).toEqual({
       routed: true,
       bends: 2,
-      feet: 43.42,
-      band: "floor 1",
+      feet: 41.42,
+      band: "plenum floor 1",
       warnings: 0
     });
   });
@@ -248,8 +301,8 @@ describe("what Auto-Build does, layout by layout", () => {
     expect(run(design(lowRoomSystem([-9, 0, 25]), LOW_ROOM_PLENUM))).toEqual({
       routed: true,
       bends: 5,
-      feet: 40.56,
-      band: "floor 1",
+      feet: 38.56,
+      band: "plenum floor 1",
       warnings: 0
     });
   });
@@ -265,8 +318,8 @@ describe("what Auto-Build does, layout by layout", () => {
     expect(run(withStub(base, "t2", [20, 1, 20]))).toEqual({
       routed: true,
       bends: 2,
-      feet: 47.42,
-      band: "outside",
+      feet: 79.42,
+      band: "plenum floor 1",
       warnings: 0
     });
   });

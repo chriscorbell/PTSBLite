@@ -57,6 +57,17 @@ describe("placementSessionReducer", () => {
     expect(back.freePlacementRotation).toBe(-1);
   });
 
+  it("leaves the rotation alone for the tools that have none to turn", () => {
+    // The client's complaint: the obstacle tool still offered R / shift-R. It
+    // was not merely a decorative key — ghostRotation survives a tool change,
+    // so an R pressed here came back as a pre-turned bend.
+    for (const tool of ["tube", "obstacle"] as const) {
+      const before = session({ tool });
+      expect(placementSessionReducer(before, { type: "rotate", reverse: false })).toBe(before);
+      expect(placementSessionReducer(before, { type: "rotate", reverse: true })).toBe(before);
+    }
+  });
+
   it("keeps the elevation inside the build area", () => {
     const s = placementSessionReducer(session(), {
       type: "nudge-elevation",
@@ -78,6 +89,26 @@ describe("placementSessionReducer", () => {
     });
     expect(s.activeElevation).toBe(2);
     expect(s.hoverCell).toEqual([3, 2, 4]);
+  });
+
+  it("leaves the plane alone when the obstacle tool is armed", () => {
+    // An obstacle stands on the storey's floor, so the elevation keys have
+    // nothing of its to move. They are hidden for it, and inert, together.
+    const before = session({ tool: "obstacle", activeElevation: 3, hoverCell: [1, 3, 1] });
+    const s = placementSessionReducer(before, {
+      type: "nudge-elevation",
+      delta: 1,
+      buildArea: AREA
+    });
+    expect(s).toBe(before);
+
+    // The floor selector still moves it: that is how a storey is chosen.
+    const jumped = placementSessionReducer(before, {
+      type: "set-elevation",
+      elevation: 6,
+      buildArea: AREA
+    });
+    expect(jumped.activeElevation).toBe(6);
   });
 
   it("jumps the elevation with set-elevation, clamped to the build area", () => {
@@ -246,6 +277,53 @@ describe("placementGhost", () => {
   it("previews the part the armed tool would place", () => {
     const ghost = placementGhost(session({ tool: "blower", hoverCell: [0, 0, 0] }), emptyDesign());
     expect(ghost?.type).toBe("blower");
+  });
+
+  it("previews the obstacle volume before the first click, not only the floor square", () => {
+    // One cell, one foot tall, standing on the floor — the volume a click
+    // starts, rather than nothing until a corner has been anchored.
+    expect(
+      placementGhost(session({ tool: "obstacle", hoverCell: [3, 0, -4] }), emptyDesign())
+    ).toEqual({ type: "obstacle", min: [3, 0, -4], max: [3, 0, -4] });
+  });
+
+  it("stands the obstacle preview on the storey's floor, not on the raised plane", () => {
+    // Same rule the landing square follows, so the two never disagree.
+    expect(
+      placementGhost(session({ tool: "obstacle", hoverCell: [3, 6, -4] }), emptyDesign())
+    ).toMatchObject({ min: [3, 0, -4], max: [3, 0, -4] });
+
+    const upstairs = emptyDesign({ multiFloor: true, room: { width: 60, depth: 40, height: 12 } });
+    expect(
+      placementGhost(session({ tool: "obstacle", hoverCell: [3, 20, -4] }), upstairs)
+    ).toMatchObject({ min: [3, 13, -4], max: [3, 13, -4] });
+  });
+
+  it("draws the obstacle preview in the kind being placed", () => {
+    const s = session({ tool: "obstacle", hoverCell: [3, 0, -4], obstacleKind: "penetrable" });
+    expect(placementGhost(s, emptyDesign())).toMatchObject({ penetrable: true });
+  });
+
+  it("takes the obstacle preview away off the grid, like the square", () => {
+    expect(placementGhost(session({ tool: "obstacle" }), emptyDesign())).toBeNull();
+    expect(
+      placementGhost(session({ tool: "obstacle", hoverCell: [900, 0, 0] }), emptyDesign())
+    ).toBeNull();
+  });
+
+  it("hands the preview over to the draft once a corner is anchored", () => {
+    // The drag still draws from the anchored corner rather than from a fresh
+    // one-cell preview under the cursor.
+    const s = session({
+      tool: "obstacle",
+      hoverCell: [3, 0, -4],
+      obstacleDraft: { cornerA: [0, 0, 0] }
+    });
+    expect(placementGhost(s, emptyDesign())).toEqual({
+      type: "obstacle",
+      min: [0, 0, -4],
+      max: [3, 0, 0]
+    });
   });
 });
 

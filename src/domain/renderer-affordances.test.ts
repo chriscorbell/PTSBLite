@@ -72,6 +72,17 @@ describe("heightMarkers", () => {
     expect(blower?.at[1]).toBeGreaterThan(4);
   });
 
+  it("hangs it clear of the cell it labels, not merely overhanging it", () => {
+    // The client asked for markers "smaller and more offset" so they stop
+    // covering parts. A blower fills the cell from 0 to 1 in X and Z, so an
+    // anchor inside that span sits over the part however small the label is.
+    const marker = heightMarkers(designFromScene({ parts, obstacles: [] })).find(
+      (m) => m.key === "b1"
+    );
+    expect(marker?.at[0]).toBeGreaterThan(1);
+    expect(marker?.at[2]).toBeGreaterThan(1);
+  });
+
   it("labels the room's own levels, not just what is placed in it", () => {
     const design = designFromScene(
       { parts: [], obstacles: [] },

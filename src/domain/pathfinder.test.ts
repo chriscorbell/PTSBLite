@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 import { designFromScene } from "@/domain/design-state";
 import {
   autoBuildOpenPortPair,
+  MAX_RUN_HEIGHT_FEET,
   PATHFINDER_NO_ROUTE_MESSAGE,
-  PATHFINDER_SEARCH_LIMIT_MESSAGE
+  PATHFINDER_SEARCH_LIMIT_MESSAGE,
+  runBandVolume
 } from "@/domain/pathfinder";
+import { inRoomVolume } from "@/domain/floors";
+import { partCells } from "@/domain/occupant-footprints";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
+import { splitSleeveCount } from "@/domain/split-sleeve";
 import { placeTube } from "@/domain/tube-placement";
 import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
 import type { DesignState, Obstacle, Part, Vec3 } from "@/types";
@@ -103,7 +108,25 @@ describe("Pathfinder MVP", () => {
     });
   });
 
-  it("emits 6ft stock tubes where possible and 1ft cut tubes at seams", () => {
+  it("emits 6ft stock tubes where possible and cuts the remainder once", () => {
+    const result = autoBuildOpenPortPair(designWith(basicParts([17, 0, 0])));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const tubeLengths = result.parts
+      .filter((part) => part.type === "tube")
+      .map((part) => part.length);
+    // The remainder used to come out as 1 ft pieces — [6, 6, 1, 1, 1] here.
+    // Same footage and the same route, but every abutment between them is a
+    // real joint, and a joint wears a split sleeve. The client saw the result:
+    // four sleeves in a row above a bend, and a sleeve every foot on a rise
+    // shorter than one stock length.
+    expect(tubeLengths).toEqual([6, 6, 3]);
+    expect(totalPathLength(result.design)).toBe(15);
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("still cuts a 1 ft remainder where the run calls for one", () => {
     const result = autoBuildOpenPortPair(designWith(basicParts([15, 0, 0])));
 
     expect(result.ok).toBe(true);
@@ -111,9 +134,23 @@ describe("Pathfinder MVP", () => {
     const tubeLengths = result.parts
       .filter((part) => part.type === "tube")
       .map((part) => part.length);
+    // The case the client asked for by name: the far end "just has two
+    // couplings 1 grid unit (foot) apart. This wouldn't happen in real life but
+    // I knew this question might come up."
     expect(tubeLengths).toEqual([6, 6, 1]);
     expect(totalPathLength(result.design)).toBe(13);
     expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("sleeves a cut run at its joints and nowhere else", () => {
+    // Why the two rows above are about tube lengths at all. Sleeves are derived
+    // from joints, so how Auto-Build chooses to cut a run is what decides how
+    // many collars the client sees on it.
+    const result = autoBuildOpenPortPair(designWith(basicParts([17, 0, 0])));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(splitSleeveCount(result.design)).toBe(5);
   });
 });
 
@@ -282,10 +319,58 @@ describe("Pathfinder with obstacles, partial systems, and budget", () => {
   });
 });
 
-describe("Pathfinder plenum preference", () => {
-  // An 8 ft floor whose top half is plenum: the band spans Y 4..8. The long
-  // fixture keeps its ports far enough apart that carrying the run in the
-  // plenum beats staying on the ground even after paying for the risers.
+describe("where a horizontal run belongs", () => {
+  // The client's three cases, in his order: a plenum is used whenever there is
+  // one, however high the ceiling; without one the run rides next to a ceiling
+  // of 12 ft or lower; and a taller room is routed under a ghost ceiling at
+  // 12 ft instead.
+  const bandOf = (room: { width: number; depth: number; height: number }, plenum: number | null) =>
+    runBandVolume({ room, multiFloor: false, plenumHeightFeet: plenum });
+
+  it("uses the plenum whenever the design has one", () => {
+    const shallow = bandOf({ width: 60, depth: 60, height: 8 }, 4);
+    const tall = bandOf({ width: 60, depth: 60, height: 30 }, 3);
+
+    expect(shallow.kind).toBe("plenum");
+    expect(shallow.bands).toEqual([{ floor: 1, base: 4, top: 8 }]);
+    // The same answer 22 ft higher: nothing about the room talks it out of it.
+    expect(tall.kind).toBe("plenum");
+    expect(tall.bands).toEqual([{ floor: 1, base: 27, top: 30 }]);
+  });
+
+  it("runs next to the ceiling of a room 12 ft or lower with no plenum", () => {
+    const band = bandOf({ width: 60, depth: 60, height: MAX_RUN_HEIGHT_FEET }, null);
+
+    expect(band.kind).toBe("ceiling");
+    expect(band.bands).toEqual([{ floor: 1, base: 11, top: 12 }]);
+  });
+
+  it("runs under a 12 ft ghost ceiling in a taller room with no plenum", () => {
+    const band = bandOf({ width: 60, depth: 60, height: MAX_RUN_HEIGHT_FEET + 1 }, null);
+
+    expect(band.kind).toBe("ghost-ceiling");
+    expect(band.bands).toEqual([{ floor: 1, base: 11, top: 12 }]);
+  });
+
+  it("puts a two-floor room's band upstairs, and only upstairs", () => {
+    const band = runBandVolume({
+      room: { width: 60, depth: 60, height: 30 },
+      multiFloor: true,
+      plenumHeightFeet: null
+    });
+
+    // The client's rule: with two floors the linear run ignores the 1st floor's
+    // ceiling entirely. One band, 12 ft above the *2nd* floor's own level —
+    // measured from the slab at 31, not from the ground (ADR-0025).
+    expect(band.bands).toEqual([{ floor: 2, base: 42, top: 43 }]);
+  });
+});
+
+describe("Pathfinder run band preference", () => {
+  // An 8 ft floor whose top half is plenum: the band spans Y 4..8. Both ports
+  // face sideways along the ground, so reaching the band costs four bends the
+  // route would not otherwise place — the long fixture is far enough across for
+  // the run to buy them, the short hop below is not.
   const PLENUM_META = {
     room: { width: 60, depth: 60, height: 8 },
     plenumHeightFeet: 4
@@ -316,47 +401,207 @@ describe("Pathfinder plenum preference", () => {
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
-  it("routes the same fixture flat along the ground without a plenum", () => {
+  it("carries the same fixture under the ceiling when there is no plenum", () => {
+    // A room with no plenum still has somewhere for a long run to go. The
+    // client: no plenum and a ceiling of 12 ft or lower means "run next to the
+    // ceiling", so this 8 ft room carries it in the foot below 8 — four bends
+    // to climb out and back, bought by 44 ft of run out of the walkway.
     const meta = { ...PLENUM_META, plenumHeightFeet: null };
     const result = autoBuildOpenPortPair(designFromScene({ parts: farParts, obstacles: [] }, meta));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.parts.every((part) => part.type === "tube")).toBe(true);
-    expect(horizontalTubeLevels(result.parts).every((y) => y === 0)).toBe(true);
+    expect(result.runBand).toBe("ceiling");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === 7)).toBe(true);
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
-  it("leaves a short hop direct instead of detouring into the plenum", () => {
+  it("leaves a short hop between two sideways ports on the ground", () => {
     const result = autoBuildOpenPortPair(
       designFromScene({ parts: basicParts([8, 0, 0]), obstacles: [] }, PLENUM_META)
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // The bias is soft: two risers and their bends cost more than the eight
-    // feet they would move off the ground, so the hop stays a straight shot.
+    // Room height no longer votes on the band, but bends still do: both ports
+    // face along the ground and are six feet apart, so climbing into the band
+    // would add four bends to save six feet of penalty. The hop stays a
+    // straight shot. Between two upward-facing ports — the defaults a visitor
+    // actually gets — the bends are paid either way and the band always wins;
+    // `pathfinder-behaviour.test.ts` records that case.
     expect(result.parts.every((part) => part.type === "tube")).toBe(true);
     expect(horizontalTubeLevels(result.parts)).toEqual([0]);
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
-  it("gives no plenum credit outside the room", () => {
-    // The same long run, at plenum height for a room it is nowhere near:
-    // drop-ceiling space exists only over the room's footprint, so out there
-    // the bias has nothing to prefer and the route stays flat on the ground.
-    const meta = { room: { width: 20, depth: 20, height: 8 }, plenumHeightFeet: 4 };
+  // A 20 ft room at the origin, with a plenum, and room enough around it to
+  // build a whole system that never touches it.
+  const SMALL_ROOM = { room: { width: 20, depth: 20, height: 8 }, plenumHeightFeet: 4 };
+
+  it("runs a system that never touches the building at 12 ft", () => {
+    // The client's rule for a system entirely outdoors: no ceiling to run
+    // under, so the horizontals default to MAX_RUN_HEIGHT_FEET. The plenum is
+    // nowhere near this run and gets no say.
     const outside: Part[] = [
       { id: "b1", type: "blower", cell: [40, 0, 40], dir: [1, 0, 0] },
       { id: "t1", type: "terminal", cell: [41, 0, 40], axis: [1, 0, 0] },
       { id: "t2", type: "terminal", cell: [105, 0, 40], axis: [1, 0, 0] }
     ];
-    const result = autoBuildOpenPortPair(designFromScene({ parts: outside, obstacles: [] }, meta));
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: outside, obstacles: [] }, SMALL_ROOM)
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.parts.every((part) => part.type === "tube")).toBe(true);
-    expect(horizontalTubeLevels(result.parts).every((y) => y === 0)).toBe(true);
+    expect(result.runBand).toBe("outside");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === MAX_RUN_HEIGHT_FEET - 1)).toBe(
+      true
+    );
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("obeys the plenum when one part of the system stands inside the building", () => {
+    // "If a system is built with any part under a ceiling ... always obey
+    // routing through the plenum." One terminal indoors is enough; the rest of
+    // the system does not get the outdoor height because it is outdoors.
+    const straddling: Part[] = [
+      { id: "b1", type: "blower", cell: [40, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [41, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: straddling, obstacles: [] }, SMALL_ROOM)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("plenum");
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("stays outdoors when the run clears the roof rather than passing through it", () => {
+    // The same two-terminals-either-side layout over a building shorter than
+    // MAX_RUN_HEIGHT_FEET. At the outdoor height the run passes above the roof,
+    // so nothing routes *through* the building and the outdoor rule stands.
+    const eitherSide: Part[] = [
+      { id: "b1", type: "blower", cell: [-40, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [-39, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [40, 0, 0], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: eitherSide, obstacles: [] }, SMALL_ROOM)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("outside");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === MAX_RUN_HEIGHT_FEET - 1)).toBe(
+      true
+    );
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("obeys the plenum when the only route between two outdoor parts goes through the building", () => {
+    // The client's second case: "an auto-build path routes through a building
+    // (ex: two terminals on either side of a 'room/building')". Both parts
+    // stand outdoors, so only the route settles it — and a room taller than
+    // MAX_RUN_HEIGHT_FEET cannot be flown over at the outdoor height.
+    const tallRoom = { room: { width: 20, depth: 20, height: 30 }, plenumHeightFeet: 4 };
+    const eitherSide: Part[] = [
+      { id: "b1", type: "blower", cell: [-40, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [-39, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [40, 0, 0], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: eitherSide, obstacles: [] }, tallRoom)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("plenum");
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("climbs over a building it can clear rather than taking the short way through", () => {
+    // The client, on the shipped rule: "buildings set to 10ft with a terminal on
+    // the outside of the wall bounds, the system stops the rise at the ceiling
+    // height and routes the autobuild through like normal". Both ports face
+    // along the ground twelve feet apart, so four bends cost more than the band
+    // bias saves and the route went straight through the building — which then
+    // read as a system that must obey the plenum rules.
+    const room = { room: { width: 20, depth: 20, height: 10 }, plenumHeightFeet: 2 };
+    const eitherSide: Part[] = [
+      { id: "b1", type: "blower", cell: [-16, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [-15, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [15, 0, 0], axis: [1, 0, 0] }
+    ];
+    const design = designFromScene({ parts: eitherSide, obstacles: [] }, room);
+    const result = autoBuildOpenPortPair(design);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("outside");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === MAX_RUN_HEIGHT_FEET - 1)).toBe(
+      true
+    );
+    // Over the roof, not through the room: a straight run of an outdoor build
+    // never has a cell inside the building.
+    expect(
+      result.parts
+        .filter((part) => part.type === "tube")
+        .every((tube) => partCells(tube).every((cell) => !inRoomVolume(design.metadata, cell)))
+    ).toBe(true);
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("goes through a building whose wall the terminal stands too close to turn beside", () => {
+    // A bend spans 3 ft, so a port a foot from the wall it faces cannot turn
+    // upward before it is inside the building. There is no route over the roof
+    // to prefer, and the plenum rules are the honest answer.
+    const room = { room: { width: 20, depth: 20, height: 10 }, plenumHeightFeet: 2 };
+    const againstTheWall: Part[] = [
+      { id: "b1", type: "blower", cell: [-13, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [-12, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [11, 0, 0], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: againstTheWall, obstacles: [] }, room)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("plenum");
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("carries a run in the plenum of a room too tall for the climb to repay", () => {
+    // The client's rule has no ceiling height above which the plenum stops
+    // applying: "always prefer the plenum when there is one". A 30 ft room is
+    // where that used to break, because a riser charged by the foot cost more
+    // than the run saved.
+    const tall = { room: { width: 60, depth: 60, height: 30 }, plenumHeightFeet: 3 };
+    const result = autoBuildOpenPortPair(designFromScene({ parts: farParts, obstacles: [] }, tall));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("plenum");
+    expect(horizontalTubeLevels(result.parts).every((y) => y >= 27)).toBe(true);
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("stops a run at the ghost ceiling in a tall room with no plenum", () => {
+    // No plenum and a ceiling too high to be worth reaching: the run rides at
+    // MAX_RUN_HEIGHT_FEET, and the summary box tells the visitor to build by
+    // hand if they need more rise than that.
+    const tall = { room: { width: 60, depth: 60, height: 30 }, plenumHeightFeet: null };
+    const result = autoBuildOpenPortPair(designFromScene({ parts: farParts, obstacles: [] }, tall));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("ghost-ceiling");
+    expect(horizontalTubeLevels(result.parts).every((y) => y === MAX_RUN_HEIGHT_FEET - 1)).toBe(
+      true
+    );
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
@@ -474,9 +719,12 @@ describe("routing across a room with a plenum", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.unroutedPairs).toEqual([]);
-    // The two ports are 48 ft apart on the floor plan and a foot apart
-    // vertically; anything near that is a sane route rather than a detour.
-    expect(totalPathLength(result.parts)).toBeLessThan(75);
+    // The two ports are 48 ft apart on the floor plan. Both stand on floor 1,
+    // but the room has two, so the band they ride is the upstairs plenum at
+    // 58 ft (ADR-0025) rather than the 27 ft one over their heads: a sane route
+    // is that distance plus the riser twice over, about 164 ft before the bend
+    // arcs. Anything well beyond it is a detour rather than the climb.
+    expect(totalPathLength(result.parts)).toBeLessThan(190);
     expect(routeWarnings(result.design)).toEqual([]);
   });
 });

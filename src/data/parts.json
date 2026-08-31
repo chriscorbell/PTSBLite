@@ -20,7 +20,7 @@
     "name": "Terminal Station",
     "partNo": "TM-2020-S",
     "color": "#5B6477",
-    "cells": 1,
+    "cells": 2,
     "ports": 2
   },
   "tube6": {
@@ -30,6 +30,12 @@
     "color": "#9AA4B4",
     "cells": 6,
     "ports": 2
+  },
+  "splitSleeve": {
+    "type": "sleeve",
+    "name": "Split Sleeve",
+    "partNo": "SL-4OD-SP",
+    "color": "#1C2129"
   },
   "bend90": {
     "type": "bend",

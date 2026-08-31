@@ -1,18 +1,21 @@
 import { placeBend, validBendOrientations } from "@/domain/bend-placement";
 import {
+  floorBaseElevation,
   inRoomFootprint,
+  inRoomVolume,
   plenumBands,
+  roomHeightFeet,
   roomRect,
-  type PlenumBand,
   type RoomRect
 } from "@/domain/floors";
+import { partCells } from "@/domain/occupant-footprints";
 import { partRegistry, type BendFootprint } from "@/domain/part-registry";
 import { totalPathLength } from "@/domain/parts";
-import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
+import { BUILD_AREA, boundsFromBuildArea, GROUND_PLANE_Y } from "@/domain/sparse-grid";
 import { placeTube } from "@/domain/tube-placement";
 import { computeTopology, type Port, type Topology } from "@/domain/topology";
 import { MAX_CENTERLINE_FEET } from "@/domain/validation";
-import type { BlowerPart, DesignState, Part, Vec3 } from "@/types";
+import type { BlowerPart, DesignMetadata, DesignState, Part, RunBandKind, Vec3 } from "@/types";
 import { cellKey, manhattan, vAdd, vEq, vNeg, vScale } from "@/domain/vec3";
 
 export const PATHFINDER_NO_ROUTE_MESSAGE = "No route exists between the open ports.";
@@ -38,15 +41,11 @@ const BEND_SEARCH_PENALTY = 6;
 const BEND_SPAN_FEET = 6;
 
 /**
- * The soft plenum bias. When the design has a plenum, each horizontal foot
- * outside it counts triple, while vertical feet stay uncharged so the riser
- * into the plenum is free to the search. The intended balance: a horizontal run
- * longer than about the riser height plus ten feet routes through the plenum,
- * and a short hop between nearby ports stays direct instead of detouring
- * absurdly.
+ * The run band bias. Each horizontal foot outside the band counts triple, so a
+ * horizontal run belongs in the band unless something makes it impossible.
  *
- * A bend outside the plenum is charged for the run it stands in for, and this
- * is why. The figure used to be a flat 9 against the 12 that six out-of-plenum
+ * A bend outside the band is charged for the run it stands in for, and this
+ * is why. The figure used to be a flat 9 against the 12 that six out-of-band
  * feet cost, which made turning *cheaper than going straight* out there: a bend
  * is also 4.71 ft of arc where the 6 ft it replaces would be 6, so each turn
  * paid for itself twice over. A diagonal accordingly came back as a staircase
@@ -54,8 +53,31 @@ const BEND_SPAN_FEET = 6;
  * "it seems to want to build systems with shortest possible distance, but needs
  * to be least bends". Deriving it keeps the two from drifting apart again.
  */
-const OUT_OF_PLENUM_STRAIGHT_PENALTY = 2;
-const OUT_OF_PLENUM_BEND_PENALTY = OUT_OF_PLENUM_STRAIGHT_PENALTY * BEND_SPAN_FEET;
+const OUT_OF_BAND_STRAIGHT_PENALTY = 2;
+const OUT_OF_BAND_BEND_PENALTY = OUT_OF_BAND_STRAIGHT_PENALTY * BEND_SPAN_FEET;
+
+/**
+ * What a vertical foot costs the search — almost nothing, and deliberately.
+ *
+ * The client's rule is that the plenum is used whenever there is one, at any
+ * ceiling height: "always prefer the plenum when there is one", with no room
+ * height above which climbing stops being worth it. A riser charged by the foot
+ * cannot express that. It made the band a preference the room could outvote: in
+ * a 30 ft room the band sits 27 ft up, the 54 ft of riser cost more than the
+ * out-of-band penalty on a 40 ft run saved, and the route stayed on the floor —
+ * the identical route to switching the plenum off.
+ *
+ * So the climb is priced at a tie-breaker rather than a cost: of two routes
+ * that both ride the band, the one that climbs less wins, but no climb the
+ * build area can hold outvotes a single foot of band. The bound is what keeps
+ * that true — the shortest run worth banding is 1 ft, which saves
+ * `OUT_OF_BAND_STRAIGHT_PENALTY`, against a riser of at most
+ * `2 * BUILD_AREA.height` feet up and down again.
+ *
+ * The geometric cost of a vertical foot is still a foot: the centerline budget
+ * is charged real tube, and only the search is biased.
+ */
+const VERTICAL_STEP_COST = 0.005;
 
 export type UnroutedPair = {
   source: Port;
@@ -107,7 +129,15 @@ type PlannedRoute = {
 };
 
 export type AutoBuildPathResult =
-  | { ok: true; design: DesignState; parts: Part[]; cost: number; unroutedPairs: UnroutedPair[] }
+  | {
+      ok: true;
+      design: DesignState;
+      parts: Part[];
+      cost: number;
+      unroutedPairs: UnroutedPair[];
+      /** What the horizontal runs were routed under, for the summary box. */
+      runBand: RunBandKind;
+    }
   | { ok: false; reason: "no-route" | "search-limit"; message: string };
 
 const SEARCH_MARGIN = 12;
@@ -118,16 +148,17 @@ const MAX_ROUTE_EXPANSIONS = 120_000;
  *
  * A* only searches quickly while its estimate of the work remaining grows about
  * as fast as the real cost does. Plain Manhattan distance did, once — every
- * straight step cost exactly 1. The plenum bias broke that: a horizontal step
- * outside the band now costs `1 + OUT_OF_PLENUM_STRAIGHT_PENALTY`, so the
- * estimate under-stated the remainder of an out-of-plenum route threefold, the
+ * straight step cost exactly 1. The band bias broke that: a horizontal step
+ * outside the band now costs `1 + OUT_OF_BAND_STRAIGHT_PENALTY`, so the
+ * estimate under-stated the remainder of an out-of-band route threefold, the
  * search degenerated towards Dijkstra, and two terminals 48 ft apart in an
  * ordinary 60 ft room exhausted the expansion budget and routed nothing at all.
  *
  * Charging the estimate what the steps actually cost restores the guidance.
- * Vertical travel stays at 1 because risers are never penalized, which is also
- * what stops the estimate from talking the search out of climbing into the
- * band.
+ * Vertical travel is rated at `VERTICAL_STEP_COST`, the same near-nothing the
+ * steps themselves cost: rating a riser any higher than it is charged would
+ * talk the search out of the climb into the band, which is the one move the
+ * bias exists to encourage.
  *
  * `horizontalStepCost` is therefore the rate charged *at this cell*, not one
  * rate for the whole search. Charging the penalized rate everywhere made the
@@ -147,13 +178,13 @@ const MAX_ROUTE_EXPANSIONS = 120_000;
  * the straight, which is the whole requirement. It is still not an
  * under-estimate — a cell outside the band that could reach it is rated as if
  * it could not — so a route is not guaranteed to be the cheapest; that
- * over-statement is what keeps the search fast, and it errs toward the plenum,
+ * over-statement is what keeps the search fast, and it errs toward the band,
  * which is the direction the client wants it to err in.
  */
 function remainingCostEstimate(cell: Vec3, goal: Vec3, horizontalStepCost: number): number {
   const horizontal = Math.abs(cell[0] - goal[0]) + Math.abs(cell[2] - goal[2]);
   const vertical = Math.abs(cell[1] - goal[1]);
-  return horizontal * horizontalStepCost + vertical;
+  return horizontal * horizontalStepCost + vertical * VERTICAL_STEP_COST;
 }
 
 type OpenRouteEntry = {
@@ -211,15 +242,20 @@ function isTurn(a: Vec3, b: Vec3): boolean {
   return !vEq(a, b) && !vEq(a, vNeg(b));
 }
 
-function inSearchBounds(cell: Vec3, source: Port, target: Port): boolean {
+function inSearchBounds(
+  cell: Vec3,
+  source: Port,
+  target: Port,
+  reach: { yMin: number; yMax: number }
+): boolean {
   const xs = [source.cell[0], target.from[0], target.cell[0]];
   const ys = [source.cell[1], target.from[1], target.cell[1]];
   const zs = [source.cell[2], target.from[2], target.cell[2]];
   return (
     cell[0] >= Math.min(...xs) - SEARCH_MARGIN &&
     cell[0] <= Math.max(...xs) + SEARCH_MARGIN &&
-    cell[1] >= Math.min(...ys) - SEARCH_MARGIN &&
-    cell[1] <= Math.max(...ys) + SEARCH_MARGIN &&
+    cell[1] >= Math.min(Math.min(...ys) - SEARCH_MARGIN, reach.yMin) &&
+    cell[1] <= Math.max(Math.max(...ys) + SEARCH_MARGIN, reach.yMax) &&
     cell[2] >= Math.min(...zs) - SEARCH_MARGIN &&
     cell[2] <= Math.max(...zs) + SEARCH_MARGIN
   );
@@ -235,13 +271,37 @@ function bendCells(entryCell: Vec3, footprint: BendFootprint): Vec3[] {
   return cells.some((cell) => vEq(cell, exit)) ? cells : [...cells, exit];
 }
 
-function cellIsOpenForRoute(design: DesignState, cell: Vec3, goalCell: Vec3): boolean {
+function cellIsOpenForRoute(
+  design: DesignState,
+  cell: Vec3,
+  goalCell: Vec3,
+  band: RunBandVolume
+): boolean {
   if (!design.grid.withinBounds(cell)) return false;
   if (cell[1] < GROUND_PLANE_Y) return false;
+  if (band.closed?.(cell)) return false;
   if (vEq(cell, goalCell)) return true;
   return !design.grid.query(cell);
 }
 
+/**
+ * A bend is not held to `band.closed`, and its entry and exit cells — checked as
+ * ordinary cells — are what keep it honest.
+ *
+ * A bend's footprint is the square block its arc sweeps through, which is
+ * deliberately conservative everywhere else in the model. Held to a closed
+ * building it is too conservative to be useful: the turn from a riser 1 ft
+ * outside a 10 ft wall into a run at 11 ft has block cells inside the building
+ * below its roof, while the arc itself is already above 10 ft everywhere it
+ * overhangs the footprint. Rejecting it would leave a system beside a low
+ * building unable to climb over it at all — the very thing closing the building
+ * exists to make it do.
+ *
+ * A bend spans 3 ft, and its entry and exit both have to be outside, so what can
+ * fall inside is a corner of the building — or the whole of one at the 4 ft
+ * minimum the welcome screen allows. Neither is a horizontal run carried through
+ * the building, which is what the client's rule is about.
+ */
 function bendFits(design: DesignState, cells: Vec3[]): boolean {
   return cells.every(
     (cell) =>
@@ -250,15 +310,122 @@ function bendFits(design: DesignState, cells: Vec3[]): boolean {
 }
 
 /**
- * The plenum is a volume, not a Y range: the bands span the room's footprint,
- * and a cell outside the room at drop-ceiling height is just open air — the
- * bias must not credit it.
+ * How high a run climbs on its own when the room offers nothing to run under.
+ * The client's rule for a room with no plenum: at 12 ft or lower the run rides
+ * next to the ceiling, and in a taller room 12 ft is treated as a "ghost"
+ * ceiling and the run stays there. Anyone who needs more rise than that builds
+ * it by hand, which is what the "Auto-Build complete" box says.
+ *
+ * A client rule, not a figure from the PTS specification (ADR-0001).
  */
-type PlenumVolume = { rect: RoomRect; bands: PlenumBand[] };
+export const MAX_RUN_HEIGHT_FEET = 12;
 
-function inPlenum(plenum: PlenumVolume, cell: Vec3): boolean {
-  if (!inRoomFootprint(plenum.rect, cell)) return false;
-  return plenum.bands.some((band) => cell[1] >= band.base && cell[1] < band.top);
+/**
+ * Where a horizontal run belongs: the band itself, the footprint it spans and
+ * which of the client's cases produced it.
+ *
+ * A band is a volume, not a Y range — a cell outside the room at drop-ceiling
+ * height is just open air, and the bias must not credit it. Every design has a
+ * band: the plenum when there is one, and the ceiling or the ghost ceiling when
+ * there is not. A system that never touches the building gets the outdoor band
+ * instead — see {@link outsideRunBandVolume}.
+ *
+ * `bands` stays a list because the shape outlived the two-band case by a day and
+ * the outdoor band still uses it; today it holds exactly one entry.
+ *
+ * `closed` names cells the route may not use at all, and only the outdoor band
+ * sets it — see {@link outsideRunBandVolume}.
+ */
+type RunBand = { floor: 1 | 2; base: number; top: number };
+type RunBandVolume = {
+  kind: RunBandKind;
+  rect: RoomRect;
+  bands: RunBand[];
+  closed?: (cell: Vec3) => boolean;
+};
+
+/**
+ * Which floor's band carries the horizontal run: the upper one whenever the
+ * building has two, whichever floor the terminals stand on (ADR-0025).
+ */
+function runBandFloor(metadata: DesignMetadata): 1 | 2 {
+  return metadata.multiFloor ? 2 : 1;
+}
+
+export function runBandVolume(metadata: DesignMetadata): RunBandVolume {
+  const rect = roomRect(metadata);
+  const floor = runBandFloor(metadata);
+  const plenum = plenumBands(metadata).filter((band) => band.floor === floor);
+  if (plenum.length > 0) return { kind: "plenum", rect, bands: plenum };
+
+  // No plenum: the foot of air directly under that floor's ceiling, or under
+  // the ghost ceiling on a storey too tall for the real one. Either way it is
+  // measured from the floor's own level, so the cap is 12 ft above the storey
+  // rather than 12 ft above the ground.
+  const perFloor = metadata.room.height;
+  const runHeight = Math.min(perFloor, MAX_RUN_HEIGHT_FEET);
+  const top = floorBaseElevation(metadata, floor) + runHeight;
+  return {
+    kind: perFloor > MAX_RUN_HEIGHT_FEET ? "ghost-ceiling" : "ceiling",
+    rect,
+    bands: [{ floor, base: top - 1, top }]
+  };
+}
+
+/**
+ * The band for a system that never touches the building: the foot below
+ * {@link MAX_RUN_HEIGHT_FEET}, spanning the whole build area rather than the
+ * room's footprint. The client's rule — "If a system is 100% *outside* ...
+ * default linear run heights to 12 ft" — with no ceiling anywhere to measure
+ * against, so the room's own height gets no say.
+ *
+ * Over a building the band passes above, it closes that building to the route.
+ * The band is only a bias, and a bias loses: between two ports on the ground a
+ * few feet either side of a low building, four bends cost more than the penalty
+ * on a short run through it, so the route went straight through — and a route
+ * through the building is what puts the whole system back under the plenum
+ * rules. The system was demoted for a dip it never had to take. Closing the
+ * building makes the outdoor answer mean what ADR-0024 says it means: over the
+ * roof, or not outdoors at all. A building too tall to clear is left open,
+ * because there the dip is the honest answer and the demotion is correct.
+ */
+function outsideRunBandVolume(metadata: DesignMetadata): RunBandVolume {
+  const b = boundsFromBuildArea(BUILD_AREA);
+  const base = MAX_RUN_HEIGHT_FEET - 1;
+  return {
+    kind: "outside",
+    rect: { xMin: b.xMin, xMax: b.xMax, zMin: b.zMin, zMax: b.zMax },
+    bands: [{ floor: 1, base, top: MAX_RUN_HEIGHT_FEET }],
+    closed: roomHeightFeet(metadata) <= base ? (cell) => inRoomVolume(metadata, cell) : undefined
+  };
+}
+
+/**
+ * Whether any of these parts stands inside the building. The client draws the
+ * line at touching it at all: "If a system is built with any part under a
+ * ceiling, _OR_ an auto-build path routes through a building ... always obey
+ * routing through the plenum."
+ */
+function touchesBuilding(metadata: DesignMetadata, parts: readonly Part[]): boolean {
+  return parts.some((part) => partCells(part).some((cell) => inRoomVolume(metadata, cell)));
+}
+
+function inRunBand(volume: RunBandVolume, cell: Vec3): boolean {
+  if (!inRoomFootprint(volume.rect, cell)) return false;
+  return volume.bands.some((band) => cell[1] >= band.base && cell[1] < band.top);
+}
+
+/**
+ * The Y levels the search must be allowed to reach for the band to be usable at
+ * all. Search bounds are otherwise drawn around the endpoints, and a band 27 ft
+ * above two floor-level ports sat outside them: no cost model can prefer a
+ * route the search cannot see.
+ */
+function bandReach(volume: RunBandVolume): { yMin: number; yMax: number } {
+  return {
+    yMin: Math.min(...volume.bands.map((band) => band.base)),
+    yMax: Math.max(...volume.bands.map((band) => band.top - 1))
+  };
 }
 
 function arcCost(): number {
@@ -270,10 +437,11 @@ function neighbors(
   state: RouteState,
   source: Port,
   target: Port,
-  plenum: PlenumVolume | null
+  band: RunBandVolume,
+  reach: { yMin: number; yMax: number }
 ): Array<{ state: RouteState; edge: RouteEdge; cost: number; searchCost: number }> {
   const goalCell = target.from;
-  if (!cellIsOpenForRoute(design, state.cell, goalCell) && !vEq(state.cell, source.cell)) {
+  if (!cellIsOpenForRoute(design, state.cell, goalCell, band) && !vEq(state.cell, source.cell)) {
     return [];
   }
 
@@ -283,17 +451,19 @@ function neighbors(
   if (
     design.grid.withinBounds(state.cell) &&
     !design.grid.query(state.cell) &&
-    cellIsOpenForRoute(design, straightCell, goalCell) &&
-    inSearchBounds(straightCell, source, target)
+    cellIsOpenForRoute(design, straightCell, goalCell, band) &&
+    inSearchBounds(straightCell, source, target, reach)
   ) {
     const horizontal = state.dir[1] === 0;
-    const penalized = plenum !== null && horizontal && !inPlenum(plenum, straightCell);
+    const penalized = horizontal && !inRunBand(band, straightCell);
     const to = { cell: straightCell, dir: state.dir };
     result.push({
       state: to,
       edge: { kind: "straight", from: state, to },
       cost: 1,
-      searchCost: 1 + (penalized ? OUT_OF_PLENUM_STRAIGHT_PENALTY : 0)
+      searchCost: horizontal
+        ? 1 + (penalized ? OUT_OF_BAND_STRAIGHT_PENALTY : 0)
+        : VERTICAL_STEP_COST
     });
   }
 
@@ -306,19 +476,19 @@ function neighbors(
 
     const exitCell = vAdd(state.cell, footprint.exit);
     const exitPortCell = vAdd(exitCell, footprint.outDir);
-    if (!cellIsOpenForRoute(design, exitPortCell, goalCell)) continue;
-    if (!inSearchBounds(exitPortCell, source, target)) continue;
+    if (!cellIsOpenForRoute(design, exitPortCell, goalCell, band)) continue;
+    if (!inSearchBounds(exitPortCell, source, target, reach)) continue;
 
-    // A bend counts as in the plenum when any of its cells is: the bend that
+    // A bend counts as in the band when any of its cells is: the bend that
     // climbs out of a riser into the band straddles the boundary, and charging
     // it would tax exactly the turn the bias exists to encourage.
-    const penalized = plenum !== null && !cells.some((cell) => inPlenum(plenum, cell));
+    const penalized = !cells.some((cell) => inRunBand(band, cell));
     const to = { cell: exitPortCell, dir: footprint.outDir };
     result.push({
       state: to,
       edge: { kind: "bend", from: state, to, outDir: footprint.outDir },
       cost: arc,
-      searchCost: arc + BEND_SEARCH_PENALTY + (penalized ? OUT_OF_PLENUM_BEND_PENALTY : 0)
+      searchCost: arc + BEND_SEARCH_PENALTY + (penalized ? OUT_OF_BAND_BEND_PENALTY : 0)
     });
   }
   return result;
@@ -332,16 +502,15 @@ function routeBetween(
   design: DesignState,
   source: Port,
   target: Port,
-  plenum: PlenumVolume | null,
+  band: RunBandVolume,
   maxExpansions: number
 ): RouteOutcome {
   const goal: RouteState = { cell: target.from, dir: vNeg(target.dir) };
   const start: RouteState = { cell: source.cell, dir: source.dir };
+  const reach = bandReach(band);
   // What a horizontal foot is charged where the search currently stands.
-  // Without a plenum nothing is penalized anywhere and a foot costs a foot,
-  // which is the estimate this used before the bias existed.
   const horizontalStepCost = (cell: Vec3): number =>
-    plenum !== null && !inPlenum(plenum, cell) ? 1 + OUT_OF_PLENUM_STRAIGHT_PENALTY : 1;
+    inRunBand(band, cell) ? 1 : 1 + OUT_OF_BAND_STRAIGHT_PENALTY;
   const open: OpenRouteEntry[] = [];
   let sequence = 0;
   pushOpenEntry(open, {
@@ -378,7 +547,7 @@ function routeBetween(
       };
     }
 
-    for (const next of neighbors(design, current.state, source, target, plenum)) {
+    for (const next of neighbors(design, current.state, source, target, band, reach)) {
       const nextKey = stateKey(next.state);
       const nextSearchCost = currentSearchCost + next.searchCost;
       if (nextSearchCost >= (searchCostByKey.get(nextKey) ?? Number.POSITIVE_INFINITY)) continue;
@@ -483,7 +652,7 @@ function planBestRoute(
   design: DesignState,
   oriented: { source: Port; target: Port },
   pool: Port[],
-  plenum: PlenumVolume | null,
+  band: RunBandVolume,
   maxExpansions: number
 ): { best: PlannedBest | null; hitSearchLimit: boolean } {
   const sourceOptions = pool.filter((p) => p.partId === oriented.source.partId);
@@ -498,8 +667,8 @@ function planBestRoute(
       if (s.partId === t.partId) continue;
       const candidates: PlannedBest[] = [];
       for (const [from, to, outcome] of [
-        [s, t, routeBetween(design, s, t, plenum, maxExpansions)] as const,
-        [t, s, routeBetween(design, t, s, plenum, maxExpansions)] as const
+        [s, t, routeBetween(design, s, t, band, maxExpansions)] as const,
+        [t, s, routeBetween(design, t, s, band, maxExpansions)] as const
       ]) {
         if (outcome.kind === "route")
           candidates.push({ route: outcome.route, source: from, target: to });
@@ -547,7 +716,11 @@ function commitRoute(design: DesignState, route: PlannedRoute): CommitRouteResul
       i--;
 
       while (runLength > 0) {
-        const length = runLength >= 6 ? 6 : 1;
+        // Full stock lengths, then the remainder as one cut piece. Cutting the
+        // remainder into 1 ft pieces would place the same footage, but each
+        // abutment between them is a real joint, and a joint earns a split
+        // sleeve — so a 4 ft rise came back wearing a sleeve every foot.
+        const length = Math.min(runLength, 6);
         const result = placeTube(currentDesign, {
           id: nextRouteId(existingIds),
           cell: currentCell,
@@ -593,15 +766,19 @@ function commitRoute(design: DesignState, route: PlannedRoute): CommitRouteResul
   return { ok: true, design: currentDesign, parts: placed, cost: route.cost };
 }
 
-export function autoBuildOpenPortPair(
+/**
+ * Auto-Build, once, under one band.
+ *
+ * The band is fixed for the whole build rather than chosen per pair, because
+ * the client's rule is about the system: one run touching the building puts
+ * every run under the plenum rules.
+ */
+function buildUnderBand(
   design: DesignState,
-  options: AutoBuildOptions = {}
+  band: RunBandVolume,
+  budget: number,
+  maxExpansions: number
 ): AutoBuildPathResult {
-  const budget = options.maxBudgetFeet ?? MAX_CENTERLINE_FEET;
-  const maxExpansions = options.maxExpansions ?? MAX_ROUTE_EXPANSIONS;
-  const bands = plenumBands(design.metadata);
-  const plenum: PlenumVolume | null =
-    bands.length > 0 ? { rect: roomRect(design.metadata), bands } : null;
   const existingLength = totalPathLength(design);
 
   let currentDesign = design;
@@ -619,7 +796,7 @@ export function autoBuildOpenPortPair(
       currentDesign,
       oriented,
       pool,
-      plenum,
+      band,
       maxExpansions
     );
     if (!best) {
@@ -667,6 +844,46 @@ export function autoBuildOpenPortPair(
     design: currentDesign,
     parts: allParts,
     cost: addedCost,
-    unroutedPairs
+    unroutedPairs,
+    runBand: band.kind
   };
+}
+
+export function autoBuildOpenPortPair(
+  design: DesignState,
+  options: AutoBuildOptions = {}
+): AutoBuildPathResult {
+  const budget = options.maxBudgetFeet ?? MAX_CENTERLINE_FEET;
+  const maxExpansions = options.maxExpansions ?? MAX_ROUTE_EXPANSIONS;
+
+  // Which band applies is the client's two-part test, and its second half is
+  // only answerable once the routes exist: a system whose parts all stand
+  // outdoors may still route straight through the building — two terminals
+  // either side of one — and that puts it back under the plenum rules.
+  if (!touchesBuilding(design.metadata, design.parts)) {
+    const band = outsideRunBandVolume(design.metadata);
+    const outdoors = buildUnderBand(design, band, budget, maxExpansions);
+    // Over a building the run passes above, the band closes it and the route
+    // could not have gone through, so there is nothing left to test: a bend may
+    // still overhang a corner of the footprint, but only above the roof, where
+    // its block of cells is wider than the arc inside it. Over one too tall to
+    // clear the building stays open, and what was built is the only answer to
+    // whether the route went through it.
+    if (
+      outdoors.ok &&
+      (band.closed !== undefined || !touchesBuilding(design.metadata, outdoors.parts))
+    ) {
+      if (outdoors.unroutedPairs.length === 0) return outdoors;
+      // A pair whose only path is through a closed building comes back
+      // unrouted, where the plenum rules would have joined it by going inside.
+      // Run height is not worth a connection, so ask for the indoor build and
+      // keep whichever joins more of the system.
+      const indoors = buildUnderBand(design, runBandVolume(design.metadata), budget, maxExpansions);
+      return indoors.ok && indoors.unroutedPairs.length < outdoors.unroutedPairs.length
+        ? indoors
+        : outdoors;
+    }
+  }
+
+  return buildUnderBand(design, runBandVolume(design.metadata), budget, maxExpansions);
 }

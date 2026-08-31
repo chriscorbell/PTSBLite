@@ -7,6 +7,7 @@ import {
   roomRect
 } from "@/domain/floors";
 import { hasPedestal, pedestalCells } from "@/domain/pedestal";
+import { terminalCells } from "@/domain/terminal";
 import { computeTopology, type Port } from "@/domain/topology";
 import { tubeCells } from "@/domain/vec3";
 import type { DesignMetadata, DesignState, Ghost, Obstacle, Part, ToolId, Vec3 } from "@/types";
@@ -163,13 +164,18 @@ function partMarkerAnchor(part: Part): Vec3 {
  * asked for them "off to the side of the thing they're denoting". Sprites face
  * the camera, so the offset is diagonal in X and Z: whichever way the view is
  * turned, the label lands beside the part rather than across it.
+ *
+ * Pushed out from 0.95 once the marker itself shrank, on the same request:
+ * "if they were smaller and more offset, we could reduce the collisions and
+ * view issues". The aside is more than a cell, so the whole label clears the
+ * cell it belongs to from any orbit rather than merely overhanging it.
  */
 function offsetAside(at: Vec3): Vec3 {
   return [at[0] + MARKER_ASIDE, at[1] + MARKER_LIFT, at[2] + MARKER_ASIDE];
 }
 
-const MARKER_ASIDE = 0.95;
-const MARKER_LIFT = 0.55;
+const MARKER_ASIDE = 1.6;
+const MARKER_LIFT = 0.9;
 
 /** The elevation a part reads as, matching where {@link partMarkerAnchor} puts it. */
 function partElevation(part: Part): number {
@@ -313,8 +319,9 @@ function partFootprint(part: Part): Vec3[] {
   if (hasPedestal(part)) return [part.cell, ...pedestalCells(part.cell, part.pedestalFeet)];
   switch (part.type) {
     case "blower":
-    case "terminal":
       return [part.cell];
+    case "terminal":
+      return terminalCells(part.cell);
     case "tube":
       return tubeCells(part.from, part.to);
     case "bend":
@@ -330,7 +337,7 @@ function ghostFootprint(ghost: Ghost): Vec3[] {
         ? [ghost.cell]
         : [ghost.cell, ...pedestalCells(ghost.cell, ghost.pedestalFeet)];
     case "terminal":
-      return [ghost.cell];
+      return terminalCells(ghost.cell);
     case "tube":
       return tubeCells(ghost.from, ghost.to);
     case "bend":

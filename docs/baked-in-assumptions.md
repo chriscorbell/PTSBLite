@@ -30,6 +30,14 @@ convenience.*
 **Axis-aligned routing only.** Ports face one of six directions; the pathfinder expands along axes.
 Diagonal or free-angle runs are not expressible.
 
+**A part's own size is geometry in code, not a catalog field.** A blower is one cell; a terminal is
+one cell square and two tall ([ADR-0021](adr/0021-a-terminal-is-two-feet-tall.md)). The catalog's
+`cells` is a count the geometry is checked against, not a shape it is built from, and no field
+describes a footprint's dimensions — so a third endpoint of some other size means new geometry
+alongside `terminal.ts`, not a catalog edit. Nothing is stored on the part either: height comes
+from the type, which is what keeps `partCells` a pure function of the part and lets a design saved
+before a size change be re-read against the new one.
+
 **One bend geometry: 90°, 3 ft radius.** A second radius or a 45° bend needs new catalog entries and
 new footprint generation. See [ADR-0005](adr/0005-defer-the-bend-geometry-model.md).
 
@@ -79,6 +87,15 @@ a bracket, a wall mount — would be another property on another part rather tha
 model already has. The mast measures to the floor of the storey and is refused when something is in
 that column; it does not stand on an obstacle, and it does not follow a blower that is later
 re-elevated, because placed parts cannot be moved at all (see *Selection and move*).
+
+**Split sleeves are derived on every read, and the rule that places them is in code.** Sleeves are
+not in `parts` and not in the saved design: `splitSleeves` recomputes them from the joints
+([ADR-0022](adr/0022-split-sleeves-are-derived-not-placed.md)). The upside is that they can never
+disagree with the run they sit on and that changing the rule re-sleeves every existing design; the
+cost is that nothing can hold a sleeve the rule would not produce. Moving one, deleting one, adding
+one where an installer would want it, or a design that records the sleeves as they were actually
+fitted — all of those need sleeves to become occupants, not a spacing tweak. The client set the
+spacing himself and knows it produces a 1 ft gap at the end of an odd run.
 
 **A design's geometry answers are fixed once it is created.** The room, and the multi-floor
 and plenum answers, are collected on the welcome screen and cannot be changed afterwards. Changing
@@ -149,11 +166,18 @@ View menu snaps to one of five named angles or back to the opening framing
 distance numerically, and the five angles are constants — they are also what the exported PDF is
 rendered from, so changing the list changes every document.
 
-**The plenum preference is a fixed bias, not a setting.** Auto-Build charges horizontal feet and
-bends outside the plenum extra during the search (`pathfinder.ts`), so long runs ride the band and
-short hops stay direct. The penalty weights are constants; nothing on screen exposes or tunes
-them, and a route through the plenum genuinely is longer — the detour's feet count against the
-300 ft cap like any others.
+**Where a horizontal run belongs is a fixed rule, not a setting.** Auto-Build charges horizontal
+feet and bends outside the run band extra during the search (`pathfinder.ts`), and every design has
+a band: the plenum, the ceiling of a room 12 ft or lower, or a 12 ft ghost ceiling in a taller one
+(ADR-0023) — or, for a system that never touches the building, 12 ft out in the open (ADR-0024),
+which also means such a system goes over a building it can clear rather than through it, and a
+terminal closer to a wall than a bend can turn in cannot be given that height at all. A
+two-floor building has one band, upstairs, wherever its parts stand (ADR-0025), so there is no way
+to keep a run downstairs and no way to give a route two heights along its length.
+The weights and the 12 ft are constants; nothing on screen exposes or tunes them, and a
+banded route genuinely is longer — the climb's feet count against the 300 ft cap like any others.
+The visitor cannot ask for a run at some other height, or for a flat one; more rise than the band
+allows is built by hand.
 
 **Any collaboration, cloud, account, or telemetry surface.** Deliberately. PTSBLite is
 served as static files with a `connect-src 'none'` policy: nothing it does reaches the network

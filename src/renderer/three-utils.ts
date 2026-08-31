@@ -13,8 +13,14 @@ import type { Vec3 } from "@/types";
 
 export const VP = {
   bg: 0x0b0e13,
-  grid: 0x1f2530,
-  gridStrong: 0x2a3140,
+  // The grid lines and the scenery drawn over them (walls, ceiling, the slab
+  // between floors) used to share one color, which is why the grid vanished
+  // under a wall: the lines and the wash over them were the same shade. They
+  // are separate now, and the grid is pitched to hold its contrast against the
+  // room's floor seen through two translucent walls at once.
+  grid: 0x2e3746,
+  gridMajor: 0x4a5570,
+  structure: 0x2a3140,
   ground: 0x10141b,
   // The room's floor, a step brighter than the ground outside it so the room
   // reads as a place without shouting over the parts placed in it.
@@ -30,6 +36,10 @@ export const VP = {
   tube: 0x8e96a5,
   tubeEdge: 0xb8bfcd,
   bend: 0x8e96a5,
+  // A split sleeve is much darker than the tube it wraps, which is what makes a
+  // joint read as a joint from across the room rather than as a bulge.
+  sleeve: 0x1c2129,
+  sleeveBolt: 0x99a3b4,
   obstacle: 0xc23a48,
   obstaclePenetrable: 0x5b8fd9,
   port: 0x5eead4
