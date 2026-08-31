@@ -28,6 +28,12 @@ import { cellCenter, dirOf, cellAt, vAdd, vNeg, vScale, vSub } from "@/domain/ve
  * no pair of neighbouring sleeves on a connected run can be further apart.
  * `split-sleeve.test.ts` asserts that rather than trusting the arithmetic here.
  *
+ * Because a joint is what earns a sleeve, how a run is *cut* decides how many
+ * collars appear on it. Auto-Build lays full stock lengths and then cuts the
+ * remainder once (`pathfinder.ts`); when it cut the remainder into 1 ft pieces
+ * instead, every abutment was a genuine joint and a short rise wore a sleeve
+ * every foot. The fault was there, not in the two rules here.
+ *
  * A remainder falls at the far end, which the client called for by name: seven
  * feet of tube gets sleeves at 0, 6 and 7 ft, so "one end look[s] normal and
  * the other end just has two couplings 1 grid unit (foot) apart. This wouldn't

@@ -8,6 +8,7 @@ import {
   runBandVolume
 } from "@/domain/pathfinder";
 import { GROUND_PLANE_Y } from "@/domain/sparse-grid";
+import { splitSleeveCount } from "@/domain/split-sleeve";
 import { placeTube } from "@/domain/tube-placement";
 import { isAutoBuildPart, totalPathLength } from "@/domain/parts";
 import type { DesignState, Obstacle, Part, Vec3 } from "@/types";
@@ -105,7 +106,25 @@ describe("Pathfinder MVP", () => {
     });
   });
 
-  it("emits 6ft stock tubes where possible and 1ft cut tubes at seams", () => {
+  it("emits 6ft stock tubes where possible and cuts the remainder once", () => {
+    const result = autoBuildOpenPortPair(designWith(basicParts([17, 0, 0])));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const tubeLengths = result.parts
+      .filter((part) => part.type === "tube")
+      .map((part) => part.length);
+    // The remainder used to come out as 1 ft pieces — [6, 6, 1, 1, 1] here.
+    // Same footage and the same route, but every abutment between them is a
+    // real joint, and a joint wears a split sleeve. The client saw the result:
+    // four sleeves in a row above a bend, and a sleeve every foot on a rise
+    // shorter than one stock length.
+    expect(tubeLengths).toEqual([6, 6, 3]);
+    expect(totalPathLength(result.design)).toBe(15);
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("still cuts a 1 ft remainder where the run calls for one", () => {
     const result = autoBuildOpenPortPair(designWith(basicParts([15, 0, 0])));
 
     expect(result.ok).toBe(true);
@@ -113,9 +132,23 @@ describe("Pathfinder MVP", () => {
     const tubeLengths = result.parts
       .filter((part) => part.type === "tube")
       .map((part) => part.length);
+    // The case the client asked for by name: the far end "just has two
+    // couplings 1 grid unit (foot) apart. This wouldn't happen in real life but
+    // I knew this question might come up."
     expect(tubeLengths).toEqual([6, 6, 1]);
     expect(totalPathLength(result.design)).toBe(13);
     expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("sleeves a cut run at its joints and nowhere else", () => {
+    // Why the two rows above are about tube lengths at all. Sleeves are derived
+    // from joints, so how Auto-Build chooses to cut a run is what decides how
+    // many collars the client sees on it.
+    const result = autoBuildOpenPortPair(designWith(basicParts([17, 0, 0])));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(splitSleeveCount(result.design)).toBe(5);
   });
 });
 
