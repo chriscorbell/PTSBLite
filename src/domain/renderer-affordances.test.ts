@@ -4,7 +4,7 @@ import {
   floorShadows,
   ghostElevation,
   heightMarkers,
-  heightMarkersFollowTool,
+  heightMarkersAutomatic,
   heightMarkersVisible,
   placedPartShadows
 } from "@/domain/renderer-affordances";
@@ -15,37 +15,54 @@ describe("when height markers show", () => {
     // The client asked for markers that "auto toggle on when you are elevating
     // something"; arming a tool that places is when elevation starts mattering.
     for (const tool of ["blower", "terminal", "tube", "bend", "obstacle"] as const) {
-      expect(heightMarkersVisible(tool)).toBe(true);
+      expect(heightMarkersVisible({ tool })).toBe(true);
     }
   });
 
   it("hides them for tools that place nothing", () => {
-    expect(heightMarkersVisible("cursor")).toBe(false);
-    expect(heightMarkersVisible("erase")).toBe(false);
+    expect(heightMarkersVisible({ tool: "cursor" })).toBe(false);
+    expect(heightMarkersVisible({ tool: "erase" })).toBe(false);
+  });
+
+  it("keeps them once Auto-Build has placed a run", () => {
+    // The client: "When auto-build is used, height markers disappear. Make them
+    // stay." Auto-Build disarms the tool as it finishes, so following the tool
+    // alone put the markers out over a screenful of new parts.
+    expect(heightMarkersVisible({ tool: "cursor", autoBuilt: true })).toBe(true);
+    expect(heightMarkersVisible({ tool: "erase", autoBuilt: true })).toBe(true);
   });
 
   it("shows them for any tool once the View menu turns them on", () => {
     // The client asked for the automatic behaviour *and* a manual override.
-    expect(heightMarkersVisible("cursor", true)).toBe(true);
-    expect(heightMarkersVisible("erase", true)).toBe(true);
+    expect(heightMarkersVisible({ tool: "cursor" }, true)).toBe(true);
+    expect(heightMarkersVisible({ tool: "erase" }, true)).toBe(true);
   });
 
   it("hides them for a placement tool once the View menu turns them off", () => {
-    expect(heightMarkersVisible("blower", false)).toBe(false);
+    expect(heightMarkersVisible({ tool: "blower" }, false)).toBe(false);
+  });
+
+  it("lets the View menu turn off an Auto-Build run's markers too", () => {
+    // Auto-Build does not turn them off on the visitor's behalf, and does not
+    // turn them back on over an answer he gave: the tick is his either way.
+    expect(heightMarkersVisible({ tool: "cursor", autoBuilt: true }, false)).toBe(false);
   });
 
   it("follows the tool again once the override is spent", () => {
-    expect(heightMarkersVisible("blower", null)).toBe(true);
-    expect(heightMarkersVisible("cursor", null)).toBe(false);
+    expect(heightMarkersVisible({ tool: "blower" }, null)).toBe(true);
+    expect(heightMarkersVisible({ tool: "cursor" }, null)).toBe(false);
   });
 
   it("says what the app would decide on its own, so callers can spot a toggle", () => {
     // The override lasts until this value changes: arming or disarming a
-    // placement tool is the automatic toggle that takes control back.
-    expect(heightMarkersFollowTool("blower")).toBe(true);
-    expect(heightMarkersFollowTool("tube")).toBe(true);
-    expect(heightMarkersFollowTool("cursor")).toBe(false);
-    expect(heightMarkersFollowTool("erase")).toBe(false);
+    // placement tool is the automatic toggle that takes control back. Finishing
+    // an Auto-Build is not one — the value it decides is true either side of it.
+    expect(heightMarkersAutomatic({ tool: "blower" })).toBe(true);
+    expect(heightMarkersAutomatic({ tool: "tube" })).toBe(true);
+    expect(heightMarkersAutomatic({ tool: "cursor" })).toBe(false);
+    expect(heightMarkersAutomatic({ tool: "erase" })).toBe(false);
+    expect(heightMarkersAutomatic({ tool: "tube", autoBuilt: true })).toBe(true);
+    expect(heightMarkersAutomatic({ tool: "cursor", autoBuilt: true })).toBe(true);
   });
 });
 
