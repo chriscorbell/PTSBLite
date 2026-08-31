@@ -17,7 +17,7 @@ import {
   moveViewportDrag,
   partIdForObject
 } from "@/renderer/interaction";
-import { clearGroup } from "@/renderer/three-utils";
+import { clearGroup, VP } from "@/renderer/three-utils";
 import {
   cameraFarPlane,
   heightMarkerScale,
@@ -269,6 +269,25 @@ describe("split sleeve mesh", () => {
     const mesh = buildSplitSleeveMesh([2, 0.5, 0.5], [1, 0, 0]);
     expect(partIdForObject(mesh)).toBeUndefined();
     for (const child of mesh.children) expect(partIdForObject(child)).toBeUndefined();
+  });
+
+  it("reads as the tube's grey, a hair darker", () => {
+    // The client's own description of the real hardware: the same shade as the
+    // tube, just a hair darker. An earlier sleeve was near-black, so this pins
+    // both halves — close enough to be the same material, dark enough to see.
+    const lightnessOf = (hex: number): number =>
+      new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }).l;
+    const sleeve = lightnessOf(VP.sleeve);
+    const tube = lightnessOf(VP.tube);
+    expect(sleeve).toBeLessThan(tube);
+    expect(tube - sleeve).toBeLessThan(0.1);
+    // And the same finish, or the shading reintroduces the gap the colour closed.
+    const shell = buildSplitSleeveMesh([2, 0.5, 0.5], [1, 0, 0]).children[0] as THREE.Mesh<
+      THREE.BufferGeometry,
+      THREE.MeshStandardMaterial
+    >;
+    expect(shell.material.metalness).toBe(0.25);
+    expect(shell.material.roughness).toBe(0.45);
   });
 });
 

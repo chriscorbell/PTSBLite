@@ -449,11 +449,16 @@ const SLEEVE_R = TUBE_R + 0.045;
 /**
  * A split sleeve: the bolted collar that joins one piece of tube to the next.
  *
- * Modelled from the Kel2020 media the client pointed at — a dark band a little
- * wider than the tube and about a diameter long, split along its length and
- * closed by a raised pair of flanges carrying three bolts. The shell is open at
- * both ends because it wraps a tube rather than capping it: the run stays
- * visible running through it.
+ * Modelled from the Kel2020 media the client pointed at — a band a little wider
+ * than the tube and about a diameter long, split along its length and closed by
+ * a raised pair of flanges carrying three bolts. The shell is open at both ends
+ * because it wraps a tube rather than capping it: the run stays visible running
+ * through it.
+ *
+ * Shell and flange take the tube's own finish, not just a colour near it. A
+ * standard material with no environment map loses diffuse as metalness rises,
+ * so a sleeve finished more metallic than the tube renders darker than its hex
+ * suggests — which is what made these read as a different material.
  *
  * Built along +Y like every cylinder here and turned onto the run's axis by the
  * caller's `along`. A real sleeve can be clocked any way round the tube the
@@ -470,18 +475,15 @@ export function buildSplitSleeveMesh(at: Vec3, along: Vec3): THREE.Group {
   const g = new THREE.Group();
   const body = new THREE.MeshStandardMaterial({
     color: VP.sleeve,
-    roughness: 0.5,
-    metalness: 0.5
+    roughness: 0.45,
+    metalness: 0.25
   });
   const shell = new THREE.Mesh(
     new THREE.CylinderGeometry(SLEEVE_R, SLEEVE_R, SLEEVE_LENGTH, 16, 1, true),
     body
   );
   g.add(shell);
-  const flange = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, SLEEVE_LENGTH * 0.94, 0.05),
-    new THREE.MeshStandardMaterial({ color: VP.sleeve, roughness: 0.5, metalness: 0.5 })
-  );
+  const flange = new THREE.Mesh(new THREE.BoxGeometry(0.1, SLEEVE_LENGTH * 0.94, 0.05), body);
   flange.position.x = SLEEVE_R + 0.04;
   g.add(flange);
   const boltGeom = new THREE.CylinderGeometry(0.019, 0.019, 0.11, 8);

@@ -48,9 +48,10 @@ export const VP = {
   tube: 0x8e96a5,
   tubeEdge: 0xb8bfcd,
   bend: 0x8e96a5,
-  // A split sleeve is much darker than the tube it wraps, which is what makes a
-  // joint read as a joint from across the room rather than as a bulge.
-  sleeve: 0x1c2129,
+  // A split sleeve is the same grey as the tube it wraps, a hair darker: the
+  // real collar is the same material as the tube, so what makes a joint read as
+  // a joint is its raised bolted flange, not a change of colour.
+  sleeve: 0x7e8693,
   sleeveBolt: 0x99a3b4,
   obstacle: 0xc23a48,
   obstaclePenetrable: 0x5b8fd9,
