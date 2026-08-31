@@ -180,7 +180,9 @@ a band: the plenum, the ceiling of a room 12 ft or lower, or a 12 ft ghost ceili
 which also means such a system goes over a building it can clear rather than through it, and a
 terminal closer to a wall than a bend can turn in cannot be given that height at all. A
 two-floor building has one band, upstairs, wherever its parts stand (ADR-0025), so there is no way
-to keep a run downstairs and no way to give a route two heights along its length.
+to keep a run downstairs. A route does get two heights along its length, but only the one split the
+building makes: the band inside the room's footprint and the lower of the 1st floor's ceiling and
+12 ft outside it (ADR-0028). Neither is chooseable, and there is no third.
 The weights and the 12 ft are constants; nothing on screen exposes or tunes them, and a
 banded route genuinely is longer — the climb's feet count against the 300 ft cap like any others.
 The visitor cannot ask for a run at some other height, or for a flat one; more rise than the band

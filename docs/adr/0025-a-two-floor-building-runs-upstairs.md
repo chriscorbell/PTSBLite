@@ -48,10 +48,11 @@ building still runs at 12 ft outdoors ([ADR-0024](0024-a-system-outside-the-buil
 
 ## Still open
 
-A terminal placed *outside* a two-storey building should, per the client, carry its outdoor length
-at the lower of the 1st floor's ceiling and 12 ft and only adopt the upstairs band once the route is
-inside the footprint. That is two run heights on one route, which this model cannot express: outside
-the room's footprint nothing is credited at all. It is a separate card and a separate decision.
+Nothing. A terminal placed *outside* a two-storey building was left open here — the client wants its
+outdoor length carried at the lower of the 1st floor's ceiling and 12 ft, adopting the upstairs band
+only once the route is inside the footprint, and one band per design could not express two run
+heights on one route. [ADR-0028](0028-a-run-carries-two-heights-across-the-wall.md) settles it by
+giving the band a side.
 
 ## What the visitor is told
 

@@ -333,33 +333,38 @@ describe("where a horizontal run belongs", () => {
   // The client's three cases, in his order: a plenum is used whenever there is
   // one, however high the ceiling; without one the run rides next to a ceiling
   // of 12 ft or lower; and a taller room is routed under a ghost ceiling at
-  // 12 ft instead.
+  // 12 ft instead. Each answer is the band *inside* the footprint; the second
+  // band in every list is the outdoor one, asserted on its own below.
   const bandOf = (room: { width: number; depth: number; height: number }, plenum: number | null) =>
     runBandVolume({ room, multiFloor: false, plenumHeightFeet: plenum });
+  const inside = (volume: { bands: Array<{ side: string }> }) =>
+    volume.bands.filter((band) => band.side === "inside");
+  const outside = (volume: { bands: Array<{ side: string }> }) =>
+    volume.bands.filter((band) => band.side === "outside");
 
   it("uses the plenum whenever the design has one", () => {
     const shallow = bandOf({ width: 60, depth: 60, height: 8 }, 4);
     const tall = bandOf({ width: 60, depth: 60, height: 30 }, 3);
 
     expect(shallow.kind).toBe("plenum");
-    expect(shallow.bands).toEqual([{ floor: 1, base: 4, top: 8 }]);
+    expect(inside(shallow)).toEqual([{ floor: 1, base: 4, top: 8, side: "inside" }]);
     // The same answer 22 ft higher: nothing about the room talks it out of it.
     expect(tall.kind).toBe("plenum");
-    expect(tall.bands).toEqual([{ floor: 1, base: 27, top: 30 }]);
+    expect(inside(tall)).toEqual([{ floor: 1, base: 27, top: 30, side: "inside" }]);
   });
 
   it("runs next to the ceiling of a room 12 ft or lower with no plenum", () => {
     const band = bandOf({ width: 60, depth: 60, height: MAX_RUN_HEIGHT_FEET }, null);
 
     expect(band.kind).toBe("ceiling");
-    expect(band.bands).toEqual([{ floor: 1, base: 11, top: 12 }]);
+    expect(inside(band)).toEqual([{ floor: 1, base: 11, top: 12, side: "inside" }]);
   });
 
   it("runs under a 12 ft ghost ceiling in a taller room with no plenum", () => {
     const band = bandOf({ width: 60, depth: 60, height: MAX_RUN_HEIGHT_FEET + 1 }, null);
 
     expect(band.kind).toBe("ghost-ceiling");
-    expect(band.bands).toEqual([{ floor: 1, base: 11, top: 12 }]);
+    expect(inside(band)).toEqual([{ floor: 1, base: 11, top: 12, side: "inside" }]);
   });
 
   it("puts a two-floor room's band upstairs, and only upstairs", () => {
@@ -370,9 +375,27 @@ describe("where a horizontal run belongs", () => {
     });
 
     // The client's rule: with two floors the linear run ignores the 1st floor's
-    // ceiling entirely. One band, 12 ft above the *2nd* floor's own level —
-    // measured from the slab at 31, not from the ground (ADR-0025).
-    expect(band.bands).toEqual([{ floor: 2, base: 42, top: 43 }]);
+    // ceiling entirely. One band inside the building, 12 ft above the *2nd*
+    // floor's own level — measured from the slab at 31, not from the ground
+    // (ADR-0025).
+    expect(inside(band)).toEqual([{ floor: 2, base: 42, top: 43, side: "inside" }]);
+  });
+
+  it("carries the run outdoors at the lower of the 1st floor's ceiling and 12 ft", () => {
+    // ADR-0028. Outside the footprint there is no plenum and no ceiling, so the
+    // band is the 1st floor's own height, capped at MAX_RUN_HEIGHT_FEET — and it
+    // is the 1st floor's whatever the building does upstairs.
+    const low = bandOf({ width: 60, depth: 60, height: 8 }, 4);
+    const tall = bandOf({ width: 60, depth: 60, height: 30 }, 3);
+    const twoFloor = runBandVolume({
+      room: { width: 60, depth: 60, height: 30 },
+      multiFloor: true,
+      plenumHeightFeet: null
+    });
+
+    expect(outside(low)).toEqual([{ floor: 1, base: 7, top: 8, side: "outside" }]);
+    expect(outside(tall)).toEqual([{ floor: 1, base: 11, top: 12, side: "outside" }]);
+    expect(outside(twoFloor)).toEqual([{ floor: 1, base: 11, top: 12, side: "outside" }]);
   });
 });
 
@@ -486,6 +509,55 @@ describe("Pathfinder run band preference", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.runBand).toBe("plenum");
+    expect(routeWarnings(result.design)).toEqual([]);
+  });
+
+  it("runs low outdoors and climbs to the upstairs band once inside the building", () => {
+    // The client's case for a terminal outside a two-storey building, in his
+    // words: "rise to 1st floor ceiling height at 12ft - whichever is shorter",
+    // carry the outdoor length there, and "once inside the building ... rise to
+    // the 2nd floor plenum or ceiling". Two heights on one run (ADR-0028).
+    //
+    // The room spans X -20..20, its 2nd floor plenum is Y 22..25, and the
+    // outdoor band is the foot below 12.
+    const twoFloor = {
+      room: { width: 40, depth: 40, height: 12 },
+      multiFloor: true,
+      plenumHeightFeet: 3
+    };
+    const straddling: Part[] = [
+      { id: "b1", type: "blower", cell: [40, 0, 0], dir: [1, 0, 0] },
+      { id: "t1", type: "terminal", cell: [41, 0, 0], axis: [1, 0, 0] },
+      { id: "t2", type: "terminal", cell: [0, 0, 0], axis: [1, 0, 0] }
+    ];
+    const result = autoBuildOpenPortPair(
+      designFromScene({ parts: straddling, obstacles: [] }, twoFloor)
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.runBand).toBe("plenum");
+
+    const horizontals = result.parts.flatMap((part) =>
+      part.type === "tube" && part.from[1] === part.to[1]
+        ? [
+            {
+              level: part.from[1] - 0.5,
+              xMin: Math.min(part.from[0], part.to[0]),
+              xMax: Math.max(part.from[0], part.to[0])
+            }
+          ]
+        : []
+    );
+    const outdoors = horizontals.filter((run) => run.xMin > 20);
+    const indoors = horizontals.filter((run) => run.xMax < 20);
+
+    // The whole outdoor leg carries at 11 — it used to climb to the upstairs
+    // height out in the open air, before the route ever reached the building.
+    expect(outdoors.length).toBeGreaterThan(0);
+    expect(outdoors.every((run) => run.level === MAX_RUN_HEIGHT_FEET - 1)).toBe(true);
+    // The crossing of the building itself is in the 2nd floor plenum.
+    expect(indoors.map((run) => run.level)).toContain(22);
     expect(routeWarnings(result.design)).toEqual([]);
   });
 
