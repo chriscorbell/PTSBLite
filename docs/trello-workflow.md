@@ -137,7 +137,9 @@ A card already sitting in In Progress belongs to another live run; leave it alon
 are step 3's job, and it returns them to Ready rather than adopting them mid-flight.
 
 Then the normal repository workflow from AGENTS.md: branch, implement, `pnpm run check` green,
-PR titled after the card and linking it. Merge once verify is green: `gh pr checks --watch`,
+PR titled after the card and linking it. Create the branch yourself (`git checkout -b`) and name
+it after the work, kebab-case (`room-tool`, `plenum-bias-fix`) — never a platform-assigned
+`claude/...` name. Merge once verify is green: `gh pr checks --watch`,
 then `gh pr merge --squash`. Main requires branches to be up to date, so if the merge is
 rejected because another PR landed first: `gh pr update-branch`, wait for verify again, merge.
 
